@@ -270,97 +270,104 @@ require_once __DIR__ . '/includes/header.php';
                         <?php endif; ?>
                     </td>
                 </tr>
-
-                <!-- Edit Modal -->
-                <div class="modal fade" id="editModal<?= $op['source'] ?>_<?= $op['id'] ?>" tabindex="-1">
-                    <div class="modal-dialog">
-                        <form method="POST" action="operators.php" class="modal-content">
-                            <?= csrfField() ?>
-                            <input type="hidden" name="action" value="edit_role">
-                            <input type="hidden" name="id" value="<?= $op['id'] ?>">
-                            <input type="hidden" name="source" value="<?= $op['source'] ?>">
-                            <div class="modal-header">
-                                <h6 class="modal-title fw-bold">Edit Operator: <?= htmlspecialchars($op['username']) ?></h6>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="mb-3">
-                                    <label class="form-label small fw-semibold">Role Permissions</label>
-                                    <select name="role" class="form-select">
-                                        <option value="superadmin" <?= $op['role'] === 'superadmin' ? 'selected' : '' ?>>superadmin (Full Access)</option>
-                                        <option value="operator" <?= $op['role'] === 'operator' ? 'selected' : '' ?>>operator (Users & Sessions)</option>
-                                        <option value="readonly" <?= $op['role'] === 'readonly' ? 'selected' : '' ?>>readonly (View Only)</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label small fw-semibold">Change Password (leave blank to keep current)</label>
-                                    <input type="password" name="new_password" class="form-control form-control-sm" placeholder="New password (optional)">
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
                 <?php endforeach; ?>
             </tbody>
         </table>
     </div>
 </div>
 
+<!-- Edit Operator Modals (rendered outside table for correct CSS/DOM hierarchy) -->
+<?php foreach ($operators as $op): ?>
+<div class="modal fade" id="editModal<?= $op['source'] ?>_<?= $op['id'] ?>" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-white shadow border-0">
+            <form method="POST" action="operators.php">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="edit_role">
+                <input type="hidden" name="id" value="<?= $op['id'] ?>">
+                <input type="hidden" name="source" value="<?= $op['source'] ?>">
+                <div class="modal-header border-bottom">
+                    <h6 class="modal-title fw-bold text-dark"><i class="bi bi-person-gear me-1 text-primary"></i>Edit Operator: <?= htmlspecialchars($op['username']) ?></h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-white">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Role Permissions</label>
+                        <select name="role" class="form-select">
+                            <option value="superadmin" <?= $op['role'] === 'superadmin' ? 'selected' : '' ?>>superadmin (Full Access)</option>
+                            <option value="operator" <?= $op['role'] === 'operator' ? 'selected' : '' ?>>operator (Users & Sessions)</option>
+                            <option value="readonly" <?= $op['role'] === 'readonly' ? 'selected' : '' ?>>readonly (View Only)</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-semibold text-secondary">Change Password (leave blank to keep current)</label>
+                        <input type="password" name="new_password" class="form-control" placeholder="New password (optional)">
+                    </div>
+                </div>
+                <div class="modal-footer border-top bg-light">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endforeach; ?>
+
 <!-- Modal: Add New Operator -->
-<div class="modal fade" id="newOperatorModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="POST" action="operators.php" class="modal-content">
-            <?= csrfField() ?>
-            <input type="hidden" name="action" value="create">
-            <div class="modal-header">
-                <h6 class="modal-title fw-bold"><i class="bi bi-person-plus me-1 text-primary"></i>Create New Operator</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label small fw-semibold">Username <span class="text-danger">*</span></label>
-                    <input type="text" name="username" class="form-control form-control-sm" required placeholder="e.g. operator1">
+<div class="modal fade" id="newOperatorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-white shadow border-0">
+            <form method="POST" action="operators.php">
+                <?= csrfField() ?>
+                <input type="hidden" name="action" value="create">
+                <div class="modal-header border-bottom">
+                    <h6 class="modal-title fw-bold text-dark"><i class="bi bi-person-plus me-1 text-primary"></i>Create New Operator</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label small fw-semibold">Password <span class="text-danger">*</span></label>
-                    <input type="password" name="password" class="form-control form-control-sm" required minlength="6" placeholder="Minimum 6 characters">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label small fw-semibold">Role Permissions <span class="text-danger">*</span></label>
-                    <select name="role" class="form-select form-select-sm">
-                        <option value="operator" selected>operator (Users, Sessions, Vouchers)</option>
-                        <option value="superadmin">superadmin (Full System Access)</option>
-                        <option value="readonly">readonly (View Only)</option>
-                    </select>
-                </div>
-                <div class="row g-2 mb-3">
-                    <div class="col-6">
-                        <label class="form-label small fw-semibold">Full Name</label>
-                        <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. John Doe">
+                <div class="modal-body p-4 bg-white">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Username <span class="text-danger">*</span></label>
+                        <input type="text" name="username" class="form-control" required placeholder="e.g. operator1">
                     </div>
-                    <div class="col-6">
-                        <label class="form-label small fw-semibold">Email</label>
-                        <input type="email" name="email" class="form-control form-control-sm" placeholder="john@example.com">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Password <span class="text-danger">*</span></label>
+                        <input type="password" name="password" class="form-control" required minlength="6" placeholder="Minimum 6 characters">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-secondary">Role Permissions <span class="text-danger">*</span></label>
+                        <select name="role" class="form-select">
+                            <option value="operator" selected>operator (Users, Sessions, Vouchers)</option>
+                            <option value="superadmin">superadmin (Full System Access)</option>
+                            <option value="readonly">readonly (View Only)</option>
+                        </select>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold text-secondary">Full Name</label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. John Doe">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-semibold text-secondary">Email</label>
+                            <input type="email" name="email" class="form-control" placeholder="john@example.com">
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label small fw-semibold text-secondary">Storage Backend</label>
+                        <select name="target_table" class="form-select">
+                            <option value="operators" selected>FreeRADIUS Operators Table (daloRADIUS compatible)</option>
+                            <option value="rm_admins">RadiusManager Admins Table (rm_admins)</option>
+                        </select>
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label small fw-semibold">Storage Backend</label>
-                    <select name="target_table" class="form-select form-select-sm">
-                        <option value="operators" selected>FreeRADIUS Operators Table (daloRADIUS compatible)</option>
-                        <option value="rm_admins">RadiusManager Admins Table (rm_admins)</option>
-                    </select>
+                <div class="modal-footer border-top bg-light">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary px-3">Create Operator</button>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-sm btn-primary">Create Operator</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
+

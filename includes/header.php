@@ -182,6 +182,17 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         /* Alerts */
         .alert { border-radius: 8px; font-size: .875rem; }
 
+        /* Modals */
+        .modal-content {
+            background-color: #ffffff !important;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.08);
+        }
+        .modal-backdrop.show {
+            opacity: 0.5;
+        }
+
         /* Page header */
         .page-header { margin-bottom: 1.5rem; }
         .page-header h4 { font-weight: 700; color: #1e293b; margin: 0; }
