@@ -232,6 +232,9 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     <a href="expiry-check.php" class="sidebar-link <?= $current_page==='expiry-check'?'active':'' ?>">
         <i class="bi bi-hourglass-split"></i> Expiry Warnings
     </a>
+    <a href="vouchers.php" class="sidebar-link <?= $current_page==='vouchers'||$current_page==='voucher-generate'?'active':'' ?>">
+        <i class="bi bi-ticket-perforated"></i> Vouchers & Hotspot
+    </a>
 
     <div class="sidebar-section">Reporting</div>
     <a href="reports.php" class="sidebar-link <?= $current_page==='reports'?'active':'' ?>">
@@ -248,9 +251,14 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     </a>
 
     <div class="sidebar-section">System</div>
+    <?php if (hasRole('superadmin')): ?>
+    <a href="operators.php" class="sidebar-link <?= $current_page==='operators'?'active':'' ?>">
+        <i class="bi bi-person-badge"></i> Operators & RBAC
+    </a>
     <a href="audit.php" class="sidebar-link <?= $current_page==='audit'?'active':'' ?>">
         <i class="bi bi-journal-text"></i> Audit Log
     </a>
+    <?php endif; ?>
     <a href="settings.php" class="sidebar-link <?= $current_page==='settings'?'active':'' ?>">
         <i class="bi bi-gear"></i> Settings
     </a>
@@ -271,11 +279,9 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             <a href="settings.php" class="text-decoration-none small text-secondary d-flex align-items-center gap-2" title="Settings & Account">
                 <i class="bi bi-person-circle fs-6"></i>
                 <span class="fw-semibold text-dark"><?= htmlspecialchars($_SESSION['admin_name'] ?? $_SESSION['admin_user'] ?? 'admin') ?></span>
-                <?php if (!empty($_SESSION['admin_source'])): ?>
-                <span class="badge bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle px-1.5 py-0.5" style="font-size:.65rem">
-                    <?= $_SESSION['admin_source'] === 'operators' ? 'Operator' : 'Admin' ?>
+                <span class="badge <?= getAdminRole() === 'superadmin' ? 'bg-danger-subtle text-danger border border-danger-subtle' : (getAdminRole() === 'readonly' ? 'bg-secondary-subtle text-secondary border' : 'bg-primary-subtle text-primary border border-primary-subtle') ?> px-2 py-0.5" style="font-size:.65rem">
+                    <?= ucfirst(htmlspecialchars(getAdminRole())) ?>
                 </span>
-                <?php endif; ?>
             </a>
         </div>
     </div>

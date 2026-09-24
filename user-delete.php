@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 requireLogin();
+requireRole('operator');
 $db = getDB();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

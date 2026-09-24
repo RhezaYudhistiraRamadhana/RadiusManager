@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 requireLogin();
+requireRole('superadmin');
 $db = getDB();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

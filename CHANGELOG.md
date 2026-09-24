@@ -5,6 +5,37 @@ All notable changes to the **RadiusManager** project are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-09-24
+
+### Added
+- **Hotspot / Voucher Management System (`vouchers.php`, `voucher-generate.php`, `voucher-print.php`, `voucher-delete.php`, `rm_vouchers`) [Priority C1]**:
+  - New database table `rm_vouchers` tracking batch, username, password, plan, status (unused, active, expired), creator, and usage timestamps.
+  - Interactive voucher inventory dashboard with batch and status filters, search, and summary KPI cards.
+  - Batch Generator (`voucher-generate.php`): generates 1–200 unique credentials with configurable prefix, password type (alphanumeric, PIN, simple), and validity days. Automatically provisions into `radcheck`, `radusergroup`, and `rm_vouchers`.
+  - Print-Ready Voucher Cards (`voucher-print.php`): formatted A4 multi-card layout with cutting borders, SSID branding, credentials, plan specifications, and login instructions.
+  - Multi-select batch deletion and single voucher removal with CSRF protection and audit logging.
+  - Added "Vouchers & Hotspot" link under RADIUS section in sidebar (`includes/header.php`).
+- **End-User Self-Service Portal (`portal/`) [Priority C2]**:
+  - Dedicated subscriber portal directory independent from admin authentication.
+  - Subscriber Login (`portal/login.php`): direct authentication against `radcheck` (verifying Cleartext-Password, disabled state, and expiration).
+  - Subscriber Dashboard (`portal/dashboard.php`): displays account status, plan details, expiration date, active session status, monthly data transfer KPIs, quota progress bar, and recent connection history.
+  - Self-Service Password Management: allows subscribers to update their password securely with CSRF verification and audit logging.
+- **Role-Based Access Control - RBAC (`operators.php`, `includes/auth.php`) [Priority C3]**:
+  - 3-tier hierarchical role permission architecture: `superadmin` > `operator` > `readonly`.
+  - Added `role` column to `operators` and `rm_admins` tables.
+  - RBAC helpers `hasRole()`, `requireRole()`, `isReadOnly()`, and `getAdminRole()`.
+  - Dedicated Operators & RBAC management interface (`operators.php`) for superadmins to create and edit operator permissions and passwords.
+  - Enforced permission checks: restricted system configuration, audit logs, and NAS devices to `superadmin`; mutation endpoints block `readonly` operators.
+  - Visual role badges in topbar navigation and role-aware sidebar links.
+- **RESTful JSON API Engine (`api/`) [Priority C4]**:
+  - Bearer token and `X-API-Key` authentication via `API_KEY` in `config.php`.
+  - API Discovery & Documentation index (`api/index.php`).
+  - Users CRUD endpoint (`api/users.php`): GET (paginated list & single user details), POST (create user), PUT (update password/group/status/IP), DELETE (remove user and attributes).
+  - Active Sessions endpoint (`api/sessions.php`): GET (list active sessions), POST (disconnect / CoA session termination).
+  - Session Accounting History endpoint (`api/accounting.php`): GET with date and user filters.
+
+---
+
 ## [1.7.0] - 2026-09-24
 
 ### Added

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 requireLogin();
+requireRole('superadmin');
 $page_title = 'Edit NAS';
 $db = getDB();
 $errors = [];

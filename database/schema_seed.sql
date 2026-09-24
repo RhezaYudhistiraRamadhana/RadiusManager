@@ -300,5 +300,22 @@ CREATE TABLE IF NOT EXISTS `rm_plans` (
   KEY `idx_groupname` (`groupname`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- 14. rm_vouchers: Hotspot vouchers and prepaid guest credentials
+CREATE TABLE IF NOT EXISTS `rm_vouchers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `batch_name` varchar(100) NOT NULL,
+  `username` varchar(64) NOT NULL UNIQUE,
+  `password` varchar(64) NOT NULL,
+  `plan_id` int(11) DEFAULT NULL,
+  `status` enum('unused','active','expired') NOT NULL DEFAULT 'unused',
+  `created_by` varchar(64) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `used_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_batch` (`batch_name`),
+  KEY `idx_status` (`status`),
+  KEY `idx_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 
 

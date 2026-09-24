@@ -125,4 +125,20 @@ CREATE TABLE IF NOT EXISTS `rm_plans` (
     INDEX `idx_groupname` (`groupname`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- ── 10. rm_vouchers table ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `rm_vouchers` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `batch_name` VARCHAR(100) NOT NULL,
+    `username` VARCHAR(64) NOT NULL UNIQUE,
+    `password` VARCHAR(64) NOT NULL,
+    `plan_id` INT DEFAULT NULL,
+    `status` ENUM('unused','active','expired') NOT NULL DEFAULT 'unused',
+    `created_by` VARCHAR(64) DEFAULT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `used_at` TIMESTAMP NULL DEFAULT NULL,
+    INDEX `idx_batch` (`batch_name`),
+    INDEX `idx_status` (`status`),
+    INDEX `idx_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 SELECT 'RadiusManager performance indexes verified successfully.' AS status;
