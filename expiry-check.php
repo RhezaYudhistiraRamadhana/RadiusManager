@@ -407,13 +407,39 @@ include __DIR__ . '/includes/header.php';
     </div>
 </div>
 
-<div class="card bg-light border-0 mb-4">
-    <div class="card-body py-3">
-        <h6 class="fw-semibold text-dark mb-1"><i class="bi bi-terminal me-1 text-primary"></i>Automated Cron Monitoring</h6>
-        <p class="small text-muted mb-0">
-            You can configure a daily system cron job to audit and log expiration states automatically:
-            <code class="d-block mt-1 p-2 bg-white rounded border">0 2 * * * php <?= __DIR__ ?>/expiry-check.php --cli &gt;&gt; /var/log/radius_expiry.log 2&gt;&amp;1</code>
-        </p>
+<div class="mt-4 mb-4">
+    <div class="d-flex justify-content-end">
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#automationGuideCollapse" aria-expanded="false" aria-controls="automationGuideCollapse">
+            <i class="bi bi-clock-history me-1"></i> Automation Guide (Task Scheduler / Cron) <i class="bi bi-chevron-down ms-1"></i>
+        </button>
+    </div>
+    <div class="collapse mt-2" id="automationGuideCollapse">
+        <div class="card border-0 shadow-sm bg-white">
+            <div class="card-body p-3">
+                <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-robot me-1 text-primary"></i>Automated Expiry Auditing Setup</h6>
+                <p class="small text-muted mb-3">
+                    Run <code>php expiry-check.php --cli</code> periodically to automatically scan for expiring or expired subscribers and record events into the audit log.
+                </p>
+                
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <div class="p-2.5 rounded bg-light border">
+                            <div class="fw-semibold small text-dark mb-1"><i class="bi bi-windows me-1 text-primary"></i>Windows (Task Scheduler / PowerShell)</div>
+                            <div class="small text-muted mb-1">Run daily via Task Scheduler or terminal:</div>
+                            <code class="d-block p-2 bg-white rounded border small text-break">php "<?= addslashes(__DIR__) ?>\expiry-check.php" --cli</code>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <div class="p-2.5 rounded bg-light border">
+                            <div class="fw-semibold small text-dark mb-1"><i class="bi bi-ubuntu me-1 text-danger"></i>Linux (Crontab)</div>
+                            <div class="small text-muted mb-1">Add to <code>crontab -e</code> (runs daily at 02:00 AM):</div>
+                            <code class="d-block p-2 bg-white rounded border small text-break">0 2 * * * /usr/bin/php <?= str_replace('\\', '/', __DIR__) ?>/expiry-check.php --cli &gt;&gt; /var/log/radius_expiry.log 2&gt;&amp;1</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
