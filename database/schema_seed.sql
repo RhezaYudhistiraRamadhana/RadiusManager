@@ -198,8 +198,9 @@ ON DUPLICATE KEY UPDATE `username`=`username`;
 
 -- NAS Devices
 INSERT INTO `nas` (`id`, `nasname`, `shortname`, `type`, `ports`, `secret`, `description`) VALUES
-(1, '172.16.0.70', 'AP-Polman-Core', 'cisco', 1812, '4dm1nNamloP', 'Core Wireless Controller'),
-(2, '167.205.23.60', 'eduroam-itb', 'other', 1812, '4dm1nNamloP', 'Eduroam Gateway')
+(1, '0.0.0.0/0', 'RadiusPolman', 'other', 0, '4dm1nNamloP', 'Default Catch-All Subnet'),
+(2, '167.205.23.60', 'eduroam-itb', 'other', 1812, '4dm1nNamloP', 'Eduroam Gateway'),
+(3, '172.16.0.70', 'Ruijie-AP-Core', 'ruijie', 1812, '4dm1nNamloP', 'Ruijie Wireless Access Controller & Campus AP Gateway')
 ON DUPLICATE KEY UPDATE `nasname`=`nasname`;
 
 -- Groups

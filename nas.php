@@ -151,7 +151,17 @@ include __DIR__ . '/includes/header.php';
                 </td>
                 <td><strong><?= sanitize($n['shortname']) ?></strong></td>
                 <td><code><?= sanitize($n['nasname']) ?></code></td>
-                <td><span class="badge bg-light text-dark border"><?= sanitize($n['type'] ?: 'other') ?></span></td>
+                <td>
+                    <?php if (strtolower($n['type'] ?? '') === 'ruijie'): ?>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="bi bi-router me-1"></i>Ruijie</span>
+                    <?php elseif (strtolower($n['type'] ?? '') === 'mikrotik'): ?>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">MikroTik</span>
+                    <?php elseif (strtolower($n['type'] ?? '') === 'cisco'): ?>
+                        <span class="badge bg-info-subtle text-info border border-info-subtle">Cisco</span>
+                    <?php else: ?>
+                        <span class="badge bg-light text-dark border"><?= sanitize(ucfirst($n['type'] ?: 'other')) ?></span>
+                    <?php endif; ?>
+                </td>
                 <td><?= sanitize($n['ports'] ?: '—') ?></td>
                 <td>
                     <span class="text-muted" id="secret_<?= (int)$n['id'] ?>">••••••••</span>

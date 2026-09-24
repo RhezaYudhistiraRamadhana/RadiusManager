@@ -73,8 +73,8 @@ include __DIR__ . '/includes/header.php';
                 <div class="col-md-6 mb-3">
                     <label class="form-label fw-semibold small">Device Type</label>
                     <select name="type" class="form-select">
-                        <?php foreach (['other','cisco','mikrotik','ubiquiti','ruckus','huawei','zte'] as $t): ?>
-                        <option value="<?= $t ?>" <?= ($n['type'] === $t) ? 'selected' : '' ?>><?= ucfirst($t) ?></option>
+                        <?php foreach (['ruijie','mikrotik','cisco','ubiquiti','ruckus','huawei','zte','other'] as $t): ?>
+                        <option value="<?= $t ?>" <?= ($n['type'] === $t) ? 'selected' : '' ?>><?= $t === 'mikrotik' ? 'MikroTik' : ($t === 'zte' ? 'ZTE' : ucfirst($t)) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
