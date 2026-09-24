@@ -229,8 +229,14 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         <i class="bi bi-diagram-3"></i> IP Pools
     </a>
     <?php endif; ?>
+    <a href="expiry-check.php" class="sidebar-link <?= $current_page==='expiry-check'?'active':'' ?>">
+        <i class="bi bi-hourglass-split"></i> Expiry Warnings
+    </a>
 
     <div class="sidebar-section">Reporting</div>
+    <a href="reports.php" class="sidebar-link <?= $current_page==='reports'?'active':'' ?>">
+        <i class="bi bi-file-earmark-bar-graph"></i> Reports
+    </a>
     <a href="accounting.php" class="sidebar-link <?= $current_page==='accounting'?'active':'' ?>">
         <i class="bi bi-clock-history"></i> Accounting
     </a>

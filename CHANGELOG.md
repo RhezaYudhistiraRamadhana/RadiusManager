@@ -5,6 +5,33 @@ All notable changes to the **RadiusManager** project are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-09-24
+
+### Added
+- **Concurrent Sessions Hourly Graph (`dashboard.php`) [Priority B1]**:
+  - 24-hour hourly session profile comparison graph on Dashboard.
+  - Compares today's session trajectory against yesterday's hourly pattern.
+  - Integrated 120-second session-level cache (`$_SESSION['dash_b_data']`) for sub-10ms response time on subsequent page loads.
+- **Advanced Dashboard Bandwidth & NAS Charts (`dashboard.php`) [Priority B2]**:
+  - 14-day bandwidth volume trend stacked line/bar chart displaying daily upload vs download traffic in MB.
+  - Top 5 NAS Devices horizontal bar chart comparing aggregate bandwidth consumption across access points.
+  - Fully responsive Chart.js visual cards with clean legends and hover tooltips.
+- **Account Expiry Warning System (`expiry-check.php`, `config.php`) [Priority B3]**:
+  - Configurable warning window via `EXPIRY_WARN_DAYS` (default 7 days).
+  - Dual-mode operation:
+    - **Web Interface**: Interactive dashboard displaying categorized alerts (Expired, Expiring Soon, Monitored Active). One-click quick extension buttons (+7d, +30d, +90d), disable account action, and direct user profile links.
+    - **CLI / Cron Execution**: Headless execution (`php expiry-check.php --cli`) suitable for automated nightly cron jobs. Logs audits directly to `rm_audit_log`.
+  - Added "Expiry Warnings" navigation link under RADIUS section in sidebar (`includes/header.php`).
+- **Printable Executive Reports & Data Analytics (`reports.php`) [Priority B4]**:
+  - Comprehensive reporting engine with dynamic date range selector and quick presets ("This Month", "Last Month", "Last 30 Days", "This Year").
+  - Summary KPI cards: Total Sessions, Unique Users, Total Bandwidth (Upload/Download breakdown), and Average Session Duration.
+  - Top 10 Consumers table with batch profile resolution from `userinfo`, session counts, and bandwidth totals.
+  - Bandwidth consumption breakdown by user group (`radusergroup`).
+  - Access Point distribution table summarizing traffic and session counts across all NAS devices.
+  - Executive A4 Print stylesheet (`@media print`) stripping navigation and topbar for clean PDF/paper reporting.
+  - Streaming CSV export (`reports.php?export=csv`) for external spreadsheet analysis.
+  - Added "Reports" navigation link under Reporting section in sidebar (`includes/header.php`).
+
 ---
 
 ## [1.6.0] - 2026-09-24

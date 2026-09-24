@@ -108,6 +108,110 @@ if (!empty($topTrafficUsers) && dbTableExists('userinfo')) {
     }
 }
 
+// ── Priority B Analytics Cache (120 seconds) ───────────────────────────────
+if (isset($_SESSION['dash_b_time']) && (time() - $_SESSION['dash_b_time'] < 120) && !empty($_SESSION['dash_b_data'])) {
+    $bData = $_SESSION['dash_b_data'];
+} else {
+    $anchorDay = ($trafficDateParam === $todayDate) ? $todayDate : $trafficDateParam;
+    $prevDay   = date('Y-m-d', strtotime('-1 day', strtotime($anchorDay)));
+
+    // 1. Concurrent / Hourly active sessions for today & yesterday (B1)
+    $todayHoursStmt = $db->prepare("
+        SELECT HOUR(acctstarttime) AS h, COUNT(*) AS c
+        FROM radacct
+        WHERE acctstarttime >= ? AND acctstarttime <= ?
+        GROUP BY HOUR(acctstarttime)
+    ");
+    $todayHoursStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
+    $todayHourMap = $todayHoursStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    $prevHoursStmt = $db->prepare("
+        SELECT HOUR(acctstarttime) AS h, COUNT(*) AS c
+        FROM radacct
+        WHERE acctstarttime >= ? AND acctstarttime <= ?
+        GROUP BY HOUR(acctstarttime)
+    ");
+    $prevHoursStmt->execute(["$prevDay 00:00:00", "$prevDay 23:59:59"]);
+    $prevHourMap = $prevHoursStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    $hourlyLabels = [];
+    $hourlyToday  = [];
+    $hourlyPrev   = [];
+    for ($h = 0; $h < 24; $h++) {
+        $hourlyLabels[] = sprintf('%02d:00', $h);
+        $hourlyToday[]  = (int)($todayHourMap[$h] ?? 0);
+        $hourlyPrev[]   = (int)($prevHourMap[$h] ?? 0);
+    }
+
+    // 2. 14-Day Bandwidth Volume Trend (B2)
+    $start14d = date('Y-m-d 00:00:00', strtotime('-13 days', strtotime($anchorDay)));
+    $bw14dStmt = $db->prepare("
+        SELECT DATE(acctstarttime) AS d,
+               COALESCE(SUM(acctinputoctets), 0) AS up,
+               COALESCE(SUM(acctoutputoctets), 0) AS down
+        FROM radacct
+        WHERE acctstarttime >= ? AND acctstarttime <= ?
+        GROUP BY DATE(acctstarttime)
+        ORDER BY d ASC
+    ");
+    $bw14dStmt->execute([$start14d, "$anchorDay 23:59:59"]);
+    $raw14d = $bw14dStmt->fetchAll(PDO::FETCH_ASSOC);
+    $bw14Map = [];
+    foreach ($raw14d as $row) {
+        $bw14Map[$row['d']] = $row;
+    }
+
+    $bw14Labels = [];
+    $bw14Upload = [];
+    $bw14Download = [];
+    $cur = strtotime($start14d);
+    $endCur = strtotime($anchorDay);
+    while ($cur <= $endCur) {
+        $dStr = date('Y-m-d', $cur);
+        $bw14Labels[]   = date('d M', $cur);
+        $bw14Upload[]   = round(($bw14Map[$dStr]['up'] ?? 0) / (1024 * 1024), 2); // MB
+        $bw14Download[] = round(($bw14Map[$dStr]['down'] ?? 0) / (1024 * 1024), 2); // MB
+        $cur = strtotime('+1 day', $cur);
+    }
+
+    // 3. Top 5 NAS Devices by Bandwidth (B2)
+    $topNasChartStmt = $db->prepare("
+        SELECT ra.nasipaddress,
+               COALESCE(n.shortname, ra.nasipaddress) AS label,
+               COALESCE(SUM(ra.acctinputoctets + ra.acctoutputoctets), 0) AS total_bytes
+        FROM radacct ra
+        LEFT JOIN nas n ON n.nasname = ra.nasipaddress
+        WHERE ra.acctstarttime >= ? AND ra.acctstarttime <= ?
+        GROUP BY ra.nasipaddress, label
+        ORDER BY total_bytes DESC
+        LIMIT 5
+    ");
+    $topNasChartStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
+    $topNasChartRows = $topNasChartStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $nasChartLabels = [];
+    $nasChartValues = [];
+    foreach ($topNasChartRows as $nr) {
+        $nasChartLabels[] = $nr['label'];
+        $nasChartValues[] = round($nr['total_bytes'] / (1024 * 1024), 2); // MB
+    }
+
+    $bData = [
+        'hourlyLabels'   => $hourlyLabels,
+        'hourlyToday'    => $hourlyToday,
+        'hourlyPrev'     => $hourlyPrev,
+        'anchorDay'      => $anchorDay,
+        'prevDay'        => $prevDay,
+        'bw14Labels'     => $bw14Labels,
+        'bw14Upload'     => $bw14Upload,
+        'bw14Download'   => $bw14Download,
+        'nasChartLabels' => $nasChartLabels,
+        'nasChartValues' => $nasChartValues,
+    ];
+    $_SESSION['dash_b_data'] = $bData;
+    $_SESSION['dash_b_time'] = time();
+}
+
 include __DIR__ . '/includes/header.php';
 ?>
 
@@ -193,43 +297,68 @@ include __DIR__ . '/includes/header.php';
     </div>
 </div>
 
+<!-- B1 & B2 Analytics Charts Row -->
 <div class="row g-3 mb-4">
-    <!-- Auth Chart -->
-    <div class="col-lg-7">
+    <!-- B1: Concurrent / Hourly Sessions Profile -->
+    <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
-                <span class="fw-semibold small">Authentications — Last 7 Days</span>
-                <a href="postauth.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">View Log</a>
+                <div>
+                    <span class="fw-semibold small"><i class="bi bi-clock-history text-primary me-1"></i>Hourly Sessions Profile</span>
+                    <span class="text-muted small ms-1">(Today vs Yesterday)</span>
+                </div>
+                <a href="sessions.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">Sessions</a>
             </div>
             <div class="card-body">
-                <canvas id="authChart" height="120"></canvas>
+                <canvas id="concurrentChart" height="130"></canvas>
             </div>
         </div>
     </div>
-    <!-- Failed Auth -->
-    <div class="col-lg-5">
+
+    <!-- B2: 14-Day Bandwidth Volume Trend -->
+    <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
-                <span class="fw-semibold small"><i class="bi bi-x-circle text-danger me-1"></i>Recent Failed Logins</span>
-                <a href="postauth.php?filter=reject" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:.75rem">View All</a>
+                <div>
+                    <span class="fw-semibold small"><i class="bi bi-graph-up-arrow text-success me-1"></i>Bandwidth Trend (Past 14 Days)</span>
+                    <span class="text-muted small ms-1">(Upload vs Download)</span>
+                </div>
+                <a href="accounting.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">Accounting</a>
             </div>
-            <div class="card-body p-0">
-                <table class="table mb-0">
-                    <thead><tr>
-                        <th>Username</th><th>Reason</th><th>Time</th>
-                    </tr></thead>
-                    <tbody>
-                    <?php if (empty($failedAuths)): ?>
-                    <tr><td colspan="3" class="text-center text-muted py-4">No failed logins today</td></tr>
-                    <?php else: foreach ($failedAuths as $f): ?>
-                    <tr style="cursor:pointer" onclick="location.href='postauth.php?filter=reject&q=<?= urlencode($f['username']) ?>'" title="View auth log for <?= sanitize($f['username']) ?>">
-                        <td><code><?= sanitize($f['username']) ?></code></td>
-                        <td><span class="badge bg-danger-subtle text-danger"><?= sanitize($f['reply']) ?></span></td>
-                        <td class="text-muted" style="font-size:.78rem"><?= date('H:i', strtotime($f['authdate'])) ?></td>
-                    </tr>
-                    <?php endforeach; endif; ?>
-                    </tbody>
-                </table>
+            <div class="card-body">
+                <canvas id="bandwidth14dChart" height="130"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Auth Chart (Last 7 Days) -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+                <span class="fw-semibold small"><i class="bi bi-shield-check text-purple me-1" style="color:#9333ea"></i>Authentications — Last 7 Days</span>
+                <a href="postauth.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">View Log</a>
+            </div>
+            <div class="card-body">
+                <canvas id="authChart" height="130"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- B2: Top 5 NAS Devices by Bandwidth -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+                <span class="fw-semibold small"><i class="bi bi-hdd-network text-info me-1"></i>Top NAS Access Points by Bandwidth</span>
+                <a href="nas.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">NAS Devices</a>
+            </div>
+            <div class="card-body">
+                <?php if (empty($bData['nasChartValues'])): ?>
+                <div class="text-center text-muted py-5 small">No NAS traffic recorded today</div>
+                <?php else: ?>
+                <canvas id="nasTrafficChart" height="130"></canvas>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -335,18 +464,47 @@ include __DIR__ . '/includes/header.php';
     </div>
 </div>
 
+<!-- Failed Auth Row -->
+<div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+        <span class="fw-semibold small"><i class="bi bi-x-circle text-danger me-1"></i>Recent Failed Logins</span>
+        <a href="postauth.php?filter=reject" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:.75rem">View All</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table mb-0">
+            <thead><tr>
+                <th>Username</th><th>Reason</th><th>Time</th>
+            </tr></thead>
+            <tbody>
+            <?php if (empty($failedAuths)): ?>
+            <tr><td colspan="3" class="text-center text-muted py-4">No failed logins today</td></tr>
+            <?php else: foreach ($failedAuths as $f): ?>
+            <tr style="cursor:pointer" onclick="location.href='postauth.php?filter=reject&q=<?= urlencode($f['username']) ?>'" title="View auth log for <?= sanitize($f['username']) ?>">
+                <td><code><?= sanitize($f['username']) ?></code></td>
+                <td><span class="badge bg-danger-subtle text-danger"><?= sanitize($f['reply']) ?></span></td>
+                <td class="text-muted" style="font-size:.78rem"><?= date('H:i', strtotime($f['authdate'])) ?></td>
+            </tr>
+            <?php endforeach; endif; ?>
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
 <?php
 $extra_js = '<script>
-const ctx = document.getElementById("authChart");
-new Chart(ctx, {
+// 1. Auth Chart (7 Days)
+const ctxAuth = document.getElementById("authChart");
+new Chart(ctxAuth, {
     type: "bar",
     data: {
         labels: ' . json_encode($chartLabels ?: ['No data']) . ',
         datasets: [{
             label: "Authentications",
             data: ' . json_encode($chartValues ?: [0]) . ',
-            backgroundColor: "rgba(37,99,235,.15)",
-            borderColor: "rgba(37,99,235,1)",
+            backgroundColor: "rgba(147,51,234,.15)",
+            borderColor: "rgba(147,51,234,1)",
             borderWidth: 2, borderRadius: 4
         }]
     },
@@ -356,5 +514,98 @@ new Chart(ctx, {
                   x: { grid: { display: false } } }
     }
 });
+
+// 2. B1: Concurrent / Hourly Sessions Profile (Today vs Yesterday)
+const ctxConcurrent = document.getElementById("concurrentChart");
+new Chart(ctxConcurrent, {
+    type: "line",
+    data: {
+        labels: ' . json_encode($bData['hourlyLabels']) . ',
+        datasets: [
+            {
+                label: "Current (' . date('d M', strtotime($bData['anchorDay'])) . ')",
+                data: ' . json_encode($bData['hourlyToday']) . ',
+                borderColor: "#2563eb",
+                backgroundColor: "rgba(37,99,235,0.08)",
+                tension: 0.35, fill: true, pointRadius: 2
+            },
+            {
+                label: "Previous (' . date('d M', strtotime($bData['prevDay'])) . ')",
+                data: ' . json_encode($bData['hourlyPrev']) . ',
+                borderColor: "#94a3b8",
+                borderDash: [4, 4],
+                backgroundColor: "transparent",
+                tension: 0.35, fill: false, pointRadius: 0
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: true, position: "top", labels: { boxWidth: 12, font: { size: 11 } } } },
+        scales: {
+            y: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { precision: 0 } },
+            x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }
+        }
+    }
+});
+
+// 3. B2: 14-Day Bandwidth Volume Trend
+const ctxBw14 = document.getElementById("bandwidth14dChart");
+new Chart(ctxBw14, {
+    type: "line",
+    data: {
+        labels: ' . json_encode($bData['bw14Labels']) . ',
+        datasets: [
+            {
+                label: "Download (MB)",
+                data: ' . json_encode($bData['bw14Download']) . ',
+                borderColor: "#10b981",
+                backgroundColor: "rgba(16,185,129,0.1)",
+                tension: 0.3, fill: true, pointRadius: 2
+            },
+            {
+                label: "Upload (MB)",
+                data: ' . json_encode($bData['bw14Upload']) . ',
+                borderColor: "#2563eb",
+                backgroundColor: "rgba(37,99,235,0.06)",
+                tension: 0.3, fill: true, pointRadius: 2
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: true, position: "top", labels: { boxWidth: 12, font: { size: 11 } } } },
+        scales: {
+            y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
+            x: { grid: { display: false } }
+        }
+    }
+});
+
+// 4. B2: Top 5 NAS Devices by Bandwidth
+const ctxNas = document.getElementById("nasTrafficChart");
+if (ctxNas) {
+    new Chart(ctxNas, {
+        type: "bar",
+        data: {
+            labels: ' . json_encode($bData['nasChartLabels']) . ',
+            datasets: [{
+                label: "Traffic (MB)",
+                data: ' . json_encode($bData['nasChartValues']) . ',
+                backgroundColor: "rgba(6,182,212,0.2)",
+                borderColor: "rgba(6,182,212,1)",
+                borderWidth: 2, borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
 </script>';
 include __DIR__ . '/includes/footer.php';
