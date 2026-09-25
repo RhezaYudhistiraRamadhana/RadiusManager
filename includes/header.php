@@ -270,8 +270,9 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         <i class="bi bi-journal-text"></i> Audit Log
     </a>
     <?php endif; ?>
-    <a href="settings.php" class="sidebar-link <?= $current_page==='settings'?'active':'' ?>">
-        <i class="bi bi-gear"></i> Settings
+    <div class="sidebar-section">Documentation</div>
+    <a href="docs/RadiusManager_User_Guide.pdf" target="_blank" class="sidebar-link">
+        <i class="bi bi-file-earmark-pdf text-danger"></i> User Manual (PDF)
     </a>
     <a href="logout.php" class="sidebar-link text-danger">
         <i class="bi bi-box-arrow-left"></i> Logout
@@ -287,6 +288,9 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         </button>
         <span class="text-muted small"><i class="bi bi-circle-fill text-success me-1" style="font-size:.5rem"></i>Connected to FreeRADIUS</span>
         <div class="ms-auto d-flex align-items-center gap-3">
+            <a href="docs/RadiusManager_User_Guide.pdf" target="_blank" class="btn btn-outline-secondary btn-sm py-1 px-2.5 d-none d-md-inline-flex align-items-center gap-1.5" title="Download & View User Manual (PDF)">
+                <i class="bi bi-file-earmark-pdf text-danger"></i> <span style="font-size:.78rem; font-weight:600;">User Manual (PDF)</span>
+            </a>
             <a href="settings.php" class="text-decoration-none small text-secondary d-flex align-items-center gap-2" title="Settings & Account">
                 <i class="bi bi-person-circle fs-6"></i>
                 <span class="fw-semibold text-dark"><?= htmlspecialchars($_SESSION['admin_name'] ?? $_SESSION['admin_user'] ?? 'admin') ?></span>
