@@ -9,48 +9,147 @@ $flashSuccess = $_SESSION['portal_flash_success'] ?? '';
 $flashError   = $_SESSION['portal_flash_error'] ?? '';
 unset($_SESSION['portal_flash_success'], $_SESSION['portal_flash_error']);
 
-// Handle Password Change
+// Fetch User Profile Info & Registered Email
+$profile = [];
+if (dbTableExists('userinfo')) {
+    $uStmt = $db->prepare("SELECT firstname, lastname, department, email FROM userinfo WHERE username = ?");
+    $uStmt->execute([$username]);
+    $profile = $uStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+}
+$displayName = !empty($profile['firstname']) ? trim($profile['firstname'] . ' ' . ($profile['lastname'] ?? '')) : $username;
+$userEmail   = trim($profile['email'] ?? '');
+$hasEmail    = !empty($userEmail) && filter_var($userEmail, FILTER_VALIDATE_EMAIL);
+
+// ── Handle OTP Request ────────────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'request_otp') {
+    checkCsrf();
+    $isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') || isset($_GET['ajax']);
+
+    if (!$hasEmail) {
+        $msg = 'No registered email address found for this account. Please contact IT support to register your email.';
+        if ($isAjax) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => $msg]);
+            exit;
+        }
+        $_SESSION['portal_flash_error'] = $msg;
+        header('Location: dashboard.php');
+        exit;
+    }
+
+    $lastSent = $_SESSION['portal_otp']['last_sent'] ?? 0;
+    if ((time() - $lastSent) < 60) {
+        $waitSec = 60 - (time() - $lastSent);
+        $msg = "Please wait $waitSec seconds before requesting another OTP code.";
+        if ($isAjax) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => $msg]);
+            exit;
+        }
+        $_SESSION['portal_flash_error'] = $msg;
+        header('Location: dashboard.php');
+        exit;
+    }
+
+    $otpCode = sprintf('%06d', random_int(100000, 999999));
+    $_SESSION['portal_otp'] = [
+        'code'       => $otpCode,
+        'email'      => $userEmail,
+        'created_at' => time(),
+        'expires_at' => time() + 600, // 10 minutes
+        'attempts'   => 0,
+        'last_sent'  => time(),
+    ];
+
+    $mailRes = sendOtpEmail($userEmail, $displayName, $otpCode);
+    $masked  = maskEmail($userEmail);
+
+    $isLocalDev = (defined('DEV_MODE') && DEV_MODE) || in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true);
+    $devNote = ($isLocalDev && empty($mailRes['success'])) ? " [Local Test OTP: $otpCode]" : '';
+
+    $msg = "OTP verification code sent to your registered email ($masked).$devNote Please check your inbox or spam folder.";
+
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'message' => $msg,
+            'masked'  => $masked,
+            'dev_otp' => $isLocalDev ? $otpCode : null
+        ]);
+        exit;
+    }
+
+    $_SESSION['portal_flash_success'] = $msg;
+    header('Location: dashboard.php');
+    exit;
+}
+
+// ── Handle Password Change with OTP ───────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'change_password') {
     checkCsrf();
 
+    $otpInput = trim($_POST['otp_code'] ?? '');
     $currPass = $_POST['current_password'] ?? '';
     $newPass  = $_POST['new_password'] ?? '';
     $confPass = $_POST['confirm_password'] ?? '';
 
-    if ($currPass === '' || $newPass === '' || $confPass === '') {
-        $flashError = 'All password fields are required.';
+    if (!$hasEmail) {
+        $flashError = 'Cannot change password: Your account does not have a registered email address. Please contact IT support.';
+    } elseif ($otpInput === '' || $currPass === '' || $newPass === '' || $confPass === '') {
+        $flashError = 'All fields, including the OTP verification code, are required.';
     } elseif ($newPass !== $confPass) {
         $flashError = 'New password and confirmation do not match.';
     } elseif (strlen($newPass) < 6) {
         $flashError = 'New password must be at least 6 characters long.';
     } else {
-        // Verify current password
-        $chkStmt = $db->prepare("SELECT value FROM radcheck WHERE username = ? AND attribute = 'Cleartext-Password'");
-        $chkStmt->execute([$username]);
-        $storedPass = $chkStmt->fetchColumn();
+        $otpData = $_SESSION['portal_otp'] ?? null;
 
-        if ($storedPass === false || !hash_equals((string)$storedPass, $currPass)) {
-            $flashError = 'Your current password was entered incorrectly.';
+        if (empty($otpData) || empty($otpData['code'])) {
+            $flashError = 'Please request an OTP verification code sent to your registered email first.';
+        } elseif (time() > ($otpData['expires_at'] ?? 0)) {
+            $flashError = 'Your OTP verification code has expired. Please request a new code.';
+            unset($_SESSION['portal_otp']);
+        } elseif (($otpData['attempts'] ?? 0) >= 5) {
+            $flashError = 'Too many failed attempts. Please request a new OTP code.';
+            unset($_SESSION['portal_otp']);
+        } elseif (!hash_equals((string)$otpData['code'], $otpInput)) {
+            $_SESSION['portal_otp']['attempts'] = ($otpData['attempts'] ?? 0) + 1;
+            $remaining = 5 - $_SESSION['portal_otp']['attempts'];
+            $flashError = "Invalid OTP code entered. Please check your email and try again ($remaining attempts remaining).";
         } else {
-            $db->beginTransaction();
-            try {
-                // Update radcheck
-                $updStmt = $db->prepare("UPDATE radcheck SET value = ? WHERE username = ? AND attribute = 'Cleartext-Password'");
-                $updStmt->execute([$newPass, $username]);
+            // Verify current password
+            $chkStmt = $db->prepare("SELECT value FROM radcheck WHERE username = ? AND attribute = 'Cleartext-Password'");
+            $chkStmt->execute([$username]);
+            $storedPass = $chkStmt->fetchColumn();
 
-                // If user has a voucher record, update rm_vouchers too
-                if (dbTableExists('rm_vouchers')) {
-                    $vUpd = $db->prepare("UPDATE rm_vouchers SET password = ? WHERE username = ?");
-                    $vUpd->execute([$newPass, $username]);
+            if ($storedPass === false || !hash_equals((string)$storedPass, $currPass)) {
+                $flashError = 'Your current password was entered incorrectly.';
+            } else {
+                $db->beginTransaction();
+                try {
+                    // Update radcheck
+                    $updStmt = $db->prepare("UPDATE radcheck SET value = ? WHERE username = ? AND attribute = 'Cleartext-Password'");
+                    $updStmt->execute([$newPass, $username]);
+
+                    // If user has a voucher record, update rm_vouchers too
+                    if (dbTableExists('rm_vouchers')) {
+                        $vUpd = $db->prepare("UPDATE rm_vouchers SET password = ? WHERE username = ?");
+                        $vUpd->execute([$newPass, $username]);
+                    }
+
+                    $db->commit();
+
+                    unset($_SESSION['portal_otp']);
+
+                    auditLog('portal_password_change_otp', $username, 'Password updated via subscriber portal with verified email OTP (' . maskEmail($userEmail) . ')');
+                    $_SESSION['portal_flash_success'] = 'Your password has been updated successfully!';
+                    header('Location: dashboard.php');
+                    exit;
+                } catch (Exception $e) {
+                    $db->rollBack();
+                    $flashError = 'Database error updating password: ' . $e->getMessage();
                 }
-
-                $db->commit();
-
-                auditLog('portal_password_change', $username, 'Password updated via subscriber self-service portal');
-                $flashSuccess = 'Your password has been updated successfully!';
-            } catch (Exception $e) {
-                $db->rollBack();
-                $flashError = 'Database error updating password: ' . $e->getMessage();
             }
         }
     }
@@ -76,14 +175,8 @@ if (dbTableExists('rm_plans')) {
     $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
 }
 
-// 3. User Profile Info
-$profile = $_SESSION['portal_profile'] ?? [];
-if (empty($profile) && dbTableExists('userinfo')) {
-    $uStmt = $db->prepare("SELECT firstname, lastname, department, email FROM userinfo WHERE username = ?");
-    $uStmt->execute([$username]);
-    $profile = $uStmt->fetch(PDO::FETCH_ASSOC) ?: [];
-}
-$displayName = !empty($profile['firstname']) ? trim($profile['firstname'] . ' ' . ($profile['lastname'] ?? '')) : $username;
+// 3. User Profile Info (Already resolved at top)
+$otpSent = !empty($_SESSION['portal_otp']['code']) && (time() <= ($_SESSION['portal_otp']['expires_at'] ?? 0));
 
 // 4. Monthly Usage Stats
 $startMonth = date('Y-m-01 00:00:00');
@@ -386,34 +479,97 @@ $quotaPercent = ($quotaMb > 0) ? min(100, round(($usedMb / $quotaMb) * 100)) : 0
         <!-- Password Change Card (Right 4 cols) -->
         <div class="col-12 col-lg-4">
             <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white py-3">
+                <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
                     <h6 class="fw-bold mb-0"><i class="bi bi-shield-lock me-1 text-primary"></i>Change Account Password</h6>
+                    <?php if (!$hasEmail): ?>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5" style="font-size:.65rem">
+                            <i class="bi bi-lock-fill me-1"></i>Locked
+                        </span>
+                    <?php else: ?>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5" style="font-size:.65rem">
+                            <i class="bi bi-shield-check me-1"></i>OTP Protected
+                        </span>
+                    <?php endif; ?>
                 </div>
                 <div class="card-body p-3">
-                    <form method="POST" action="dashboard.php">
-                        <?= csrfField() ?>
-                        <input type="hidden" name="action" value="change_password">
-
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold text-secondary">Current Password</label>
-                            <input type="password" name="current_password" class="form-control form-control-sm" required>
+                    <?php if (!$hasEmail): ?>
+                        <!-- Case A: No Registered Email Address Found -->
+                        <div class="alert alert-warning border-warning-subtle p-3 mb-0" role="alert">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+                                <h6 class="fw-bold mb-0 text-dark">Email Registration Required</h6>
+                            </div>
+                            <p class="small text-secondary mb-2" style="font-size: .83rem; line-height: 1.45;">
+                                To change your account password, you must first verify an <strong>OTP code</strong> sent directly to your registered email address.
+                            </p>
+                            <div class="p-2.5 bg-white rounded border border-warning-subtle small text-dark mb-3">
+                                <i class="bi bi-x-circle-fill text-danger me-1"></i>
+                                <strong>No registered email address found</strong> for account <code><?= htmlspecialchars($username) ?></code>.
+                            </div>
+                            <div class="alert alert-light border small text-muted mb-0 py-2 px-2.5" style="font-size: .8rem;">
+                                <i class="bi bi-headset text-primary me-1"></i>
+                                Please contact the <strong>IT Support / Network Administrator</strong> to register your official email address before updating your password.
+                            </div>
+                        </div>
+                    <?php else: ?>
+                        <!-- Case B: Has Registered Email Address with OTP Verification -->
+                        <div class="mb-3 p-2.5 bg-light rounded border small">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted" style="font-size:.72rem;">Registered Email:</span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:.65rem;">Verified</span>
+                            </div>
+                            <div class="fw-semibold text-dark text-truncate mt-1" title="<?= htmlspecialchars($userEmail) ?>">
+                                <i class="bi bi-envelope-check text-primary me-1"></i><?= htmlspecialchars(maskEmail($userEmail)) ?>
+                            </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold text-secondary">New Password</label>
-                            <input type="password" name="new_password" class="form-control form-control-sm" minlength="6" required>
-                            <div class="form-text" style="font-size:.7rem">Minimum 6 characters.</div>
-                        </div>
+                        <form method="POST" action="dashboard.php" id="changePasswordForm">
+                            <?= csrfField() ?>
+                            <input type="hidden" name="action" value="change_password">
 
-                        <div class="mb-3">
-                            <label class="form-label small fw-semibold text-secondary">Confirm New Password</label>
-                            <input type="password" name="confirm_password" class="form-control form-control-sm" minlength="6" required>
-                        </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label small fw-semibold text-secondary mb-0">OTP Verification Code <span class="text-danger">*</span></label>
+                                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btnRequestOtp" onclick="requestOtpAjax()">
+                                        <i class="bi bi-send me-1"></i><span id="btnOtpText"><?= $otpSent ? 'Resend OTP' : 'Send OTP Code' ?></span>
+                                    </button>
+                                </div>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light"><i class="bi bi-shield-check text-primary"></i></span>
+                                    <input type="text" name="otp_code" id="otpCodeInput" class="form-control"
+                                           placeholder="Enter 6-digit code" maxlength="6" pattern="\d{6}"
+                                           value="<?= htmlspecialchars($_POST['otp_code'] ?? '') ?>" required>
+                                </div>
+                                <div id="otpStatusMsg" class="form-text mt-1" style="font-size:.72rem">
+                                    <?php if ($otpSent): ?>
+                                        <span class="text-success"><i class="bi bi-check-circle me-1"></i>OTP sent to your email. Valid for 10 minutes.</span>
+                                    <?php else: ?>
+                                        <span class="text-muted">Click <strong>Send OTP Code</strong> to receive your code via email.</span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
 
-                        <button type="submit" class="btn btn-sm btn-primary w-100">
-                            Update Password
-                        </button>
-                    </form>
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-secondary">Current Password <span class="text-danger">*</span></label>
+                                <input type="password" name="current_password" class="form-control form-control-sm" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-secondary">New Password <span class="text-danger">*</span></label>
+                                <input type="password" name="new_password" class="form-control form-control-sm" minlength="6" required>
+                                <div class="form-text" style="font-size:.7rem">Minimum 6 characters.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-secondary">Confirm New Password <span class="text-danger">*</span></label>
+                                <input type="password" name="confirm_password" class="form-control form-control-sm" minlength="6" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-sm btn-primary w-100 shadow-sm" id="btnSubmitPassword">
+                                <i class="bi bi-check-circle me-1"></i>Verify OTP &amp; Update Password
+                            </button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -428,5 +584,74 @@ $quotaPercent = ($quotaMb > 0) ? min(100, round(($usedMb / $quotaMb) * 100)) : 0
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let otpCooldown = 0;
+let otpTimer = null;
+
+function requestOtpAjax() {
+    if (otpCooldown > 0) return;
+
+    const btn = document.getElementById('btnRequestOtp');
+    const btnText = document.getElementById('btnOtpText');
+    const statusMsg = document.getElementById('otpStatusMsg');
+    const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+    btnText.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width:0.75rem; height:0.75rem;"></span>Sending...';
+    btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('action', 'request_otp');
+    formData.append('csrf_token', csrfToken);
+
+    fetch('dashboard.php?ajax=1', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            statusMsg.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>' + data.message + '</span>';
+            const otpInput = document.getElementById('otpCodeInput');
+            if (otpInput) {
+                if (data.dev_otp && !otpInput.value) {
+                    otpInput.value = data.dev_otp;
+                }
+                otpInput.focus();
+            }
+            startCooldown(60);
+        } else {
+            statusMsg.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>' + (data.error || 'Failed to send OTP.') + '</span>';
+            btn.disabled = false;
+            btnText.textContent = 'Retry Send OTP';
+        }
+    })
+    .catch(err => {
+        statusMsg.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>Network error sending OTP. Please try again.</span>';
+        btn.disabled = false;
+        btnText.textContent = 'Retry Send OTP';
+    });
+}
+
+function startCooldown(sec) {
+    otpCooldown = sec;
+    const btn = document.getElementById('btnRequestOtp');
+    const btnText = document.getElementById('btnOtpText');
+    if (!btn || !btnText) return;
+    btn.disabled = true;
+
+    if (otpTimer) clearInterval(otpTimer);
+    otpTimer = setInterval(() => {
+        otpCooldown--;
+        if (otpCooldown <= 0) {
+            clearInterval(otpTimer);
+            btn.disabled = false;
+            btnText.textContent = 'Resend OTP';
+        } else {
+            btnText.textContent = `Resend in ${otpCooldown}s`;
+        }
+    }, 1000);
+}
+</script>
 </body>
 </html>

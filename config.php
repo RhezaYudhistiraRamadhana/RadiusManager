@@ -18,5 +18,16 @@ define('API_KEY',        'radiusmanager_api_secret_key'); // REST API Bearer Aut
 // ─── Session lifetime (seconds) ──────────────────────────────────────────
 define('SESSION_LIFETIME', 3600); // 1 hour
 
-// ─── Load DB Connection ───────────────────────────────────────────────────
+// ─── SMTP & Email Settings ────────────────────────────────────────────────
+define('MAIL_FROM',       'noreply@polman-bandung.ac.id');
+define('MAIL_FROM_NAME',  APP_NAME . ' Security');
+define('SMTP_HOST',       ''); // e.g. smtp.office365.com or smtp.gmail.com (leave blank for standard mail())
+define('SMTP_PORT',       587);
+define('SMTP_USER',       '');
+define('SMTP_PASS',       '');
+define('SMTP_SECURE',     'tls'); // 'tls' or 'ssl'
+define('DEV_MODE',        true);  // When true on localhost, displays helper code in testing
+
+// ─── Load Helpers & DB Connection ─────────────────────────────────────────
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/mail.php';
