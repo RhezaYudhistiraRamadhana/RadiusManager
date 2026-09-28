@@ -1,8 +1,8 @@
 # RadiusManager — Project Handover Document v2
 
-**Version:** 1.5.0 → Next  
-**Date:** 24 September 2026  
-**Status:** Active Development — Phase 2 (daloRADIUS Feature Parity)
+**Version:** 1.9.0  
+**Date:** 28 September 2026  
+**Status:** Production Ready — Phase 2 & Enhanced Security Complete
 
 ---
 
@@ -10,9 +10,9 @@
 
 **RadiusManager** is a lightweight PHP web application for managing FreeRADIUS — built as a fast, clean replacement for daloRADIUS.
 
-Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.1.0 through v1.5.0)**.
+Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.1.0 through v1.9.0)**.
 
-**Goal for this phase:** Achieve full feature parity with daloRADIUS.
+**Goal for this phase:** Full feature parity with daloRADIUS, enhanced security (Email OTP reset), RBAC, REST API, Hotspot Vouchers, and Ruijie AP integration.
 
 **Tech Stack:**
 - PHP 8.0+
@@ -41,6 +41,10 @@ Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.
 | 1.3.0 | 2026-09-22 | Gemini | CSV Bulk User Import (user-import.php) + Multi-Module Streaming Export (export.php) |
 | 1.4.0 | 2026-09-22 | Gemini | 30-day bandwidth graph, framed IP search, dashboard Top 5 traffic leaderboard |
 | 1.5.0 | 2026-09-22 | Gemini | IP Pool Management (ippool.php), NAS Online/Offline Status Probing |
+| 1.6.0 | 2026-09-24 | Gemini | Priority A: User toggle, batch actions, rate plans, static IP, audit log |
+| 1.7.0 | 2026-09-24 | Gemini | Priority B: Hourly graph, bandwidth trends, expiry warnings, printable reports |
+| 1.8.0 | 2026-09-24 | Gemini | Priority C: Hotspot vouchers, subscriber portal, RBAC operators, REST API |
+| 1.9.0 | 2026-09-28 | Gemini | Email OTP password change, IT email notice, Ruijie AP support, PDF User Guide |
 
 Full details in `CHANGELOG.md`.
 

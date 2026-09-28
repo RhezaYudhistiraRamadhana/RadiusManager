@@ -5,6 +5,32 @@ All notable changes to the **RadiusManager** project are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-09-28
+
+### Added
+- **Subscriber Portal Email OTP Verification (`portal/dashboard.php`, `includes/mail.php`, `config.php`)**:
+  - Pure-PHP Socket SMTP Client (`includes/mail.php`): Zero-dependency TLS/SSL socket mailer (`stream_socket_client`) connecting directly to Microsoft 365, Gmail, or local relays.
+  - Native fallback to `mail()` and local emergency file logger at `storage/logs/mail.log`.
+  - Privacy-preserving email masking (`maskEmail()`, e.g. `Rh***a@365.polman-bandung.ac.id`).
+  - Secure OTP Workflow: 6-digit numeric OTP valid for 10 minutes, 60-second cooldown timer, and maximum 5 failed attempts limit before invalidation.
+  - Account Profile Enforcement: If a subscriber account has no registered email in `userinfo.email`, the password change form is locked with an alert prompting them to register their email with the IT department.
+  - Verification with timing-attack safe `hash_equals()` before updating passwords in `radcheck` and `rm_vouchers`.
+  - Comprehensive audit logging (`portal_password_change_otp`) recording user, masked email, and client IP.
+- **Ruijie Networks Access Point Integration (`nas.php`, `nas-add.php`, `nas-edit.php`)**:
+  - Ruijie Networks AP vendor profile support in NAS device management.
+  - Pre-configured dictionary attributes for Ruijie wireless access points and online status health checks.
+- **Comprehensive User & Administrator Guide Generator (`docs/generate_guide.php`)**:
+  - Standalone manual compiler generating high-resolution PDF documentation (`RadiusManager_User_Guide.pdf`).
+  - Covers all 18 core modules, administrative interfaces, operational workflows, troubleshooting, and subscriber portal usage.
+
+### Changed
+- **Subscriber Portal PRG Pattern (`portal/dashboard.php`)**:
+  - Migrated password update form submissions to Post-Redirect-Get (PRG) pattern with session flash messages to prevent form re-submission on browser reload.
+- **Sample Configuration (`config.sample.php`)**:
+  - Added SMTP configuration parameters and updated version to 1.9.0.
+
+---
+
 ## [1.8.0] - 2026-09-24
 
 ### Added
