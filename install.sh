@@ -87,12 +87,38 @@ sed -i 's/^memory_limit.*/memory_limit = 256M/'         "$PHP_INI" 2>/dev/null |
 sed -i 's/^max_execution_time.*/max_execution_time = 300/' "$PHP_INI" 2>/dev/null || true
 systemctl reload apache2
 
+# ── HTTPS / SSL Configuration (Optional) ──────────────────────────────────
+read -rp "Configure HTTPS? (y/n) [n]: " DO_SSL
+PROTO="http"
+if [[ "$DO_SSL" == "y" || "$DO_SSL" == "Y" ]]; then
+    read -rp "Use Let's Encrypt (l) or self-signed certificate (s)? [s]: " SSL_TYPE
+    if [[ "${SSL_TYPE:-s}" == "l" || "${SSL_TYPE:-s}" == "L" ]]; then
+        info "Installing Certbot and generating Let's Encrypt certificate..."
+        apt-get install -y certbot python3-certbot-apache
+        read -rp "Domain name (e.g. radius.polman.ac.id): " DOMAIN
+        certbot --apache -d "$DOMAIN" --non-interactive --agree-tos \
+                -m "admin@$DOMAIN"
+        PROTO="https"
+    else
+        info "Generating self-signed SSL certificate..."
+        mkdir -p /etc/ssl/private /etc/ssl/certs
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/ssl/private/radiusmanager.key \
+            -out /etc/ssl/certs/radiusmanager.crt \
+            -subj "/CN=RadiusManager/O=RadiusManager"
+        a2enmod ssl
+        a2ensite default-ssl
+        PROTO="https"
+    fi
+    systemctl reload apache2
+fi
+
 echo ""
 echo "============================================"
 echo -e "${GREEN}   Installation Complete!${NC}"
 echo "============================================"
 echo ""
-echo "  URL:      http://$(hostname -I | awk '{print $1}')/radiusmanager"
+echo "  URL:      ${PROTO}://$(hostname -I | awk '{print $1}')/radiusmanager"
 echo "  Username: admin"
 echo "  Password: $APP_PASS"
 echo ""

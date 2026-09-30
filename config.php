@@ -18,6 +18,20 @@ define('API_KEY',        'radiusmanager_api_secret_key'); // REST API Bearer Aut
 // ─── Session lifetime (seconds) ──────────────────────────────────────────
 define('SESSION_LIFETIME', 3600); // 1 hour
 
+// ─── Environment & Error Logging ──────────────────────────────────────────
+define('APP_ENV',  'production'); // 'development' | 'production'
+define('LOG_FILE', __DIR__ . '/storage/logs/app.log');
+
+if (APP_ENV === 'production') {
+    ini_set('display_errors', '0');
+    ini_set('log_errors',     '1');
+    ini_set('error_log',      LOG_FILE);
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', '1');
+    error_reporting(E_ALL);
+}
+
 // ─── SMTP & Email Settings ────────────────────────────────────────────────
 define('MAIL_FROM',       'noreply@polman-bandung.ac.id');
 define('MAIL_FROM_NAME',  APP_NAME . ' Security');
