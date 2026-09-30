@@ -1,8 +1,8 @@
 # RadiusManager — Project Handover Document v3
 
-**Version:** 1.9.0 → 2.x  
+**Version:** 1.9.1 → 2.x  
 **Date:** 30 September 2026  
-**Status:** Active Development — Phase 3 (Production Hardening & Beyond daloRADIUS)
+**Status:** Active Development — Phase 3 (Priority 1 Complete, Priority 2 Next)
 
 ---
 
@@ -10,7 +10,7 @@
 
 **RadiusManager** is a lightweight PHP web application for managing FreeRADIUS — built as a fast, clean replacement for daloRADIUS. As of v1.8.0 and v1.9.0, it has **achieved full feature parity with daloRADIUS** (with modern additions including Ruijie Networks AP integration, an automated PDF/HTML User Guide generator, and Subscriber Portal Email OTP password reset with IT email registration notices). It is now entering Phase 3: security hardening, notifications, and features that go beyond what daloRADIUS offers.
 
-Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.1.0 through v1.9.0)**.
+Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.1.0 through v1.9.1)**.
 
 **Tech Stack:**
 - PHP 8.0+
@@ -43,6 +43,7 @@ Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.
 | 1.7.0 | 2026-09-24 | Gemini | Concurrent sessions graph, dashboard charts, Expiry Warning, Executive Reports |
 | 1.8.0 | 2026-09-24 | Gemini | Vouchers/Hotspot, Self-Service Portal, RBAC, REST API |
 | 1.9.0 | 2026-09-28 | Gemini | Email OTP password change, IT email notice, Ruijie AP support, PDF User Guide |
+| 1.9.1 | 2026-09-30 | Gemini | Priority 1: Brute force lockout, session fixation, SSL installer, error logging |
 
 Full details in `CHANGELOG.md`.
 
@@ -315,6 +316,10 @@ $_SESSION['admin_role']       // 'superadmin' | 'operator' | 'readonly'
 | Performance indexes + PK windowing | `install.sql` | 1.0.0–1.2.0 |
 | Auto-installer (Ubuntu/Debian) | `install.sh` | 1.0.0 |
 | Custom vector logo + favicon | `assets/img/` | 1.2.0 |
+| Login Brute Force Protection (5 attempts/15m lockout) | `rm_login_attempts`, `login.php`, `settings.php` | 1.9.1 |
+| Session Fixation Protection (`session_regenerate_id`) | `includes/auth.php`, `portal/auth.php` | 1.9.1 |
+| HTTPS / SSL Installer Automation (Let's Encrypt/Certbot) | `install.sh` | 1.9.1 |
+| Production Error Logging & Logs `.htaccess` Security | `config.php`, `storage/logs/` | 1.9.1 |
 
 ---
 
@@ -326,7 +331,7 @@ $_SESSION['admin_role']       // 'superadmin' | 'operator' | 'readonly'
 
 ---
 
-### 🔴 Priority 1 — Security Hardening (Fix Before Production)
+### 🔴 Priority 1 — Security Hardening (Fix Before Production) — COMPLETED ✅ (v1.9.1)
 
 ---
 

@@ -5,6 +5,29 @@ All notable changes to the **RadiusManager** project are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-09-30
+
+### Security
+- **Login Brute Force Protection (`login.php`, `includes/auth.php`, `install.sql`, `settings.php`) [Priority 1A]**:
+  - Created `rm_login_attempts` table tracking IP address, target username, and attempt timestamps.
+  - Enforced a 5-failed-attempts limit within a 15-minute rolling window.
+  - Pre-credential lockout enforcement: immediately blocks authentication attempts for locked IPs and displays dynamic countdown timer.
+  - Clear attempt countdown warnings on failed attempts (e.g., 4, 3, 2, 1 remaining).
+  - Automatic IP attempt record clearance upon successful authentication.
+  - Superadmin UI in `settings.php` to monitor active IP lockouts, view recent failed attempts, unlock specific IPs, or clear all lockouts with audit logging.
+- **Session Fixation Protection (`includes/auth.php`, `portal/auth.php`) [Priority 1B]**:
+  - Enforced `session_regenerate_id(true)` immediately upon successful credential validation in both administrative login (`attemptLogin`) and subscriber portal login (`portalLogin`).
+- **HTTPS / SSL Configuration Automation (`install.sh`) [Priority 1C]**:
+  - Added interactive SSL setup prompts during Ubuntu/Debian installation.
+  - Supports automated Let's Encrypt certificates via Certbot (`certbot --apache`) or self-signed OpenSSL certificates.
+  - Automatically enables Apache `ssl` module, activates `default-ssl`, and displays HTTPS access URLs.
+- **Production Error Logging & Directory Security (`config.php`, `config.sample.php`, `storage/logs/.htaccess`) [Priority 1D]**:
+  - Added `APP_ENV` configuration with `production` default.
+  - Suppressed display of stack traces in browsers (`display_errors = 0`) in production mode and redirected runtime errors to `storage/logs/app.log`.
+  - Added `.htaccess` in `storage/logs/` and `logs/` denying direct HTTP web access to logs (`Require all denied`).
+
+---
+
 ## [1.9.0] - 2026-09-28
 
 ### Added
