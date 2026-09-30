@@ -102,6 +102,7 @@ function attemptLogin($username, $password) {
             $adm = dbFetch("SELECT id, username, password, name, role FROM rm_admins WHERE username = ?", [$username]);
             if ($adm) {
                 if (password_verify($password, $adm['password']) || $password === $adm['password']) {
+                    session_regenerate_id(true);
                     $_SESSION['admin_logged_in'] = true;
                     $_SESSION['admin_user']      = $adm['username'];
                     $_SESSION['admin_name']      = $adm['name'] ?: $adm['username'];
@@ -134,6 +135,7 @@ function attemptLogin($username, $password) {
                 }
 
                 if ($match) {
+                    session_regenerate_id(true);
                     $_SESSION['admin_logged_in'] = true;
                     $_SESSION['admin_user']      = $op['username'];
                     $fullName = trim(($op['firstname'] ?? '') . ' ' . ($op['lastname'] ?? ''));
@@ -156,6 +158,7 @@ function attemptLogin($username, $password) {
     // 3. Fallback to default config-based admin
     if (defined('APP_ADMIN') && $username === APP_ADMIN) {
         if (password_verify($password, APP_PASS) || $password === 'admin123') {
+            session_regenerate_id(true);
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_user']      = $username;
             $_SESSION['admin_name']      = 'Administrator';
@@ -167,6 +170,91 @@ function attemptLogin($username, $password) {
     }
 
     return false;
+}
+
+/**
+ * Ensure rm_login_attempts table exists
+ */
+function ensureLoginAttemptsTable(): void {
+    static $done = false;
+    if ($done) return;
+    try {
+        $db = getDB();
+        $db->exec("CREATE TABLE IF NOT EXISTS `rm_login_attempts` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `ip_address` VARCHAR(45) NOT NULL,
+            `username` VARCHAR(64) NOT NULL,
+            `attempted_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX `idx_ip` (`ip_address`),
+            INDEX `idx_time` (`attempted_at`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+        $done = true;
+    } catch (Exception $e) {
+        // Fail silently if table creation fails
+    }
+}
+
+/**
+ * Check if an IP address is locked out due to excessive failed login attempts (>= 5 in 15 mins)
+ */
+function getLoginAttemptLockout(string $ip): array {
+    ensureLoginAttemptsTable();
+    try {
+        $window = date('Y-m-d H:i:s', strtotime('-15 minutes'));
+        $row = dbFetch(
+            "SELECT COUNT(*) AS cnt, MIN(attempted_at) AS oldest_attempt
+             FROM rm_login_attempts
+             WHERE ip_address = ? AND attempted_at > ?",
+            [$ip, $window]
+        );
+        $count = (int)($row['cnt'] ?? 0);
+        if ($count >= 5) {
+            $oldest = strtotime($row['oldest_attempt'] ?? 'now');
+            $unlockAt = $oldest + (15 * 60);
+            $remainingSec = max(1, $unlockAt - time());
+            $remainingMin = (int)ceil($remainingSec / 60);
+            return [
+                'locked'        => true,
+                'count'         => $count,
+                'remaining_sec' => $remainingSec,
+                'remaining_min' => $remainingMin
+            ];
+        }
+        return [
+            'locked'        => false,
+            'count'         => $count,
+            'remaining_sec' => 0,
+            'remaining_min' => 0
+        ];
+    } catch (Exception $e) {
+        return ['locked' => false, 'count' => 0, 'remaining_sec' => 0, 'remaining_min' => 0];
+    }
+}
+
+/**
+ * Record a failed login attempt
+ */
+function recordLoginFailure(string $ip, string $username): int {
+    ensureLoginAttemptsTable();
+    try {
+        dbQuery("INSERT INTO rm_login_attempts (ip_address, username) VALUES (?, ?)", [$ip, $username]);
+        $window = date('Y-m-d H:i:s', strtotime('-15 minutes'));
+        return (int)dbCount("SELECT COUNT(*) FROM rm_login_attempts WHERE ip_address = ? AND attempted_at > ?", [$ip, $window]);
+    } catch (Exception $e) {
+        return 0;
+    }
+}
+
+/**
+ * Clear failed login attempts for an IP upon successful authentication or admin reset
+ */
+function clearLoginAttempts(string $ip): void {
+    ensureLoginAttemptsTable();
+    try {
+        dbQuery("DELETE FROM rm_login_attempts WHERE ip_address = ?", [$ip]);
+    } catch (Exception $e) {
+        // Fail silently
+    }
 }
 
 /**

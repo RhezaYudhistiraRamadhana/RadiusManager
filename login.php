@@ -6,17 +6,36 @@ if (isLoggedIn()) {
     exit;
 }
 
+$ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+$lockout = getLoginAttemptLockout($ip);
+
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
-    $user = trim($_POST['username'] ?? '');
-    $pass = trim($_POST['password'] ?? '');
 
-    if (attemptLogin($user, $pass)) {
-        header('Location: dashboard.php');
-        exit;
+    if ($lockout['locked']) {
+        $error = "Too many failed login attempts. Access temporarily locked. Please wait {$lockout['remaining_min']} minute(s) before trying again.";
+    } else {
+        $user = trim($_POST['username'] ?? '');
+        $pass = trim($_POST['password'] ?? '');
+
+        if ($user === '' || $pass === '') {
+            $error = 'Please enter both username and password.';
+        } elseif (attemptLogin($user, $pass)) {
+            clearLoginAttempts($ip);
+            header('Location: dashboard.php');
+            exit;
+        } else {
+            $totalAttempts = recordLoginFailure($ip, $user);
+            if ($totalAttempts >= 5) {
+                $lockout = getLoginAttemptLockout($ip);
+                $error = "Too many failed attempts. Your IP has been temporarily locked for {$lockout['remaining_min']} minute(s).";
+            } else {
+                $remaining = 5 - $totalAttempts;
+                $error = "Invalid username or password. ($remaining attempt(s) remaining before temporary lockout)";
+            }
+        }
     }
-    $error = 'Invalid username or password.';
 }
 $timeout = isset($_GET['timeout']);
 ?>
@@ -60,7 +79,15 @@ $timeout = isset($_GET['timeout']);
     <?php if ($timeout): ?>
     <div class="alert alert-warning py-2 small">Session expired. Please login again.</div>
     <?php endif; ?>
-    <?php if ($error): ?>
+    <?php if ($lockout['locked']): ?>
+    <div class="alert alert-danger py-2.5 small d-flex align-items-center gap-2">
+        <i class="bi bi-shield-slash-fill fs-5 text-danger"></i>
+        <div>
+            <div class="fw-bold">Security Lockout Active</div>
+            <div>Too many failed attempts. Try again in <strong><?= $lockout['remaining_min'] ?> minute(s)</strong>.</div>
+        </div>
+    </div>
+    <?php elseif ($error): ?>
     <div class="alert alert-danger py-2 small"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
@@ -70,17 +97,17 @@ $timeout = isset($_GET['timeout']);
             <label class="form-label small fw-semibold">Username</label>
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-person"></i></span>
-                <input type="text" name="username" class="form-control" placeholder="admin / administrator" required autofocus>
+                <input type="text" name="username" class="form-control" placeholder="admin / administrator" required autofocus <?= $lockout['locked'] ? 'disabled' : '' ?>>
             </div>
         </div>
         <div class="mb-4">
             <label class="form-label small fw-semibold">Password</label>
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                <input type="password" name="password" class="form-control" placeholder="••••••••" required <?= $lockout['locked'] ? 'disabled' : '' ?>>
             </div>
         </div>
-        <button type="submit" class="btn btn-login btn-primary text-white">
+        <button type="submit" class="btn btn-login btn-primary text-white" <?= $lockout['locked'] ? 'disabled' : '' ?>>
             <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
         </button>
     </form>

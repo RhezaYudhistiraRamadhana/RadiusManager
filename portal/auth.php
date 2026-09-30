@@ -80,6 +80,7 @@ function portalLogin(string $username, string $password): array {
     }
 
     // 5. Successful Login: Set Portal Session
+    session_regenerate_id(true);
     $_SESSION['portal_logged_in'] = true;
     $_SESSION['portal_user']      = $username;
     $_SESSION['portal_last_activity'] = time();

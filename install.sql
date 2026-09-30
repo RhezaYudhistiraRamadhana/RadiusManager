@@ -141,4 +141,15 @@ CREATE TABLE IF NOT EXISTS `rm_vouchers` (
     INDEX `idx_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- ── 11. rm_login_attempts table (Brute Force Protection) ──────
+CREATE TABLE IF NOT EXISTS `rm_login_attempts` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `ip_address` VARCHAR(45) NOT NULL,
+    `username` VARCHAR(64) NOT NULL,
+    `attempted_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_ip` (`ip_address`),
+    INDEX `idx_time` (`attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 SELECT 'RadiusManager performance indexes verified successfully.' AS status;
+

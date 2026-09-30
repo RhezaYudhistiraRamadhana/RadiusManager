@@ -158,6 +158,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: settings.php');
         exit;
     }
+
+    // ── 3. Clear IP Lockouts (Superadmin only) ──────────────────────────────────
+    if ($action === 'clear_lockout') {
+        requireRole('superadmin');
+        $targetIp = trim($_POST['ip_address'] ?? '');
+        if ($targetIp === 'all') {
+            if (dbTableExists('rm_login_attempts')) {
+                dbQuery("TRUNCATE TABLE rm_login_attempts");
+            }
+            auditLog('security.unlock_all', 'all_ips', 'Superadmin cleared all IP login lockouts and attempt history');
+            flash('success', 'All temporary IP lockouts and failed login records have been cleared.');
+        } elseif ($targetIp !== '') {
+            clearLoginAttempts($targetIp);
+            auditLog('security.unlock_ip', $targetIp, "Superadmin unlocked IP address $targetIp");
+            flash('success', "IP lockout for $targetIp has been successfully cleared.");
+        }
+        header('Location: settings.php#security');
+        exit;
+    }
 }
 
 // System Information
@@ -179,6 +198,28 @@ $totalAuthLogs = $countsMap['radpostauth'] ?? 0;
 $totalAcct     = $countsMap['radacct'] ?? 0;
 $totalUsers    = $countsMap['radcheck'] ?? 0;
 $totalNas      = $countsMap['nas'] ?? 0;
+
+// Active Lockouts & Login Security Data
+$activeLockouts = [];
+$recentAttempts = [];
+if (dbTableExists('rm_login_attempts')) {
+    $window = date('Y-m-d H:i:s', strtotime('-15 minutes'));
+    $activeLockouts = dbFetchAll("
+        SELECT ip_address, COUNT(*) as failed_count, MAX(attempted_at) as last_attempt, MIN(attempted_at) as first_attempt
+        FROM rm_login_attempts
+        WHERE attempted_at > ?
+        GROUP BY ip_address
+        HAVING failed_count >= 5
+        ORDER BY last_attempt DESC
+    ", [$window]);
+
+    $recentAttempts = dbFetchAll("
+        SELECT ip_address, username, attempted_at
+        FROM rm_login_attempts
+        ORDER BY id DESC
+        LIMIT 10
+    ");
+}
 
 // Operators / Admins List
 $operatorsList = [];
@@ -424,6 +465,107 @@ include __DIR__ . '/includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- Login Security & Brute Force Protection Card -->
+<?php if (hasRole('superadmin')): ?>
+<div class="card shadow-sm mb-4" id="security">
+    <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
+        <div>
+            <span class="fw-bold"><i class="bi bi-shield-lock-fill text-danger me-2"></i>Login Security &amp; Brute Force Lockouts</span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle ms-2">Active</span>
+        </div>
+        <?php if (!empty($activeLockouts) || !empty($recentAttempts)): ?>
+        <form method="POST" class="d-inline" onsubmit="return confirm('Clear all failed login records and active IP lockouts?');">
+            <?= csrfField() ?>
+            <input type="hidden" name="action" value="clear_lockout">
+            <input type="hidden" name="ip_address" value="all">
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-trash3 me-1"></i>Clear All Lockouts
+            </button>
+        </form>
+        <?php endif; ?>
+    </div>
+    <div class="card-body p-3">
+        <div class="small text-muted mb-3">
+            <i class="bi bi-info-circle me-1 text-primary"></i>Policy: Maximum <strong>5 failed login attempts</strong> within <strong>15 minutes</strong> automatically locks the client IP address.
+        </div>
+
+        <h6 class="fw-bold text-uppercase text-secondary mb-2" style="font-size:.75rem">Active IP Lockouts (Last 15 Mins)</h6>
+        <?php if (empty($activeLockouts)): ?>
+            <div class="p-2.5 bg-success-subtle text-success-emphasis rounded-3 border border-success-subtle d-flex align-items-center gap-2 small mb-3">
+                <i class="bi bi-check-circle-fill fs-6 text-success"></i>
+                <span>No active IP lockouts. All client connections are currently clear.</span>
+            </div>
+        <?php else: ?>
+            <div class="table-responsive mb-3">
+                <table class="table table-sm table-bordered align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>IP Address</th>
+                            <th>Failed Attempts</th>
+                            <th>Last Attempt</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($activeLockouts as $l): 
+                            $oldestSec = strtotime($l['first_attempt']);
+                            $unlockSec = max(1, ($oldestSec + 900) - time());
+                            $remMin = ceil($unlockSec / 60);
+                        ?>
+                        <tr>
+                            <td><code><?= htmlspecialchars($l['ip_address']) ?></code></td>
+                            <td><span class="badge bg-danger"><?= (int)$l['failed_count'] ?> failures</span></td>
+                            <td class="text-muted"><?= date('H:i:s', strtotime($l['last_attempt'])) ?></td>
+                            <td><span class="text-danger fw-semibold"><i class="bi bi-lock-fill me-1"></i>Locked (~<?= $remMin ?>m left)</span></td>
+                            <td>
+                                <form method="POST" class="d-inline">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="clear_lockout">
+                                    <input type="hidden" name="ip_address" value="<?= htmlspecialchars($l['ip_address']) ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-success py-0 px-2" style="font-size:.75rem">
+                                        <i class="bi bi-unlock me-1"></i>Unlock
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($recentAttempts)): ?>
+        <details class="small text-muted">
+            <summary class="cursor-pointer fw-semibold text-secondary py-1" style="cursor:pointer">
+                <i class="bi bi-clock-history me-1"></i>View Recent Failed Attempts (Last 10)
+            </summary>
+            <div class="table-responsive mt-2">
+                <table class="table table-sm table-striped align-middle mb-0" style="font-size:.78rem">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>IP Address</th>
+                            <th>Target Username</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($recentAttempts as $a): ?>
+                        <tr>
+                            <td class="text-muted"><?= htmlspecialchars($a['attempted_at']) ?></td>
+                            <td><code><?= htmlspecialchars($a['ip_address']) ?></code></td>
+                            <td><strong><?= htmlspecialchars($a['username']) ?></strong></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </details>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Registered Operators Directory -->
 <?php if (!empty($operatorsList) || !empty($rmAdminsList)): ?>
