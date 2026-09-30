@@ -1,18 +1,16 @@
-# RadiusManager — Project Handover Document v2
+# RadiusManager — Project Handover Document v3
 
-**Version:** 1.9.0  
-**Date:** 28 September 2026  
-**Status:** Production Ready — Phase 2 & Enhanced Security Complete
+**Version:** 1.9.0 → 2.x  
+**Date:** 30 September 2026  
+**Status:** Active Development — Phase 3 (Production Hardening & Beyond daloRADIUS)
 
 ---
 
 ## Project Overview
 
-**RadiusManager** is a lightweight PHP web application for managing FreeRADIUS — built as a fast, clean replacement for daloRADIUS.
+**RadiusManager** is a lightweight PHP web application for managing FreeRADIUS — built as a fast, clean replacement for daloRADIUS. As of v1.8.0 and v1.9.0, it has **achieved full feature parity with daloRADIUS** (with modern additions including Ruijie Networks AP integration, an automated PDF/HTML User Guide generator, and Subscriber Portal Email OTP password reset with IT email registration notices). It is now entering Phase 3: security hardening, notifications, and features that go beyond what daloRADIUS offers.
 
 Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.1.0 through v1.9.0)**.
-
-**Goal for this phase:** Full feature parity with daloRADIUS, enhanced security (Email OTP reset), RBAC, REST API, Hotspot Vouchers, and Ruijie AP integration.
 
 **Tech Stack:**
 - PHP 8.0+
@@ -26,7 +24,7 @@ Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.
 - `radpostauth`: 24,158,410 rows
 - `radacct`: 1,016,179 rows
 - `radcheck`: 4,287 users
-- All page loads: 0.03s – 0.10s
+- All page loads: 0.03s – 0.25s
 
 ---
 
@@ -35,69 +33,97 @@ Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.
 | Version | Date | By | Summary |
 |---|---|---|---|
 | 1.0.0 | 2026-09-10 | Claude | Initial build — all core pages, installer, indexes |
-| 1.1.0 | 2026-09-18 | Gemini | userinfo integration, CSRF, CoA, unified architecture, operators login |
-| 1.2.0 | 2026-09-21 | Gemini | Production DB support, 75x query speedup, PK windowing, smart date fallback, custom vector branding |
+| 1.1.0 | 2026-09-18 | Gemini | userinfo, CSRF, CoA, unified architecture, operators login, bug fixes |
+| 1.2.0 | 2026-09-21 | Gemini | Production DB support, 75x speedup, PK windowing, smart date fallback, branding |
 | 1.2.1 | 2026-09-22 | Gemini | Settings page, 200x users.php speedup, composite indexes |
-| 1.3.0 | 2026-09-22 | Gemini | CSV Bulk User Import (user-import.php) + Multi-Module Streaming Export (export.php) |
-| 1.4.0 | 2026-09-22 | Gemini | 30-day bandwidth graph, framed IP search, dashboard Top 5 traffic leaderboard |
-| 1.5.0 | 2026-09-22 | Gemini | IP Pool Management (ippool.php), NAS Online/Offline Status Probing |
-| 1.6.0 | 2026-09-24 | Gemini | Priority A: User toggle, batch actions, rate plans, static IP, audit log |
-| 1.7.0 | 2026-09-24 | Gemini | Priority B: Hourly graph, bandwidth trends, expiry warnings, printable reports |
-| 1.8.0 | 2026-09-24 | Gemini | Priority C: Hotspot vouchers, subscriber portal, RBAC operators, REST API |
+| 1.3.0 | 2026-09-22 | Gemini | CSV Bulk User Import + Streaming CSV Export |
+| 1.4.0 | 2026-09-22 | Gemini | 30-day bandwidth graph per user, framed IP search, Top 5 traffic leaderboard |
+| 1.5.0 | 2026-09-22 | Gemini | IP Pool Management, NAS online/offline status probe |
+| 1.6.0 | 2026-09-24 | Gemini | Enable/Disable users, Batch Operations, Rate Plans, Static IP, Audit Log |
+| 1.7.0 | 2026-09-24 | Gemini | Concurrent sessions graph, dashboard charts, Expiry Warning, Executive Reports |
+| 1.8.0 | 2026-09-24 | Gemini | Vouchers/Hotspot, Self-Service Portal, RBAC, REST API |
 | 1.9.0 | 2026-09-28 | Gemini | Email OTP password change, IT email notice, Ruijie AP support, PDF User Guide |
 
 Full details in `CHANGELOG.md`.
 
 ---
 
-## Current File Structure (v1.5.0)
+## Current File Structure (v1.9.0)
 
 ```
 radius-manager/
-├── config.php                  — Pure config: DB credentials, app constants
-├── auth.php                    — Bootstrap loader: imports all includes
-├── install.sh                  — Auto-installer for Ubuntu/Debian
-├── install.sql                 — Idempotent performance indexes (MySQL 5.7/8.0/MariaDB)
-├── CHANGELOG.md                — Full version history
-├── HANDOVER.md                 — This file
+├── config.php                      — DB credentials, app constants, API_KEY, SMTP settings
+├── config.sample.php               — Clean configuration template
+├── auth.php                        — Bootstrap loader (imports all includes)
+├── install.sh                      — Auto-installer for Ubuntu/Debian
+├── install.sql                     — Idempotent performance indexes (MySQL 5.7/8.0/MariaDB)
+├── CHANGELOG.md                    — Full version history
+├── HANDOVER.md                     — This file
 ├── database/
-│   ├── schema_seed.sql         — Lightweight local dev schema + seed data
-│   └── radius.sql              — Production FreeRADIUS database backup (2.35 GB)
+│   ├── schema_seed.sql             — Dev schema + seed data
+│   └── radius.sql                  — Production backup (2.35 GB, gitignored)
+├── docs/
+│   ├── generate_guide.php          — User & Administrator Guide generator
+│   └── RadiusManager_User_Guide.pdf— Printable A4 manual
 ├── assets/
 │   └── img/
-│       ├── logo.svg            — Custom vector brand logo & favicon
-│       └── icon.svg            — Scalable network hub icon
+│       ├── logo.svg                — Custom vector brand logo
+│       └── icon.svg                — Scalable network hub icon
 ├── includes/
-│   ├── db.php                  — PDO singleton + helpers
-│   ├── auth.php                — Session management, CSRF, flash messages
-│   ├── functions.php           — formatBytes, formatDuration, sanitize, h, paginate, paginationLinks
-│   ├── header.php              — Sidebar nav, topbar, Bootstrap 5 CSS
-│   └── footer.php              — Bootstrap JS, Chart.js CDN
-├── login.php                   — Config admin + operators table (bcrypt/MD5/cleartext)
+│   ├── db.php                      — PDO singleton + helpers (dbQuery, dbFetch, dbFetchAll, dbCount, dbTableExists, dbHasColumn)
+│   ├── auth.php                    — Session, CSRF (csrfToken/csrfField/verifyCsrf), flash, RBAC (requireRole, hasRole, isReadOnly)
+│   ├── functions.php               — formatBytes, formatDuration, sanitize, h, paginate, paginationLinks, auditLog
+│   ├── mail.php                    — Pure PHP socket SMTP client, email masking, OTP mailer
+│   ├── header.php                  — Sidebar nav, topbar with role badge, Bootstrap 5 CSS
+│   └── footer.php                  — Bootstrap JS, Chart.js CDN
+├── api/
+│   ├── index.php                   — API discovery + documentation
+│   ├── users.php                   — Users CRUD (GET/POST/PUT/DELETE)
+│   ├── sessions.php                — Active sessions + CoA disconnect
+│   └── accounting.php              — Accounting history with filters
+├── portal/
+│   ├── login.php                   — Subscriber self-service login
+│   ├── logout.php
+│   └── dashboard.php               — Subscriber dashboard (usage, sessions, OTP password change)
+├── login.php                       — Admin login (config + operators table)
 ├── logout.php
-├── index.php                   — Redirect to dashboard
-├── dashboard.php               — Clickable stat cards, 7-day auth chart, failed logins, active sessions, Top 5 traffic
-├── settings.php                — Password management & diagnostics
-├── export.php                  — Streaming CSV export (Users, Accounting, Auth Log)
-├── users.php                   — 2-step paginated fetch, userinfo JOIN, enable/disable toggle
-├── user-add.php                — Add user + userinfo fields, CSRF protected
-├── user-edit.php               — Edit user + userinfo, recent sessions, 30-day bandwidth graph
-├── user-import.php             — CSV bulk user import
-├── user-delete.php             — Removes radcheck, radreply, radusergroup, userinfo
-├── groups.php                  — Group CRUD, check/reply attributes, member list
-├── nas.php                     — NAS list, secret toggle, online/offline status probe
+├── index.php                       — Redirect to dashboard
+├── dashboard.php                   — Stats cards, charts (7-day auth, 14-day bandwidth, concurrent, Top 5 NAS, Top 5 traffic)
+├── settings.php                    — Password management, diagnostics, system info
+├── export.php                      — Streaming CSV export (users, accounting, auth log)
+├── expiry-check.php                — Expiry warning dashboard + CLI cron mode
+├── reports.php                     — Executive reports, print stylesheet, CSV export
+├── audit.php                       — Admin activity log
+├── operators.php                   — Operator management + RBAC
+├── users.php                       — User list, batch ops, enable/disable toggle
+├── user-add.php                    — Add user + userinfo, CSRF protected
+├── user-edit.php                   — Edit user + userinfo + 30-day bandwidth graph + static IP
+├── user-import.php                 — CSV bulk import
+├── user-delete.php                 — Delete from radcheck, radreply, radusergroup, userinfo
+├── user-toggle.php                 — Enable/disable handler (Auth-Type := Reject)
+├── user-batch.php                  — Batch operations handler
+├── groups.php                      — Group CRUD, check/reply attributes, member list
+├── plans.php                       — Rate plan management
+├── plan-add.php
+├── plan-edit.php
+├── plan-delete.php
+├── nas.php                         — NAS list, secret toggle, online/offline probe (Ruijie/Mikrotik)
 ├── nas-add.php
 ├── nas-edit.php
 ├── nas-delete.php
-├── accounting.php              — Session history, date/user/IP filter, traffic summary
-├── sessions.php                — Active sessions, CoA kick, IP search, auto-refresh
-├── postauth.php                — Auth log, accept/reject filter, success rate
-└── ippool.php                  — IP pool management, manual IP release
+├── vouchers.php                    — Voucher inventory dashboard
+├── voucher-generate.php            — Batch voucher generator
+├── voucher-print.php               — Print-ready voucher cards (A4)
+├── voucher-delete.php              — Voucher deletion handler
+├── accounting.php                  — Session history, date/user/IP filter, traffic summary
+├── sessions.php                    — Active sessions (50/page), CoA kick, IP search, auto-refresh
+├── postauth.php                    — Auth log, accept/reject filter, success rate
+└── ippool.php                      — IP pool management, manual IP release
 ```
 
 ---
 
-## Database Tables
+## Database Tables (v1.9.0)
 
 | Table | Purpose | Optional |
 |---|---|---|
@@ -105,584 +131,934 @@ radius-manager/
 | `radreply` | User reply attributes (`Framed-IP-Address`, etc.) | No |
 | `radusergroup` | User → group mapping | No |
 | `radgroupcheck` | Group check attributes | No |
-| `radgroupreply` | Group reply attributes (`WISPr-Bandwidth-Max-Down/Up`, etc.) | No |
+| `radgroupreply` | Group reply attributes (`WISPr-Bandwidth-Max-Down/Up`, `Mikrotik-Rate-Limit`, etc.) | No |
 | `radacct` | Accounting / session history | No |
 | `nas` | NAS device registry with shared secrets | No |
 | `radpostauth` | Post-auth log (24M+ rows) | No |
-| `userinfo` | Extended profiles: firstname, lastname/department, email | Yes — detected via `dbTableExists()` |
-| `operators` | Admin/operator accounts with bcrypt/MD5/cleartext | Yes — detected dynamically |
-| `rm_admins` | RadiusManager-native admin accounts | Yes — created by install.sql |
-| `rm_audit_log` | Admin activity audit trail | Yes — to be created in Phase 2 |
-| `rm_plans` | Bandwidth/data rate plans | Yes — to be created in Phase 2 |
-| `radippool` | IP pool assignments | Yes — detected via `dbTableExists()` |
+| `radippool` | IP pool assignments | Yes — `dbTableExists()` |
+| `userinfo` | Extended profiles: firstname, lastname/department, email | Yes — `dbTableExists()` |
+| `operators` | Admin/operator accounts (bcrypt/MD5/cleartext) + `role` column | Yes |
+| `rm_admins` | RadiusManager native admin accounts | Yes — created by install.sql |
+| `rm_audit_log` | Admin activity audit trail | Yes — created by install.sql |
+| `rm_plans` | Bandwidth/data rate plans | Yes — created by install.sql |
+| `rm_vouchers` | Voucher/hotspot tracking | Yes — created by install.sql |
+| `rm_login_attempts` | Brute force login tracking | **Phase 3 — to be created** |
+| `rm_notifications` | Notification config and send log | **Phase 3 — to be created** |
+| `rm_notification_settings` | Notification configuration key-value store | **Phase 3 — to be created** |
 
 ---
 
 ## Architecture Rules
 
-> **Follow these exactly when adding new pages or features.**
+> **Follow these exactly. Do not deviate.**
 
 ### 1. Page Bootstrap
-
-Every protected page must start with:
-
 ```php
 require_once __DIR__ . '/auth.php';
 requireLogin();
-$page_title = 'Your Page Title';
+$page_title = 'Page Title';
 $db = getDB();
 ```
 
 ### 2. Database Access
-
 ```php
-$db   = getDB();
 $rows = dbFetchAll("SELECT ...", [...]);
 $row  = dbFetch("SELECT ...", [...]);
 $n    = dbCount("SELECT COUNT(*) ...");
 dbQuery("INSERT INTO ...", [...]);
 
-// Always check optional tables/columns first:
-if (dbTableExists('rm_audit_log')) { ... }
+// Always check optional tables/columns before querying:
+if (dbTableExists('rm_notifications')) { ... }
 if (dbHasColumn('radpostauth', 'nasipaddress')) { ... }
 ```
 
-### 3. Output / Sanitization
-
+### 3. Output Sanitization
 ```php
 echo sanitize($value);
 echo h($value);
 ```
 
 ### 4. CSRF Protection
-
 ```php
 // Inside every state-altering form:
 <?= csrfField() ?>
 
-// On every POST handler:
+// At the top of every POST handler:
 verifyCsrf();
 ```
 
 ### 5. Flash Messages
-
 ```php
 $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Done.'];
 $_SESSION['flash'] = ['type' => 'danger',  'msg' => 'Error.'];
 ```
 
 ### 6. Page Layout
-
 ```php
 $page_title = 'My Page';
-$extra_js   = '<script>/* optional page JS */</script>';
+$extra_js   = '<script>/* optional page-specific JS */</script>';
 include __DIR__ . '/includes/header.php';
 // ... content ...
 include __DIR__ . '/includes/footer.php';
 ```
 
 ### 7. Pagination
-
 ```php
 $pagination = paginate($total, $perPage, $page);
 // use $pagination['offset'] in LIMIT clause
 echo paginationLinks($pagination, $queryStringArray);
 ```
 
-### 8. Performance Rules (CRITICAL)
-
+### 8. RBAC Checks
 ```php
-// ❌ WRONG — full table scan
-WHERE DATE(acctstarttime) = CURDATE()
-ORDER BY authdate DESC  // on 24M-row table
-
-// ✅ CORRECT — index range scan
-WHERE acctstarttime >= :start AND acctstarttime < :end
-ORDER BY id DESC
-
-// ❌ WRONG — duplicate PDO parameter
-WHERE (username LIKE :q OR framedipaddress LIKE :q)
-
-// ✅ CORRECT
-WHERE (username LIKE :q1 OR framedipaddress LIKE :q2)
-```
-
-### 9. Audit Logging (NEW — Required for all write operations in Phase 2)
-
-Every page that creates, updates, or deletes data must call:
-
-```php
-auditLog('action', 'target', 'detail');
-// Example:
-auditLog('user.disable', $username, 'Set Auth-Type := Reject');
-auditLog('user.delete', $username, 'Removed from radcheck, radusergroup, userinfo');
-auditLog('voucher.create', $batchName, '50 vouchers generated, plan: 1-Day-10Mbps');
-```
-
-`auditLog()` must be added to `includes/functions.php`. It inserts into `rm_audit_log` if the table exists, silently skips if not.
-
----
-
-## Authentication
-
-Login supports two sources:
-1. **Config admin** — `APP_ADMIN` / `APP_PASS` from `config.php`
-2. **Operators table** — bcrypt / MD5 / cleartext passwords
-
-Session variables:
-```php
-$_SESSION['admin_logged_in']  // bool
-$_SESSION['admin_user']       // username
-$_SESSION['admin_name']       // display name
-$_SESSION['admin_source']     // 'config' or 'operators'
-$_SESSION['admin_role']       // 'superadmin' | 'operator' | 'readonly' (Phase 2)
-```
-
----
-
-## What Is Already Done ✅
-
-| Feature | Page | Version |
-|---|---|---|
-| Login (dual auth source) | `login.php` | 1.0.0 |
-| Dashboard with clickable stats + Top 5 | `dashboard.php` | 1.0.0 / 1.4.0 |
-| User list (2-step pagination, 75x optimized) | `users.php` | 1.0.0 / 1.2.1 |
-| Add / Edit / Delete user + userinfo | `user-add/edit/delete.php` | 1.0.0 / 1.1.0 |
-| CSV Bulk User Import | `user-import.php` | 1.3.0 |
-| Streaming CSV Export | `export.php` | 1.3.0 |
-| 30-Day Bandwidth Graph per user | `user-edit.php` | 1.4.0 |
-| Group management + attributes | `groups.php` | 1.0.0 |
-| NAS CRUD + online/offline probe | `nas.php` + sub-pages | 1.0.0 / 1.5.0 |
-| Accounting history + IP search | `accounting.php` | 1.0.0 / 1.4.0 |
-| Active sessions + CoA kick + IP search | `sessions.php` | 1.0.0 / 1.4.0 |
-| Auth log with filter + success rate | `postauth.php` | 1.0.0 |
-| IP Pool Management | `ippool.php` | 1.5.0 |
-| Settings + diagnostics | `settings.php` | 1.2.1 |
-| CSRF on all forms | All pages | 1.1.0 |
-| Performance indexes | `install.sql` | 1.0.0 / 1.2.1 |
-| Auto-installer | `install.sh` | 1.0.0 |
-| Custom vector logo & favicon | `assets/img/` | 1.2.0 |
-
----
-
-## Phase 2 Roadmap — daloRADIUS Feature Parity
-
-> Build these features **one file at a time**, in priority order.
-> Follow all architecture rules above exactly.
-> Every write operation must call `auditLog()`.
-
----
-
-### 🔴 Priority A — Must Have (Build First)
-
----
-
-#### A1. Enable / Disable Users
-
-**File to modify:** `users.php`, `user-edit.php`  
-**New file:** `user-toggle.php`
-
-**What it does:**
-- Adds a toggle button (Enable / Disable) next to each user on the users list
-- Disabling inserts `Auth-Type := Reject` into `radcheck`
-- Enabling removes that attribute
-- Disabled users show a visual badge on the user list
-
-**Implementation:**
-```php
-// Disable: INSERT into radcheck
-INSERT INTO radcheck (username, attribute, op, value)
-VALUES (:username, 'Auth-Type', ':=', 'Reject')
-
-// Enable: DELETE from radcheck
-DELETE FROM radcheck WHERE username=:username AND attribute='Auth-Type'
-```
-
-**UI:**
-- `users.php`: add a green/red toggle icon button in the Actions column
-- Show `[DISABLED]` badge in red next to disabled usernames
-- `user-toggle.php`: handles POST, CSRF protected, calls `auditLog()`, redirects back
-
----
-
-#### A2. Batch Operations on Users
-
-**File to modify:** `users.php`  
-**New file:** `user-batch.php`
-
-**What it does:**
-- Adds checkboxes to each row on the user list
-- "Select All" checkbox in the header
-- Batch action dropdown at the bottom: Enable / Disable / Delete / Change Group / Export Selected
-- Submits selected usernames as `username[]` array
-
-**Implementation:**
-- `user-batch.php` receives `POST['action']` and `POST['usernames'][]`
-- Loops through each username and applies the action
-- Shows a results summary: X succeeded / Y failed
-- CSRF protected
-- Calls `auditLog()` for each action
-
----
-
-#### A3. Rate Plan / Bandwidth Package Management
-
-**New files:** `plans.php`, `plan-add.php`, `plan-edit.php`, `plan-delete.php`  
-**New DB table:** `rm_plans` (local app table, not FreeRADIUS)
-
-**What it does:**
-- Create named plans: e.g. "10Mbps-100GB", "Unlimited-5Mbps", "1-Day-Trial"
-- Each plan maps to a set of RADIUS group reply attributes
-- Assigning a plan to a user = assigning them to that group in `radusergroup`
-- Plans are stored as group attributes in `radgroupreply`
-
-**`rm_plans` table:**
-```sql
-CREATE TABLE rm_plans (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    name        VARCHAR(100) NOT NULL UNIQUE,
-    groupname   VARCHAR(64)  NOT NULL,
-    description TEXT,
-    dl_kbps     INT DEFAULT 0,
-    ul_kbps     INT DEFAULT 0,
-    data_mb     INT DEFAULT 0,
-    time_hours  INT DEFAULT 0,
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-**`radgroupreply` attributes to insert per plan:**
-```
-WISPr-Bandwidth-Max-Down  :=  <dl_kbps * 1000>
-WISPr-Bandwidth-Max-Up    :=  <ul_kbps * 1000>
-Max-All-Session           :=  <time_hours * 3600>   (if time-limited)
-```
-
-**`plans.php` UI:**
-- Table of all plans with: Name, Download, Upload, Data Limit, Time Limit, Users Count, Actions
-- "Assign Plan" button opens a modal to select a user and assign the plan
-
----
-
-#### A4. Static IP Assignment per User
-
-**File to modify:** `user-edit.php`
-
-**What it does:**
-- Adds a "Static IP Address" field to the user edit form
-- Saves `Framed-IP-Address` to `radreply` for that user
-- Shows current assigned IP (if any)
-- Clearing the field removes the `Framed-IP-Address` from `radreply`
-
-**Implementation:**
-```php
-// Load current static IP
-SELECT value FROM radreply
-WHERE username=:username AND attribute='Framed-IP-Address'
-
-// Save:
-DELETE FROM radreply WHERE username=:username AND attribute='Framed-IP-Address';
-if ($staticIp) {
-    INSERT INTO radreply (username, attribute, op, value)
-    VALUES (:username, 'Framed-IP-Address', ':=', :ip)
-}
-```
-
----
-
-#### A5. Audit / Activity Log
-
-**New file:** `audit.php`  
-**New DB table:** `rm_audit_log`  
-**Modify:** `includes/functions.php` — add `auditLog()` function
-
-**`rm_audit_log` table (add to `install.sql`):**
-```sql
-CREATE TABLE IF NOT EXISTS rm_audit_log (
-    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
-    operator   VARCHAR(64)  NOT NULL,
-    action     VARCHAR(64)  NOT NULL,
-    target     VARCHAR(128) DEFAULT NULL,
-    detail     TEXT         DEFAULT NULL,
-    ip_address VARCHAR(45)  DEFAULT NULL,
-    created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_operator  (operator),
-    INDEX idx_action    (action),
-    INDEX idx_created   (created_at)
-);
-```
-
-**`auditLog()` function in `includes/functions.php`:**
-```php
-function auditLog(string $action, string $target = '', string $detail = ''): void {
-    if (!dbTableExists('rm_audit_log')) return;
-    $operator = $_SESSION['admin_user'] ?? 'system';
-    $ip       = $_SERVER['REMOTE_ADDR'] ?? '';
-    dbQuery(
-        "INSERT INTO rm_audit_log (operator, action, target, detail, ip_address)
-         VALUES (:op, :action, :target, :detail, :ip)",
-        [':op'=>$operator, ':action'=>$action, ':target'=>$target,
-         ':detail'=>$detail, ':ip'=>$ip]
-    );
-}
-```
-
-**`audit.php` page:**
-- Table showing: Date/Time, Operator, Action, Target, Detail, IP Address
-- Filter by operator, action type, date range
-- Paginated (50/page, ORDER BY id DESC)
-- Export to CSV button
-- Add to sidebar nav under System section
-
----
-
-### 🟠 Priority B — Reporting & Notifications (Build Second)
-
----
-
-#### B1. Concurrent Sessions Graph
-
-**File to modify:** `dashboard.php` or new `reports.php`
-
-**What it does:**
-- Line chart showing number of concurrent online users at each hour of the day
-- Query `radacct` to count overlapping sessions per hour
-- Shows today's curve vs yesterday as comparison
-
-**Query approach:**
-```sql
--- For each hour slot, count sessions that were active during that hour
-SELECT HOUR(acctstarttime) AS hour, COUNT(*) AS concurrent
-FROM radacct
-WHERE acctstarttime >= :today AND acctstarttime < :tomorrow
-GROUP BY HOUR(acctstarttime)
-ORDER BY hour
-```
-
----
-
-#### B2. More Dashboard Charts
-
-**File to modify:** `dashboard.php`
-
-**Add these charts:**
-- Sessions over last 30 days (line chart) — replace the current 7-day bar chart
-- Top 5 NAS devices by traffic (bar chart) — query `radacct GROUP BY nasipaddress`
-- Bandwidth trend: daily upload vs download for last 14 days (dual-line chart)
-
----
-
-#### B3. Expiry Warning System
-
-**New file:** `expiry-check.php` (can be called by cron or from Settings page)
-
-**What it does:**
-- Scans `radcheck` for users with `Expiration` attribute within next X days
-- Lists them on screen (for manual action)
-- Optional: sends email via PHPMailer if SMTP is configured in `config.php`
-
-**New `config.php` constants to add:**
-```php
-define('SMTP_HOST',     '');
-define('SMTP_PORT',     587);
-define('SMTP_USER',     '');
-define('SMTP_PASS',     '');
-define('SMTP_FROM',     '');
-define('EXPIRY_WARN_DAYS', 7);
-```
-
----
-
-#### B4. Scheduled / Printable Reports
-
-**New file:** `reports.php`
-
-**What it does:**
-- Monthly summary report: total sessions, total traffic, top 10 users, top NAS
-- Printable HTML layout with `@media print` CSS
-- Export to CSV button
-- Date range selector (default: current month)
-
----
-
-### 🟡 Priority C — Advanced Features (Build Third)
-
----
-
-#### C1. Hotspot / Voucher System
-
-**New files:** `vouchers.php`, `voucher-generate.php`, `voucher-print.php`  
-**New DB table:** `rm_vouchers`
-
-**What it does:**
-- Generate batches of random username/password vouchers
-- Each voucher is linked to a plan (from `rm_plans`)
-- Vouchers are pre-provisioned into `radcheck` and `radusergroup`
-- Print-ready voucher cards (4 per page, A4)
-- Track used / unused voucher status
-
-**`rm_vouchers` table:**
-```sql
-CREATE TABLE IF NOT EXISTS rm_vouchers (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    batch_name  VARCHAR(100) NOT NULL,
-    username    VARCHAR(64)  NOT NULL UNIQUE,
-    password    VARCHAR(64)  NOT NULL,
-    plan_id     INT          DEFAULT NULL,
-    status      ENUM('unused','active','expired') DEFAULT 'unused',
-    created_by  VARCHAR(64)  DEFAULT NULL,
-    created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
-    used_at     TIMESTAMP    DEFAULT NULL,
-    INDEX idx_batch  (batch_name),
-    INDEX idx_status (status)
-);
-```
-
-**`voucher-generate.php`:**
-- Select plan, quantity (1–200), prefix, validity days
-- Generate random alphanumeric username/password pairs
-- Insert into `radcheck` (password + expiry), `radusergroup`, `rm_vouchers`
-- CSRF protected, audit logged
-
-**`voucher-print.php`:**
-- Renders selected batch as printable cards
-- Each card shows: SSID/network name, Username, Password, Plan name, Expiry
-- `@media print` CSS for clean printing
-
----
-
-#### C2. User Self-Service Portal
-
-**New directory:** `portal/`  
-**New files:** `portal/index.php`, `portal/login.php`, `portal/logout.php`, `portal/dashboard.php`
-
-**What it does:**
-- Completely separate login page for end users (not admins)
-- Users log in with their own RADIUS username/password
-- Authenticates by checking `radcheck` directly (Cleartext-Password)
-- Shows their own usage: last sessions, traffic used, account expiry, group/plan
-- Cannot see or modify other users
-
-**portal/dashboard.php shows:**
-- Account status (active / disabled / expired)
-- Account expiry date
-- Plan/group name
-- Total traffic used this month
-- Last 5 sessions (date, duration, traffic, IP)
-- Change password form (updates `radcheck`, CSRF protected)
-
----
-
-#### C3. Role-Based Access Control (RBAC)
-
-**Files to modify:** `includes/auth.php`, all existing pages  
-**File to modify:** `settings.php` or new `operators.php`
-
-**Three roles:**
-
-| Role | Permissions |
-|---|---|
-| `superadmin` | Full access — all pages, system settings, RBAC management |
-| `operator` | Manage users, sessions, vouchers — no NAS, no system settings, no audit log |
-| `readonly` | View only — all pages visible but no create/edit/delete buttons shown |
-
-**Implementation:**
-- Add `role` column to `operators` table: `ENUM('superadmin','operator','readonly') DEFAULT 'operator'`
-- Add `requireRole('superadmin')` helper in `includes/auth.php`
-- Add role checks at the top of restricted pages:
-```php
-requireRole('superadmin'); // only superadmin can access
-requireRole('operator');   // operator and above
-// no check = all logged-in roles allowed (readonly can view)
-```
-- Hide create/edit/delete buttons for `readonly` role using:
-```php
-<?php if ($_SESSION['admin_role'] !== 'readonly'): ?>
-  <button ...>Add User</button>
+requireRole('superadmin'); // blocks operator and readonly
+requireRole('operator');   // blocks readonly only
+// no check = all authenticated roles can access (readonly can view)
+
+// Hide write actions from readonly users:
+<?php if (!isReadOnly()): ?>
+  <button>Add User</button>
 <?php endif; ?>
 ```
 
+### 9. Audit Logging (Required on every write operation)
+```php
+auditLog('entity.action', $target, 'Human-readable detail');
+
+// Examples:
+auditLog('user.create',        $username,  'New RADIUS user created');
+auditLog('user.disable',       $username,  'Set Auth-Type := Reject');
+auditLog('user.delete',        $username,  'Removed from radcheck, radusergroup, userinfo');
+auditLog('voucher.generate',   $batchName, '50 vouchers, plan: 1-Day-10Mbps');
+auditLog('nas.delete',         $shortname, 'NAS device removed');
+auditLog('plan.create',        $planName,  '10Mbps/5Mbps, 100GB quota');
+```
+
+### 10. Performance Rules (CRITICAL — 24M row tables in production)
+```php
+// ❌ WRONG — prevents index use, causes full table scan
+WHERE DATE(acctstarttime) = CURDATE()
+ORDER BY authdate DESC      // on radpostauth (24M rows)
+
+// ✅ CORRECT — allows index range scan
+WHERE acctstarttime >= :start AND acctstarttime < :end
+ORDER BY id DESC            // always use primary key on large tables
+
+// ❌ WRONG — duplicate PDO named parameter causes fatal error
+WHERE username LIKE :q OR framedipaddress LIKE :q
+
+// ✅ CORRECT — unique parameter names
+WHERE username LIKE :q1 OR framedipaddress LIKE :q2
+```
+
 ---
 
-#### C4. RESTful JSON API
+## Authentication & RBAC (v1.9.0)
 
-**New directory:** `api/`  
-**New files:** `api/index.php`, `api/users.php`, `api/sessions.php`, `api/auth.php`
+**Login sources (checked in order):**
+1. Config admin — `APP_ADMIN` / `APP_PASS` in `config.php`
+2. `operators` table — bcrypt / MD5 / cleartext with `lastlogin` timestamp update
 
-**Authentication:** API key in `Authorization: Bearer <key>` header  
-**Key stored in:** `config.php` as `define('API_KEY', 'your-secret-key')`
+**Three roles:**
+| Role | Access |
+|---|---|
+| `superadmin` | Full access — all pages, system settings, RBAC, audit log, NAS management |
+| `operator` | Manage users, sessions, vouchers, groups, plans — no NAS, no operators, no audit log |
+| `readonly` | View-only — all pages visible but all write buttons hidden |
 
-**Endpoints:**
+**Session variables:**
+```php
+$_SESSION['admin_logged_in']  // bool
+$_SESSION['admin_user']       // username string
+$_SESSION['admin_name']       // display name
+$_SESSION['admin_source']     // 'config' | 'operators'
+$_SESSION['admin_role']       // 'superadmin' | 'operator' | 'readonly'
+```
 
-| Method | Endpoint | Action |
+**REST API authentication:**
+- `Authorization: Bearer <token>` or `X-API-Key: <token>` header
+- Token defined as `API_KEY` in `config.php`
+
+---
+
+## What Is Already Done ✅ (v1.9.0 Complete)
+
+| Feature | Page(s) | Version |
 |---|---|---|
-| `GET` | `/api/users` | List users (paginated) |
-| `GET` | `/api/users/:username` | Get single user details |
-| `POST` | `/api/users` | Create user |
-| `PUT` | `/api/users/:username` | Update user password/group |
-| `DELETE` | `/api/users/:username` | Delete user |
-| `GET` | `/api/sessions` | List active sessions |
-| `GET` | `/api/accounting` | Session history (date filter) |
-| `POST` | `/api/sessions/:id/disconnect` | CoA kick session |
+| Login (config admin + operators table, bcrypt/MD5/cleartext) | `login.php` | 1.1.0 |
+| Dashboard (stats, clickable cards, 7-day auth, 14-day bandwidth, concurrent sessions, Top 5) | `dashboard.php` | 1.0.0–1.7.0 |
+| User list with 2-step pagination (75x speedup) | `users.php` | 1.0.0–1.2.0 |
+| Add / Edit / Delete user + userinfo fields | `user-add/edit/delete.php` | 1.0.0–1.1.0 |
+| Enable / Disable user (Auth-Type := Reject) | `user-toggle.php`, `users.php` | 1.6.0 |
+| Batch operations (enable, disable, delete, change group, export) | `user-batch.php`, `users.php` | 1.6.0 |
+| CSV Bulk User Import | `user-import.php` | 1.3.0 |
+| Streaming CSV Export (users, accounting, auth log) | `export.php` | 1.3.0 |
+| 30-day bandwidth graph per user | `user-edit.php` | 1.4.0 |
+| Static IP assignment per user (Framed-IP-Address) | `user-edit.php` | 1.6.0 |
+| Group management + check/reply attributes | `groups.php` | 1.0.0 |
+| Rate Plan / Bandwidth Package management | `plans.php` + sub-pages | 1.6.0 |
+| NAS CRUD + online/offline probe (Ruijie/Mikrotik) | `nas.php` + sub-pages | 1.0.0–1.9.0 |
+| Accounting history + IP/username search | `accounting.php` | 1.0.0–1.4.0 |
+| Active sessions (50/page) + CoA kick + IP search | `sessions.php` | 1.0.0–1.5.0 |
+| Auth log + success rate + filter | `postauth.php` | 1.0.0 |
+| IP Pool management + manual release | `ippool.php` | 1.5.0 |
+| Audit log | `audit.php` | 1.6.0 |
+| Expiry warning (web dashboard + CLI cron) | `expiry-check.php` | 1.7.0 |
+| Executive reports (print + CSV) | `reports.php` | 1.7.0 |
+| Voucher / Hotspot system | `vouchers.php` + sub-pages | 1.8.0 |
+| End-user self-service portal + Email OTP password reset | `portal/`, `includes/mail.php` | 1.8.0–1.9.0 |
+| Comprehensive User & Administrator Guide (PDF/HTML) | `docs/generate_guide.php` | 1.9.0 |
+| RBAC (superadmin / operator / readonly) | `operators.php`, all pages | 1.8.0 |
+| REST API (users, sessions, accounting) | `api/` | 1.8.0 |
+| Settings + diagnostics | `settings.php` | 1.2.1 |
+| CSRF on all forms | All pages | 1.1.0 |
+| Performance indexes + PK windowing | `install.sql` | 1.0.0–1.2.0 |
+| Auto-installer (Ubuntu/Debian) | `install.sh` | 1.0.0 |
+| Custom vector logo + favicon | `assets/img/` | 1.2.0 |
 
-**Response format:**
-```json
-{
-  "success": true,
-  "data": { ... },
-  "meta": { "total": 100, "page": 1, "per_page": 25 }
+---
+
+## Phase 3 Roadmap — Production Hardening & Beyond daloRADIUS
+
+> Build in the exact order listed below.
+> Security items must be completed before any Phase 3 feature goes live.
+> Every write operation must continue to call `auditLog()`.
+
+---
+
+### 🔴 Priority 1 — Security Hardening (Fix Before Production)
+
+---
+
+#### 1A. Login Brute Force Protection
+
+**Files to modify:** `login.php`, `includes/auth.php`
+**New DB table:** `rm_login_attempts` (add to `install.sql`)
+
+**Table definition:**
+```sql
+CREATE TABLE IF NOT EXISTS rm_login_attempts (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    ip_address   VARCHAR(45)  NOT NULL,
+    username     VARCHAR(64)  NOT NULL,
+    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_ip   (ip_address),
+    INDEX idx_time (attempted_at)
+);
+```
+
+**Logic:**
+- Check attempts in last 15 minutes for this IP before processing credentials
+- If attempts >= 5 → show lockout message with countdown timer, skip credential check
+- On failed login → INSERT into `rm_login_attempts`
+- On successful login → DELETE from `rm_login_attempts` WHERE ip_address = current IP
+- Superadmin can view and clear lockouts from `settings.php`
+
+```php
+// In login.php, before credential check:
+$ip      = $_SERVER['REMOTE_ADDR'];
+$window  = date('Y-m-d H:i:s', strtotime('-15 minutes'));
+$count   = dbCount(
+    "SELECT COUNT(*) FROM rm_login_attempts
+     WHERE ip_address = ? AND attempted_at > ?",
+    [$ip, $window]
+);
+if ($count >= 5) {
+    $error = "Too many failed attempts. Please wait 15 minutes.";
+    // Show error only, do not process form
 }
 ```
 
 ---
 
-## Sidebar Navigation Updates
+#### 1B. Session Fixation Protection
 
-Add these items to `includes/header.php` as features are built:
+**File to modify:** `includes/auth.php`
 
+Add immediately after setting `$_SESSION['admin_logged_in'] = true`:
 ```php
-// Under RADIUS section:
-<a href="plans.php">    Rate Plans        </a>   // A3
-<a href="vouchers.php"> Vouchers/Hotspot  </a>   // C1
+session_regenerate_id(true);
+```
 
-// Under Reporting section:
-<a href="reports.php">  Reports           </a>   // B4
+Also add to `portal/login.php` after subscriber login success.
 
-// Under System section:
-<a href="audit.php">    Audit Log         </a>   // A5
-<a href="operators.php">Operators & RBAC  </a>   // C3
+---
+
+#### 1C. HTTPS / SSL in Installer
+
+**File to modify:** `install.sh`
+
+Add after Apache configuration block:
+```bash
+read -rp "Configure HTTPS? (y/n) [n]: " DO_SSL
+if [[ "$DO_SSL" == "y" ]]; then
+    read -rp "Use Let's Encrypt (l) or self-signed (s)? [s]: " SSL_TYPE
+    if [[ "${SSL_TYPE:-s}" == "l" ]]; then
+        apt-get install -y certbot python3-certbot-apache
+        read -rp "Domain name (e.g. radius.polman.ac.id): " DOMAIN
+        certbot --apache -d "$DOMAIN" --non-interactive --agree-tos \
+                -m "admin@$DOMAIN"
+    else
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/ssl/private/radiusmanager.key \
+            -out /etc/ssl/certs/radiusmanager.crt \
+            -subj "/CN=RadiusManager/O=RadiusManager"
+        a2enmod ssl
+        a2ensite default-ssl
+        systemctl reload apache2
+    fi
+fi
 ```
 
 ---
 
-## New DB Tables to Create (add to `install.sql`)
+#### 1D. Error Logging (No Stack Traces in Browser)
+
+**File to modify:** `config.php`
+**Directory + file:** `storage/logs/.htaccess`
+
+Add to `config.php`:
+```php
+define('APP_ENV',  'production'); // 'development' | 'production'
+define('LOG_FILE', __DIR__ . '/storage/logs/app.log');
+
+if (APP_ENV === 'production') {
+    ini_set('display_errors', '0');
+    ini_set('log_errors',     '1');
+    ini_set('error_log',      LOG_FILE);
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', '1');
+    error_reporting(E_ALL);
+}
+```
+
+Ensure `storage/logs/` directory contains:
+```apache
+# storage/logs/.htaccess
+Deny from all
+```
+
+---
+
+### 🟠 Priority 2 — Notification System
+
+---
+
+#### 2A. Email + WhatsApp Notification Engine
+
+**New files:** `notifications.php`, `includes/notify.php`
+**New DB tables:** `rm_notifications`, `rm_notification_settings`
+
+> **Note on Existing Implementation:** As of v1.9.0, pure-PHP socket SMTP delivery (`includes/mail.php`) and base SMTP settings (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`, `MAIL_FROM`, `MAIL_FROM_NAME`, `DEV_MODE`) are **already implemented and operational** in `config.php` and `includes/mail.php`.
+> Therefore, `sendEmail()` in `includes/notify.php` directly delegates to `sendMailMessage()` from `includes/mail.php`.
+
+**New constants to add to `config.php`:**
+```php
+// WhatsApp via Fonnte
+define('WA_ENABLED', false);
+define('WA_TOKEN',   '');  // Fonnte API token
+define('WA_TARGET',  '');  // Target number e.g. 628123456789
+
+// Alert thresholds
+define('ALERT_REJECT_THRESHOLD', 20); // alert if >20 rejects in 5 min
+```
+
+**`rm_notifications` table:**
+```sql
+CREATE TABLE IF NOT EXISTS rm_notifications (
+    id        INT AUTO_INCREMENT PRIMARY KEY,
+    type      VARCHAR(50)  NOT NULL,
+    channel   ENUM('email','whatsapp','both') NOT NULL,
+    recipient VARCHAR(128) NOT NULL,
+    subject   VARCHAR(255) DEFAULT NULL,
+    message   TEXT         NOT NULL,
+    status    ENUM('sent','failed') NOT NULL,
+    error_msg TEXT         DEFAULT NULL,
+    sent_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_type    (type),
+    INDEX idx_sent_at (sent_at)
+);
+```
+
+**`rm_notification_settings` table:**
+```sql
+CREATE TABLE IF NOT EXISTS rm_notification_settings (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key   VARCHAR(64) NOT NULL UNIQUE,
+    setting_value TEXT        DEFAULT NULL
+);
+
+INSERT IGNORE INTO rm_notification_settings (setting_key, setting_value) VALUES
+('alert_auth_spike',  '1'),
+('alert_nas_offline', '1'),
+('alert_user_expiry', '1'),
+('alert_user_created','0'),
+('reject_threshold',  '20'),
+('expiry_warn_days',  '7');
+```
+
+**`includes/notify.php` core functions:**
+```php
+function sendEmail(string $to, string $subject, string $body): bool { ... }
+function sendWhatsApp(string $message): bool {
+    // POST to https://api.fonnte.com/send
+    // Header: Authorization: <WA_TOKEN>
+    // Body: target=<number>&message=<message>
+}
+function sendAlert(string $type, string $subject, string $body): void {
+    // Send to email if SMTP_ENABLED
+    // Send to WhatsApp if WA_ENABLED
+    // Log to rm_notifications table
+}
+```
+
+**Alert types and when they fire:**
+| Type | When |
+|---|---|
+| `auth_spike` | Reject count in last 5 min > `ALERT_REJECT_THRESHOLD` — check from `radpostauth` |
+| `nas_offline` | NAS probe in `nas.php` returns offline — fire once, not on every reload |
+| `user_expiry` | When `expiry-check.php` runs and finds expiring users |
+| `user_created` | After successful `user-add.php` save — if WA/email configured for user |
+
+**`notifications.php` page:**
+- Config form: SMTP settings, Fonnte token, WhatsApp number, thresholds
+- Toggle each alert type on/off (saves to `rm_notification_settings`)
+- "Send test notification" button
+- Notification history table (last 100, paginated, ORDER BY id DESC)
+- Add to sidebar under **System** section
+- Requires `superadmin` role
+
+---
+
+#### 2B. Welcome Message on User Creation
+
+**File to modify:** `user-add.php`
+
+After successful user creation, if `notify.php` is available and user has email in `userinfo`:
+```php
+// Optional: send welcome message
+if (isset($_POST['send_welcome']) && dbTableExists('rm_notifications')) {
+    require_once __DIR__ . '/includes/notify.php';
+    $msg = "Welcome!\n\nUsername: $username\nPassword: $password\n"
+         . "Expiry: " . ($expiry ?: 'No expiry') . "\n"
+         . "Plan: " . ($group ?: 'Default');
+    sendAlert('user_created', "Your account is ready", $msg);
+}
+```
+
+Add checkbox on `user-add.php` form:
+```html
+<div class="form-check mt-3">
+    <input class="form-check-input" type="checkbox" name="send_welcome" id="sendWelcome">
+    <label class="form-check-label small" for="sendWelcome">
+        Send credentials to user via email/WhatsApp
+    </label>
+</div>
+```
+
+---
+
+### 🟡 Priority 3 — Beyond daloRADIUS
+
+---
+
+#### 3A. FreeRADIUS Service Health Check
+
+**File to modify:** `includes/functions.php`, `dashboard.php`, `settings.php`
+
+```php
+function checkRadiusService(): string {
+    // Try systemctl first (Linux with systemd)
+    $out = @shell_exec('systemctl is-active freeradius 2>/dev/null');
+    if (trim($out ?? '') === 'active') return 'active';
+
+    // Fallback: check UDP port 1812
+    $sock = @fsockopen('udp://127.0.0.1', 1812, $e, $m, 0.5);
+    if ($sock) { fclose($sock); return 'active'; }
+
+    return 'inactive';
+}
+```
+
+**In `dashboard.php` topbar (modify `includes/header.php`):**
+```html
+<?php $radiusStatus = checkRadiusService(); ?>
+<span class="badge <?= $radiusStatus === 'active' ? 'bg-success' : 'bg-danger' ?>">
+    <i class="bi bi-circle-fill me-1" style="font-size:.4rem"></i>
+    FreeRADIUS: <?= $radiusStatus === 'active' ? 'Running' : 'Stopped' ?>
+</span>
+```
+
+Cache the result for 60 seconds in `$_SESSION['radius_status_cache']` to avoid shelling out on every page load.
+
+---
+
+#### 3B. Dark Mode Toggle
+
+**Files to modify:** `includes/header.php`, `includes/footer.php`
+
+**CSS variables in `header.php`:**
+```css
+:root {
+    --body-bg:    #f1f5f9;
+    --card-bg:    #ffffff;
+    --border-col: #e2e8f0;
+    --text-main:  #1e293b;
+    --text-muted: #64748b;
+}
+[data-theme="dark"] {
+    --body-bg:    #0f172a;
+    --card-bg:    #1e293b;
+    --border-col: #334155;
+    --text-main:  #e2e8f0;
+    --text-muted: #94a3b8;
+}
+body { background: var(--body-bg); color: var(--text-main); }
+.card { background: var(--card-bg); border-color: var(--border-col); }
+```
+
+**Toggle button in topbar:**
+```html
+<button id="themeToggle" class="btn btn-sm btn-outline-secondary" title="Toggle dark mode">
+    <i class="bi bi-moon-stars" id="themeIcon"></i>
+</button>
+```
+
+**JS in `footer.php`:**
+```javascript
+// Apply saved theme on load
+const savedTheme = localStorage.getItem('rm_theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+document.getElementById('themeIcon').className =
+    savedTheme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
+
+// Toggle on click
+document.getElementById('themeToggle').addEventListener('click', () => {
+    const cur  = document.documentElement.getAttribute('data-theme');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('rm_theme', next);
+    document.getElementById('themeIcon').className =
+        next === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
+});
+```
+
+---
+
+#### 3C. Docker Deployment Support
+
+**New files:** `Dockerfile`, `docker-compose.yml`, `.dockerignore`
+
+**`Dockerfile`:**
+```dockerfile
+FROM php:8.2-apache
+RUN docker-php-ext-install pdo pdo_mysql
+COPY . /var/www/html/radius-manager/
+RUN chown -R www-data:www-data /var/www/html/radius-manager \
+    && mkdir -p /var/www/html/radius-manager/logs \
+    && chmod 755 /var/www/html/radius-manager/logs
+```
+
+**`docker-compose.yml`:**
+```yaml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      DB_HOST: db
+      DB_NAME: radius
+      DB_USER: radius
+      DB_PASS: radiuspass
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./logs:/var/www/html/radius-manager/logs
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE:      radius
+      MYSQL_USER:          radius
+      MYSQL_PASSWORD:      radiuspass
+      MYSQL_ROOT_PASSWORD: rootpass
+    volumes:
+      - dbdata:/var/lib/mysql
+      - ./database/schema_seed.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./install.sql:/docker-entrypoint-initdb.d/02-indexes.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dbdata:
+```
+
+**`.dockerignore`:**
+```
+database/radius.sql
+logs/
+.git/
+*.md
+```
+
+---
+
+#### 3D. Indonesian / English Language Support (i18n)
+
+**New directory:** `lang/`
+**New files:** `lang/en.php`, `lang/id.php`
+**Files to modify:** `includes/functions.php`, `includes/header.php`, all page labels
+
+**`lang/en.php`:**
+```php
+<?php return [
+    'dashboard'        => 'Dashboard',
+    'users'            => 'Users',
+    'groups'           => 'Groups',
+    'nas_devices'      => 'NAS Devices',
+    'active_sessions'  => 'Active Sessions',
+    'accounting'       => 'Accounting',
+    'auth_log'         => 'Auth Log',
+    'reports'          => 'Reports',
+    'vouchers'         => 'Vouchers & Hotspot',
+    'plans'            => 'Rate Plans',
+    'audit_log'        => 'Audit Log',
+    'operators'        => 'Operators & RBAC',
+    'settings'         => 'Settings',
+    'logout'           => 'Logout',
+    'add_user'         => 'Add User',
+    'search'           => 'Search',
+    'total_users'      => 'Total Users',
+    'active_sessions_stat' => 'Active Sessions',
+    'nas_count'        => 'NAS Devices',
+    'auth_today'       => 'Auth Today',
+    'upload_today'     => 'Upload Today',
+    'download_today'   => 'Download Today',
+    'username'         => 'Username',
+    'password'         => 'Password',
+    'group'            => 'Group',
+    'status'           => 'Status',
+    'actions'          => 'Actions',
+    'save'             => 'Save Changes',
+    'cancel'           => 'Cancel',
+    'delete'           => 'Delete',
+    'online'           => 'Online',
+    'offline'          => 'Offline',
+    'disabled'         => 'Disabled',
+];
+```
+
+**`lang/id.php`:**
+```php
+<?php return [
+    'dashboard'        => 'Dasbor',
+    'users'            => 'Pengguna',
+    'groups'           => 'Grup',
+    'nas_devices'      => 'Perangkat NAS',
+    'active_sessions'  => 'Sesi Aktif',
+    'accounting'       => 'Akuntansi',
+    'auth_log'         => 'Log Autentikasi',
+    'reports'          => 'Laporan',
+    'vouchers'         => 'Voucher & Hotspot',
+    'plans'            => 'Paket Bandwidth',
+    'audit_log'        => 'Log Aktivitas',
+    'operators'        => 'Operator & RBAC',
+    'settings'         => 'Pengaturan',
+    'logout'           => 'Keluar',
+    'add_user'         => 'Tambah Pengguna',
+    'search'           => 'Cari',
+    'total_users'      => 'Total Pengguna',
+    'active_sessions_stat' => 'Sesi Aktif',
+    'nas_count'        => 'Perangkat NAS',
+    'auth_today'       => 'Auth Hari Ini',
+    'upload_today'     => 'Upload Hari Ini',
+    'download_today'   => 'Download Hari Ini',
+    'username'         => 'Nama Pengguna',
+    'password'         => 'Kata Sandi',
+    'group'            => 'Grup',
+    'status'           => 'Status',
+    'actions'          => 'Aksi',
+    'save'             => 'Simpan Perubahan',
+    'cancel'           => 'Batal',
+    'delete'           => 'Hapus',
+    'online'           => 'Online',
+    'offline'          => 'Offline',
+    'disabled'         => 'Dinonaktifkan',
+];
+```
+
+**Helper in `includes/functions.php`:**
+```php
+function __t(string $key): string {
+    static $strings = null;
+    if ($strings === null) {
+        $lang    = $_SESSION['rm_lang'] ?? 'en';
+        $file    = __DIR__ . "/../lang/{$lang}.php";
+        $strings = file_exists($file) ? require $file : [];
+    }
+    return $strings[$key] ?? $key;
+}
+```
+
+**Language toggle in topbar (`includes/header.php`):**
+```html
+<a href="?setlang=id" class="btn btn-sm btn-outline-secondary <?= ($_SESSION['rm_lang']??'en')==='id'?'active':'' ?>">ID</a>
+<a href="?setlang=en" class="btn btn-sm btn-outline-secondary <?= ($_SESSION['rm_lang']??'en')==='en'?'active':'' ?>">EN</a>
+```
+
+Handle in `auth.php` bootstrap:
+```php
+if (isset($_GET['setlang']) && in_array($_GET['setlang'], ['en','id'])) {
+    $_SESSION['rm_lang'] = $_GET['setlang'];
+}
+```
+
+**Usage in all pages:**
+```php
+<th><?= __t('username') ?></th>
+<button><?= __t('add_user') ?></button>
+```
+
+---
+
+#### 3E. Two-Factor Authentication (2FA) for Superadmin
+
+**New files:** `2fa-setup.php`, `2fa-verify.php`
+**Files to modify:** `login.php`, `includes/auth.php`, `install.sql`
+
+**Add columns to operators table (add to `install.sql`):**
+```sql
+ALTER TABLE operators
+    ADD COLUMN IF NOT EXISTS totp_secret  VARCHAR(64) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS totp_enabled TINYINT(1)  NOT NULL DEFAULT 0;
+ALTER TABLE rm_admins
+    ADD COLUMN IF NOT EXISTS totp_secret  VARCHAR(64) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS totp_enabled TINYINT(1)  NOT NULL DEFAULT 0;
+```
+
+**Login flow with 2FA:**
+```
+1. User submits username + password
+2. Credentials valid → check if totp_enabled = 1
+3. If yes → set $_SESSION['pending_2fa'] = true, redirect to 2fa-verify.php
+4. If no  → login complete, set admin_logged_in = true
+```
+
+**`2fa-setup.php`:**
+- Generate random 16-char base32 secret using `str_pad(base_convert(bin2hex(random_bytes(10)), 16, 32), 16, 'A')`
+- Show QR code via Google Charts URL: `https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl=otpauth://totp/RadiusManager:$username?secret=$secret&issuer=RadiusManager`
+- Ask user to verify with a 6-digit code before saving
+- On verified → UPDATE operators SET totp_secret=?, totp_enabled=1
+
+**`2fa-verify.php`:**
+- Show 6-digit input form
+- Validate using TOTP algorithm (manual implementation — no library needed):
+```php
+function verifyTotp(string $secret, int $code): bool {
+    $time  = floor(time() / 30);
+    $base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    // Decode base32 secret, HMAC-SHA1 with time, extract 6 digits
+    // Check current window and ±1 window for clock drift
+    foreach ([-1, 0, 1] as $offset) {
+        $t   = pack('N*', 0) . pack('N*', $time + $offset);
+        $key = // base32 decode $secret
+        $hash = hash_hmac('sha1', $t, $key, true);
+        $offset2 = ord($hash[19]) & 0xf;
+        $otp = ((ord($hash[$offset2]) & 0x7f) << 24
+               | (ord($hash[$offset2+1]) & 0xff) << 16
+               | (ord($hash[$offset2+2]) & 0xff) << 8
+               | (ord($hash[$offset2+3]) & 0xff)) % 1000000;
+        if ($otp === $code) return true;
+    }
+    return false;
+}
+```
+- On 3 failures → clear `$_SESSION['pending_2fa']`, redirect to login with error
+- On success → set `$_SESSION['admin_logged_in'] = true`, redirect to dashboard
+
+---
+
+#### 3F. Global Search
+
+**New file:** `search.php`
+**File to modify:** `includes/header.php` (add search box to topbar)
+
+**`search.php` — returns JSON:**
+```php
+header('Content-Type: application/json');
+requireLogin();
+$q = trim($_GET['q'] ?? '');
+if (strlen($q) < 2) { echo json_encode(['users'=>[],'nas'=>[],'sessions'=>[]]); exit; }
+
+$results = [
+    'users' => dbFetchAll(
+        "SELECT rc.username, ui.firstname AS name,
+                (SELECT COUNT(*) FROM radacct ra
+                 WHERE ra.username=rc.username AND ra.acctstoptime IS NULL) online
+         FROM radcheck rc
+         LEFT JOIN userinfo ui ON ui.username=rc.username
+         WHERE rc.username LIKE ? GROUP BY rc.username LIMIT 8",
+        ["%$q%"]),
+    'nas' => dbFetchAll(
+        "SELECT shortname, nasname AS ip FROM nas
+         WHERE shortname LIKE ? OR nasname LIKE ? LIMIT 5",
+        ["%$q%", "%$q%"]),
+    'sessions' => dbFetchAll(
+        "SELECT username, framedipaddress, nasipaddress
+         FROM radacct WHERE acctstoptime IS NULL
+         AND (username LIKE ? OR framedipaddress LIKE ?) LIMIT 5",
+        ["%$q%", "%$q%"]),
+];
+echo json_encode($results);
+```
+
+**Search box in `includes/header.php` topbar:**
+```html
+<div class="position-relative ms-3" style="width:240px">
+    <input type="text" id="globalSearch" class="form-control form-control-sm"
+           placeholder="Search users, NAS, sessions..." autocomplete="off">
+    <div id="searchResults" class="position-absolute bg-white border rounded shadow-sm w-100"
+         style="top:100%;z-index:9999;display:none;max-height:400px;overflow-y:auto">
+    </div>
+</div>
+```
+
+**JS (add to footer.php or as inline script):**
+```javascript
+const input = document.getElementById('globalSearch');
+const box   = document.getElementById('searchResults');
+let timer;
+input?.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 2) { box.style.display = 'none'; return; }
+    timer = setTimeout(async () => {
+        const res  = await fetch(`search.php?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        let html = '';
+        if (data.users?.length) {
+            html += '<div class="px-3 py-1 text-muted small fw-bold border-bottom">Users</div>';
+            data.users.forEach(u => {
+                html += `<a href="user-edit.php?username=${encodeURIComponent(u.username)}"
+                    class="d-block px-3 py-2 text-decoration-none hover-bg">
+                    <i class="bi bi-person me-2 text-primary"></i>${u.username}
+                    ${u.name ? `<span class="text-muted small ms-1">${u.name}</span>` : ''}
+                    ${u.online > 0 ? '<span class="badge bg-success ms-1">Online</span>' : ''}
+                </a>`;
+            });
+        }
+        if (data.nas?.length) {
+            html += '<div class="px-3 py-1 text-muted small fw-bold border-bottom border-top">NAS</div>';
+            data.nas.forEach(n => {
+                html += `<a href="nas.php" class="d-block px-3 py-2 text-decoration-none">
+                    <i class="bi bi-hdd-network me-2 text-warning"></i>${n.shortname}
+                    <span class="text-muted small ms-1">${n.ip}</span>
+                </a>`;
+            });
+        }
+        if (!html) html = '<div class="px-3 py-3 text-muted text-center small">No results found</div>';
+        box.innerHTML = html;
+        box.style.display = 'block';
+    }, 300);
+});
+document.addEventListener('click', e => {
+    if (!input?.contains(e.target)) box.style.display = 'none';
+});
+// Keyboard shortcut: press / to focus search
+document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+        e.preventDefault(); input?.focus();
+    }
+});
+```
+
+---
+
+## New SQL to Add to `install.sql` for Phase 3
 
 ```sql
--- Audit log (A5)
-CREATE TABLE IF NOT EXISTS rm_audit_log ( ... );
+-- Brute force protection (Priority 1A)
+CREATE TABLE IF NOT EXISTS rm_login_attempts (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    ip_address   VARCHAR(45)  NOT NULL,
+    username     VARCHAR(64)  NOT NULL,
+    attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_ip   (ip_address),
+    INDEX idx_time (attempted_at)
+);
 
--- Rate plans (A3)
-CREATE TABLE IF NOT EXISTS rm_plans ( ... );
+-- Notification log (Priority 2A)
+CREATE TABLE IF NOT EXISTS rm_notifications (
+    id        INT AUTO_INCREMENT PRIMARY KEY,
+    type      VARCHAR(50)  NOT NULL,
+    channel   ENUM('email','whatsapp','both') NOT NULL,
+    recipient VARCHAR(128) NOT NULL,
+    subject   VARCHAR(255) DEFAULT NULL,
+    message   TEXT         NOT NULL,
+    status    ENUM('sent','failed') NOT NULL,
+    error_msg TEXT         DEFAULT NULL,
+    sent_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_type    (type),
+    INDEX idx_sent_at (sent_at)
+);
 
--- Vouchers (C1)
-CREATE TABLE IF NOT EXISTS rm_vouchers ( ... );
+-- Notification settings (Priority 2A)
+CREATE TABLE IF NOT EXISTS rm_notification_settings (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key   VARCHAR(64) NOT NULL UNIQUE,
+    setting_value TEXT        DEFAULT NULL
+);
+INSERT IGNORE INTO rm_notification_settings (setting_key, setting_value) VALUES
+('alert_auth_spike',  '1'), ('alert_nas_offline', '1'),
+('alert_user_expiry', '1'), ('alert_user_created','0'),
+('reject_threshold',  '20'),('expiry_warn_days',  '7');
 
--- RBAC: add role column to operators (C3)
+-- 2FA support (Priority 3E)
 ALTER TABLE operators ADD COLUMN IF NOT EXISTS
-  role ENUM('superadmin','operator','readonly') NOT NULL DEFAULT 'operator';
+    totp_secret  VARCHAR(64) DEFAULT NULL;
+ALTER TABLE operators ADD COLUMN IF NOT EXISTS
+    totp_enabled TINYINT(1)  NOT NULL DEFAULT 0;
+ALTER TABLE rm_admins ADD COLUMN IF NOT EXISTS
+    totp_secret  VARCHAR(64) DEFAULT NULL;
+ALTER TABLE rm_admins ADD COLUMN IF NOT EXISTS
+    totp_enabled TINYINT(1)  NOT NULL DEFAULT 0;
 ```
+
+---
+
+## Sidebar Navigation Updates for Phase 3
+
+Add to `includes/header.php`:
+
+```php
+// Under System section (requires superadmin):
+<?php if (hasRole('superadmin')): ?>
+<a href="notifications.php" class="sidebar-link <?= $cur==='notifications'?'active':'' ?>">
+    <i class="bi bi-bell"></i> <?= __t('notifications') ?>
+</a>
+<?php endif; ?>
+```
+
+Dark mode toggle and global search go in the **topbar**, not the sidebar.
 
 ---
 
 ## Production Environment Notes
 
 - **FreeRADIUS DB:** MySQL, database name `radius`
-- **Production NAS devices:** `eduroam-itb`, `RadiusPolman`
+- **Production NAS:** `eduroam-itb`, `RadiusPolman`
 - **Operator account:** `administrator` / `4dm1nNamloP`
-- **`radpostauth`** does NOT have `nasipaddress` column — always use `dbHasColumn()`
+- **`radpostauth`** does NOT have `nasipaddress` — always use `dbHasColumn()`
 - **`userinfo`** table exists — `dbTableExists()` returns true
 - **Target page load:** under 300ms on production scale
-- **Never** run `COUNT(*)` or `ORDER BY` on unindexed columns on `radpostauth` (24M rows)
+- **Never** ORDER BY unindexed column on `radpostauth` (24M rows) — always use `ORDER BY id DESC`
 
 ---
 
@@ -691,15 +1067,9 @@ ALTER TABLE operators ADD COLUMN IF NOT EXISTS
 1. Start Apache + MySQL in XAMPP Control Panel
 2. Open `http://localhost/phpmyadmin`
 3. Create database `radius` (collation: `utf8mb4_general_ci`)
-4. Import `database/schema_seed.sql` (dev) or `database/radius.sql` (production)
+4. Import `database/schema_seed.sql`
 5. Copy project to `C:\xampp\htdocs\radiusmanager\`
-6. Edit `config.php`:
-   ```php
-   define('DB_HOST', 'localhost');
-   define('DB_NAME', 'radius');
-   define('DB_USER', 'root');
-   define('DB_PASS', '');
-   ```
+6. Edit `config.php`: `DB_USER=root`, `DB_PASS=''`
 7. Open `http://localhost/radiusmanager/radius-manager/`
 8. Login: `admin` / `admin123`
 
@@ -714,26 +1084,32 @@ ALTER TABLE operators ADD COLUMN IF NOT EXISTS
 
 ---
 
-## Build Order Recommendation
+## Build Order (Phase 3)
 
-Build in this exact order for fastest visible progress:
+```
+SECURITY — build first, before anything else goes live:
+1.  rm_login_attempts table + brute force logic   → login.php + install.sql      (1A)
+2.  session_regenerate_id after login             → includes/auth.php             (1B)
+3.  HTTPS option in installer                     → install.sh                    (1C)
+4.  APP_ENV + error logging + logs/.htaccess      → config.php                    (1D)
 
-1. `user-toggle.php` + modify `users.php` — **A1 Enable/Disable** (easiest win)
-2. `user-batch.php` + modify `users.php` — **A2 Batch Operations**
-3. `audit.php` + `auditLog()` in functions.php — **A5 Audit Log** (needed by everything after)
-4. `plans.php` + sub-pages — **A3 Rate Plans**
-5. Modify `user-edit.php` — **A4 Static IP**
-6. Modify `dashboard.php` — **B2 More Charts**
-7. `reports.php` — **B4 Reports**
-8. `expiry-check.php` — **B3 Expiry Warnings**
-9. `dashboard.php` concurrent graph — **B1**
-10. `vouchers.php` + sub-pages — **C1 Vouchers**
-11. `portal/` directory — **C2 Self-Service Portal**
-12. RBAC across all pages — **C3**
-13. `api/` directory — **C4 REST API**
+NOTIFICATIONS — build next:
+5.  includes/notify.php (sendEmail, sendWhatsApp, sendAlert)                      (2A)
+6.  rm_notifications + rm_notification_settings tables + notifications.php         (2A)
+7.  Welcome message checkbox on user-add.php                                      (2B)
+
+BEYOND daloRADIUS — build last:
+8.  checkRadiusService() + topbar badge           → includes/functions.php        (3A)
+9.  Dark mode CSS vars + localStorage toggle      → header.php + footer.php       (3B)
+10. Dockerfile + docker-compose.yml               → project root                  (3C)
+11. lang/en.php + lang/id.php + __t() + toggle   → lang/ + includes/functions.php(3D)
+12. 2fa-setup.php + 2fa-verify.php + totp columns→ new files + install.sql        (3E)
+13. search.php + topbar search box + JS           → new file + header.php         (3F)
+```
 
 ---
 
-*Please build one file at a time. After each file, confirm it works before moving to the next.*  
-*Update `CHANGELOG.md` with every version increment.*  
-*Keep `HANDOVER.md` in sync after completing each priority group.*
+*Build one file at a time. Confirm it works before moving to the next.*
+*Increment version in CHANGELOG.md after each group of related changes.*
+*Keep HANDOVER.md updated after completing each priority group.*
+
