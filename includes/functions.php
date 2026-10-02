@@ -126,4 +126,76 @@ function syncPlanAttributes(string $groupname, int $dl_kbps, int $ul_kbps, int $
     }
 }
 
+/**
+ * Ensure rm_settings table exists
+ */
+function ensureSettingsTable(): void {
+    static $done = false;
+    if ($done) return;
+    try {
+        $db = getDB();
+        $db->exec("CREATE TABLE IF NOT EXISTS `rm_settings` (
+            `setting_key` VARCHAR(64) NOT NULL PRIMARY KEY,
+            `setting_value` TEXT DEFAULT NULL,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+        $done = true;
+    } catch (Exception $e) {}
+}
+
+/**
+ * Fetch a persistent system setting from rm_settings table
+ */
+function getSetting(string $key, mixed $default = null): mixed {
+    if (!isset($GLOBALS['rm_settings_cache']) || $GLOBALS['rm_settings_cache'] === null) {
+        $GLOBALS['rm_settings_cache'] = [];
+        ensureSettingsTable();
+        try {
+            $rows = dbFetchAll("SELECT setting_key, setting_value FROM rm_settings");
+            foreach ($rows as $r) {
+                $GLOBALS['rm_settings_cache'][$r['setting_key']] = $r['setting_value'];
+            }
+        } catch (Exception $e) {}
+    }
+    return $GLOBALS['rm_settings_cache'][$key] ?? $default;
+}
+
+/**
+ * Persist or update a system setting in rm_settings table
+ */
+function setSetting(string $key, mixed $value): bool {
+    ensureSettingsTable();
+    try {
+        dbQuery(
+            "INSERT INTO rm_settings (setting_key, setting_value) VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = NOW()",
+            [$key, (string)$value]
+        );
+        if (isset($GLOBALS['rm_settings_cache']) && is_array($GLOBALS['rm_settings_cache'])) {
+            $GLOBALS['rm_settings_cache'][$key] = (string)$value;
+        }
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+/**
+ * Get all settings as associative array
+ */
+function getAllSettings(): array {
+    ensureSettingsTable();
+    try {
+        $rows = dbFetchAll("SELECT setting_key, setting_value FROM rm_settings");
+        $res = [];
+        foreach ($rows as $r) {
+            $res[$r['setting_key']] = $r['setting_value'];
+        }
+        $GLOBALS['rm_settings_cache'] = $res;
+        return $res;
+    } catch (Exception $e) {
+        return [];
+    }
+}
+
 

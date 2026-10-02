@@ -151,5 +151,48 @@ CREATE TABLE IF NOT EXISTS `rm_login_attempts` (
     INDEX `idx_time` (`attempted_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- ── 12. rm_settings table (daloRADIUS Full Configuration Parity) ─
+CREATE TABLE IF NOT EXISTS `rm_settings` (
+    `setting_key` VARCHAR(64) NOT NULL PRIMARY KEY,
+    `setting_value` TEXT DEFAULT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+INSERT IGNORE INTO `rm_settings` (`setting_key`, `setting_value`) VALUES
+('user_allow_cleartext', 'yes'),
+('user_random_chars', 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'),
+('user_pass_min_len', '8'),
+('user_pass_max_len', '14'),
+('default_user_group', 'Default'),
+('default_expiry_days', '30'),
+('db_host', 'localhost'),
+('db_name', 'radius'),
+('db_user', 'radius'),
+('db_port', '3306'),
+('default_lang', 'en'),
+('app_name', 'RadiusManager'),
+('rows_per_page', '20'),
+('date_format', 'Y-m-d H:i'),
+('default_theme', 'light'),
+('app_env', 'production'),
+('bruteforce_max_attempts', '5'),
+('bruteforce_window_mins', '15'),
+('session_lifetime', '3600'),
+('clean_stale_sessions_days', '30'),
+('welcome_msg_template', 'Welcome to campus Wi-Fi! Your username is {username} and your initial password is {password}.'),
+('mail_from', 'noreply@polman-bandung.ac.id'),
+('mail_from_name', 'RadiusManager Security'),
+('mail_transport', 'smtp'),
+('smtp_host', ''),
+('smtp_port', '587'),
+('smtp_secure', 'tls'),
+('smtp_user', ''),
+('smtp_pass', ''),
+('radius_auth_port', '1812'),
+('radius_acct_port', '1813'),
+('otp_msg_subject', 'Campus Wi-Fi: Password Reset Verification Code'),
+('portal_help_notice', 'To update your account password, please verify an OTP sent to your registered email or contact IT Support.');
+
 SELECT 'RadiusManager performance indexes verified successfully.' AS status;
+
 

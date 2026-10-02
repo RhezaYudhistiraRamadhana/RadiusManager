@@ -37,15 +37,18 @@ function sendMailMessage(string $to, string $subject, string $htmlBody, string $
         return ['success' => false, 'error' => "Invalid destination email address: '$to'."];
     }
 
-    $fromEmail = defined('MAIL_FROM') && MAIL_FROM ? MAIL_FROM : 'noreply@' . ($_SERVER['SERVER_NAME'] ?? 'localhost');
-    $fromName  = defined('MAIL_FROM_NAME') && MAIL_FROM_NAME ? MAIL_FROM_NAME : (defined('APP_NAME') ? APP_NAME : 'RadiusManager');
+    $fromEmail = (function_exists('getSetting') && getSetting('mail_from')) ? getSetting('mail_from') : (defined('MAIL_FROM') && MAIL_FROM ? MAIL_FROM : 'noreply@' . ($_SERVER['SERVER_NAME'] ?? 'localhost'));
+    $fromName  = (function_exists('getSetting') && getSetting('mail_from_name')) ? getSetting('mail_from_name') : (defined('MAIL_FROM_NAME') && MAIL_FROM_NAME ? MAIL_FROM_NAME : (defined('APP_NAME') ? APP_NAME : 'RadiusManager'));
 
     if (empty($textBody)) {
         $textBody = strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>'], "\n", $htmlBody));
     }
 
-    // Try Socket SMTP if host is defined
-    if (defined('SMTP_HOST') && SMTP_HOST !== '') {
+    $transport = (function_exists('getSetting') && getSetting('mail_transport')) ? getSetting('mail_transport') : 'smtp';
+    $smtpHost  = (function_exists('getSetting') && getSetting('smtp_host')) ? getSetting('smtp_host') : (defined('SMTP_HOST') ? SMTP_HOST : '');
+
+    // Try Socket SMTP if host is defined or transport is smtp
+    if ($smtpHost !== '') {
         $res = sendSocketSmtp($to, $subject, $htmlBody, $textBody, $fromEmail, $fromName);
         if ($res['success']) {
             logMailEvent('SMTP_SUCCESS', $to, $subject);
@@ -97,11 +100,11 @@ function sendMailMessage(string $to, string $subject, string $htmlBody, string $
  * Lightweight pure-PHP socket SMTP transport (Supports TLS on 587/465, AUTH LOGIN)
  */
 function sendSocketSmtp(string $to, string $subject, string $htmlBody, string $textBody, string $fromEmail, string $fromName): array {
-    $host   = SMTP_HOST;
-    $port   = defined('SMTP_PORT') ? (int)SMTP_PORT : 587;
-    $user   = defined('SMTP_USER') ? SMTP_USER : '';
-    $pass   = defined('SMTP_PASS') ? SMTP_PASS : '';
-    $secure = defined('SMTP_SECURE') ? strtolower(SMTP_SECURE) : 'tls';
+    $host   = (function_exists('getSetting') && getSetting('smtp_host')) ? getSetting('smtp_host') : (defined('SMTP_HOST') ? SMTP_HOST : '');
+    $port   = (function_exists('getSetting') && getSetting('smtp_port')) ? (int)getSetting('smtp_port') : (defined('SMTP_PORT') ? (int)SMTP_PORT : 587);
+    $user   = (function_exists('getSetting') && getSetting('smtp_user') !== null) ? getSetting('smtp_user') : (defined('SMTP_USER') ? SMTP_USER : '');
+    $pass   = (function_exists('getSetting') && getSetting('smtp_pass') !== null) ? getSetting('smtp_pass') : (defined('SMTP_PASS') ? SMTP_PASS : '');
+    $secure = (function_exists('getSetting') && getSetting('smtp_secure')) ? strtolower(getSetting('smtp_secure')) : (defined('SMTP_SECURE') ? strtolower(SMTP_SECURE) : 'tls');
     $timeout = 10;
 
     $connectHost = ($secure === 'ssl') ? "ssl://$host" : "tcp://$host";

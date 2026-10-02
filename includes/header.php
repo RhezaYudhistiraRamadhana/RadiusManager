@@ -262,6 +262,9 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     </a>
 
     <div class="sidebar-section">System</div>
+    <a href="settings.php" class="sidebar-link <?= $current_page==='settings'?'active':'' ?>">
+        <i class="bi bi-sliders"></i> Configuration
+    </a>
     <?php if (hasRole('superadmin')): ?>
     <a href="operators.php" class="sidebar-link <?= $current_page==='operators'?'active':'' ?>">
         <i class="bi bi-person-badge"></i> Operators & RBAC
@@ -291,7 +294,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             <a href="docs/RadiusManager_User_Guide.pdf" target="_blank" class="btn btn-outline-secondary btn-sm py-1 px-2.5 d-none d-md-inline-flex align-items-center gap-1.5" title="Download & View User Manual (PDF)">
                 <i class="bi bi-file-earmark-pdf text-danger"></i> <span style="font-size:.78rem; font-weight:600;">User Manual (PDF)</span>
             </a>
-            <a href="settings.php" class="text-decoration-none small text-secondary d-flex align-items-center gap-2" title="Settings & Account">
+            <a href="settings.php?tab=account" class="text-decoration-none small text-secondary d-flex align-items-center gap-2" title="Settings & Account">
                 <i class="bi bi-person-circle fs-6"></i>
                 <span class="fw-semibold text-dark"><?= htmlspecialchars($_SESSION['admin_name'] ?? $_SESSION['admin_user'] ?? 'admin') ?></span>
                 <span class="badge <?= getAdminRole() === 'superadmin' ? 'bg-danger-subtle text-danger border border-danger-subtle' : (getAdminRole() === 'readonly' ? 'bg-secondary-subtle text-secondary border' : 'bg-primary-subtle text-primary border border-primary-subtle') ?> px-2 py-0.5" style="font-size:.65rem">

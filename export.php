@@ -368,6 +368,87 @@ switch ($type) {
         fclose($out);
         exit;
 
+    // ══════════════════════════════════════════════════════════════════════
+    // 5. EXPORT NAS DEVICES
+    // ══════════════════════════════════════════════════════════════════════
+    case 'nas':
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="radius_nas_' . $nowStr . '.csv"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $out = fopen('php://output', 'w');
+        fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        fputcsv($out, ['ID', 'NAS IP / Name', 'Shortname', 'Type', 'Ports', 'Secret', 'Server', 'Community', 'Description']);
+
+        $stmt = $db->query("SELECT id, nasname, shortname, type, ports, secret, server, community, description FROM nas ORDER BY id ASC");
+        while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            fputcsv($out, [
+                $r['id'],
+                $r['nasname'],
+                $r['shortname'],
+                $r['type'],
+                $r['ports'],
+                $r['secret'],
+                $r['server'],
+                $r['community'],
+                $r['description']
+            ]);
+        }
+        fclose($out);
+        exit;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 6. EXPORT CONFIGURATION SNAPSHOT (JSON)
+    // ══════════════════════════════════════════════════════════════════════
+    case 'config':
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="radiusmanager_config_' . $nowStr . '.json"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $settings = getAllSettings();
+        if (isset($settings['smtp_pass']) && $settings['smtp_pass'] !== '') {
+            $settings['smtp_pass'] = '********';
+        }
+        $snapshot = [
+            'app' => APP_NAME,
+            'version' => APP_VERSION,
+            'exported_at' => date('Y-m-d H:i:s'),
+            'exported_by' => getAdminUser(),
+            'settings' => $settings
+        ];
+        echo json_encode($snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 7. EXPORT DATABASE SCHEMA DDL (.sql)
+    // ══════════════════════════════════════════════════════════════════════
+    case 'schema':
+        header('Content-Type: application/sql; charset=utf-8');
+        header('Content-Disposition: attachment; filename="radius_schema_' . $nowStr . '.sql"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        echo "-- ============================================================\n";
+        echo "-- RadiusManager / FreeRADIUS Database Schema Backup\n";
+        echo "-- Exported on: " . date('Y-m-d H:i:s') . "\n";
+        echo "-- Database: " . DB_NAME . " @ " . DB_HOST . "\n";
+        echo "-- ============================================================\n\n";
+
+        $tables = ['radcheck', 'radreply', 'radgroupcheck', 'radgroupreply', 'usergroup', 'radacct', 'radpostauth', 'nas', 'userinfo', 'operators', 'rm_admins', 'rm_settings', 'rm_plans', 'rm_vouchers', 'rm_login_attempts', 'rm_audit_log'];
+        foreach ($tables as $tbl) {
+            if (dbTableExists($tbl)) {
+                $createRow = dbFetch("SHOW CREATE TABLE `$tbl`");
+                if (!empty($createRow['Create Table'])) {
+                    echo "-- ── Table structure for `$tbl` ──\n";
+                    echo "DROP TABLE IF EXISTS `$tbl`;\n";
+                    echo $createRow['Create Table'] . ";\n\n";
+                }
+            }
+        }
+        exit;
+
     default:
         flash('Invalid export type requested.', 'danger');
         header('Location: dashboard.php');
