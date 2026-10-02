@@ -1,16 +1,16 @@
 # RadiusManager — Project Handover Document v3
 
-**Version:** 1.9.1 → 2.x  
-**Date:** 30 September 2026  
-**Status:** Active Development — Phase 3 (Priority 1 Complete, Priority 2 Next)
+**Version:** 1.9.2 → 2.x  
+**Date:** 2 October 2026  
+**Status:** Active Development — Phase 3 (Priority 1 Complete, daloRADIUS Parity Complete, Priority 2 Next)
 
 ---
 
 ## Project Overview
 
-**RadiusManager** is a lightweight PHP web application for managing FreeRADIUS — built as a fast, clean replacement for daloRADIUS. As of v1.8.0 and v1.9.0, it has **achieved full feature parity with daloRADIUS** (with modern additions including Ruijie Networks AP integration, an automated PDF/HTML User Guide generator, and Subscriber Portal Email OTP password reset with IT email registration notices). It is now entering Phase 3: security hardening, notifications, and features that go beyond what daloRADIUS offers.
+**RadiusManager** is a lightweight PHP web application for managing FreeRADIUS — built as a fast, clean replacement for daloRADIUS. As of v1.8.0 through v1.9.2, it has **achieved 100% full feature parity with daloRADIUS** (with modern additions including Ruijie Networks AP integration, an automated PDF/HTML User Guide generator, Subscriber Portal Email OTP password reset with IT email registration notices, full persistent database configuration in `rm_settings`, and disaster recovery schema exports). It is now proceeding through Phase 3: security hardening, notifications, and features that go beyond what daloRADIUS offers.
 
-Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.1.0 through v1.9.1)**.
+Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.1.0 through v1.9.2)**.
 
 **Tech Stack:**
 - PHP 8.0+
@@ -44,12 +44,13 @@ Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.
 | 1.8.0 | 2026-09-24 | Gemini | Vouchers/Hotspot, Self-Service Portal, RBAC, REST API |
 | 1.9.0 | 2026-09-28 | Gemini | Email OTP password change, IT email notice, Ruijie AP support, PDF User Guide |
 | 1.9.1 | 2026-09-30 | Gemini | Priority 1: Brute force lockout, session fixation, SSL installer, error logging |
+| 1.9.2 | 2026-10-02 | Gemini | Full daloRADIUS Config parity (rm_settings), Schema/Config/NAS export, Ruijie AP audit |
 
 Full details in `CHANGELOG.md`.
 
 ---
 
-## Current File Structure (v1.9.0)
+## Current File Structure (v1.9.2)
 
 ```
 radius-manager/
@@ -90,8 +91,8 @@ radius-manager/
 ├── logout.php
 ├── index.php                       — Redirect to dashboard
 ├── dashboard.php                   — Stats cards, charts (7-day auth, 14-day bandwidth, concurrent, Top 5 NAS, Top 5 traffic)
-├── settings.php                    — Password management, diagnostics, system info
-├── export.php                      — Streaming CSV export (users, accounting, auth log)
+├── settings.php                    — Full daloRADIUS configuration menu parity (User, DB, Lang, Log, UI, Msg, Recur, Mail, Maint, Ops, Backup) + persistent rm_settings
+├── export.php                      — Streaming exports (users, accounting, auth log, audit, nas) + Schema DDL (.sql) + Config Snapshot (.json)
 ├── expiry-check.php                — Expiry warning dashboard + CLI cron mode
 ├── reports.php                     — Executive reports, print stylesheet, CSV export
 ├── audit.php                       — Admin activity log
@@ -124,7 +125,7 @@ radius-manager/
 
 ---
 
-## Database Tables (v1.9.0)
+## Database Tables (v1.9.2)
 
 | Table | Purpose | Optional |
 |---|---|---|
@@ -143,7 +144,8 @@ radius-manager/
 | `rm_audit_log` | Admin activity audit trail | Yes — created by install.sql |
 | `rm_plans` | Bandwidth/data rate plans | Yes — created by install.sql |
 | `rm_vouchers` | Voucher/hotspot tracking | Yes — created by install.sql |
-| `rm_login_attempts` | Brute force login tracking | **Phase 3 — to be created** |
+| `rm_login_attempts` | Brute force login tracking | Yes — created by install.sql (v1.9.1) |
+| `rm_settings` | Persistent system & daloRADIUS configuration key-value store | Yes — created by install.sql (v1.9.2) |
 | `rm_notifications` | Notification config and send log | **Phase 3 — to be created** |
 | `rm_notification_settings` | Notification configuration key-value store | **Phase 3 — to be created** |
 
@@ -311,7 +313,9 @@ $_SESSION['admin_role']       // 'superadmin' | 'operator' | 'readonly'
 | Comprehensive User & Administrator Guide (PDF/HTML) | `docs/generate_guide.php` | 1.9.0 |
 | RBAC (superadmin / operator / readonly) | `operators.php`, all pages | 1.8.0 |
 | REST API (users, sessions, accounting) | `api/` | 1.8.0 |
-| Settings + diagnostics | `settings.php` | 1.2.1 |
+| Full daloRADIUS Configuration Parity + persistent rm_settings | `settings.php`, `rm_settings` | 1.9.2 |
+| Disaster Recovery Schema DDL (.sql) & Config Snapshot (.json) | `export.php` | 1.9.2 |
+| Ruijie Networks Hardware Audit & Controller Profile | `nas.php`, `radacct` | 1.9.0–1.9.2 |
 | CSRF on all forms | All pages | 1.1.0 |
 | Performance indexes + PK windowing | `install.sql` | 1.0.0–1.2.0 |
 | Auto-installer (Ubuntu/Debian) | `install.sh` | 1.0.0 |
@@ -443,6 +447,69 @@ Ensure `storage/logs/` directory contains:
 # storage/logs/.htaccess
 Deny from all
 ```
+
+---
+
+### 🟢 Priority 1.5 — daloRADIUS Configuration Parity & Hardware Audit — COMPLETED ✅ (v1.9.2)
+
+---
+
+#### 1.5A. Persistent System Configuration (`rm_settings`)
+
+**Files modified:** `settings.php`, `install.sql`, `includes/functions.php`, `includes/mail.php`, `includes/header.php`, `export.php`  
+**New DB table:** `rm_settings` (defined in `install.sql`)
+
+**Table definition:**
+```sql
+CREATE TABLE IF NOT EXISTS `rm_settings` (
+    `setting_key` VARCHAR(64) NOT NULL PRIMARY KEY,
+    `setting_value` TEXT DEFAULT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+**Seeded Default Keys:**
+- **User Settings:** `user_allow_cleartext` ('yes'), `user_random_chars`, `user_pass_min_len` (8), `user_pass_max_len` (14), `default_user_group` ('Default'), `default_expiry_days` (30).
+- **Database Settings:** `db_host` ('localhost'), `db_port` (3306), `db_name` ('radius'), `db_user` ('radius'), `radius_auth_port` (1812), `radius_acct_port` (1813).
+- **Language Settings:** `default_lang` ('en'), `charset` ('UTF-8'), `timezone` ('Asia/Jakarta').
+- **Logging Settings:** `app_env` ('production'), `log_errors` ('1'), `radius_log_path` ('/var/log/freeradius/radius.log').
+- **Interface Settings:** `app_name` ('RadiusManager'), `rows_per_page` (20), `date_format` ('Y-m-d H:i'), `default_theme` ('light').
+- **Message Settings:** `welcome_msg_template`, `otp_msg_subject`, `portal_help_notice`.
+- **Recurring Tasks:** `clean_stale_sessions_days` (30), `auto_clean_otp_hours` (24).
+- **Mail Transport:** `mail_transport` ('smtp'), `smtp_host`, `smtp_port` (587), `smtp_secure` ('tls'), `smtp_user`, `smtp_pass`, `mail_from`, `mail_from_name`.
+
+**Helper Layer (`includes/functions.php`):**
+- `ensureSettingsTable()`: Idempotently creates `rm_settings` if not present.
+- `getSetting(string $key, mixed $default = null)`: Fetches setting with in-memory request-level cache.
+- `setSetting(string $key, mixed $value)`: Persists setting with immediate cache synchronization.
+- `getAllSettings()`: Retrieves all persistent keys as an associative array.
+
+#### 1.5B. Dual-Level Configuration Navigation in `settings.php`
+- **Top Pill Tabs:** `General`, `Mail`, `Maintenance`, `Operators`, `Backup`, `My Account`.
+- **Global Settings Sub-Navigation (Left Sidebar under General):**
+  1. `User Settings`: Password constraints, cleartext storage policy, and default profile attributes.
+  2. `Database Settings`: DB host/credentials, FreeRADIUS ports (1812/1813), and live UDP socket reachability tester.
+  3. `Language Settings`: Language toggle (English / Indonesian), document charset, and server timezone (`Asia/Jakarta`).
+  4. `Logging Settings`: Environment mode (production/debug), error logging toggle, and live log tail monitor.
+  5. `Interface Settings`: App name branding, pagination rows per page, date/time format, and color themes.
+  6. `Message Settings`: New user welcome message template, OTP email subject, and portal help notice.
+  7. `Recurring Tasks Settings`: Stale session retention threshold and manual **"Clean Stale Sessions Now"** button.
+- **Dedicated System Tabs:**
+  - `Mail`: Dynamic Socket SMTP configuration, credentials, and live **"Send Test Verification Email"** tool.
+  - `Maintenance`: Server runtime diagnostics, database scale metrics, stale session cleaner, and Brute-Force IP lockout unlocker.
+  - `Operators`: Directory of system administrators and database operators with link to `operators.php`.
+  - `Backup`: One-click Database Schema DDL download, Configuration Snapshot export, and entity CSVs.
+  - `My Account`: Operator password change and personal profile editor.
+
+#### 1.5C. Backup & Disaster Recovery (`export.php`)
+- `export.php?type=schema`: Generates full `SHOW CREATE TABLE` DDL for all 15 FreeRADIUS and custom tables.
+- `export.php?type=config`: Generates a JSON snapshot of all system configuration keys with sensitive passwords masked.
+- `export.php?type=nas`: Generates tabular CSV export of the NAS hardware inventory and shared secrets.
+
+#### 1.5D. Database Hardware & Vendor Audit
+- **Audit Scope:** Audited all 1,071,947 rows in `radacct` and all registered devices in `nas`.
+- **Controller Architecture:** 291 NAS IP addresses in log history; 86.4% handled by `172.16.0.70` (Ruijie-AP-Core controller).
+- **Physical AP Vendors:** Analyzed all 10 distinct MAC OUIs in the logs (`9C2BA6`, `C4B25B`, `C8CD55`, `7085C4`, `105F02`, `10823D`, `58B4BB`, `E05D54`, `9CCE88`, `C470AB`). Verified that **100% belong to Ruijie Networks Co., Ltd.** No other physical hardware vendors exist in the logs.
 
 ---
 

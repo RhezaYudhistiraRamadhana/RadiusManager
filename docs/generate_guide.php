@@ -523,7 +523,7 @@ $html = <<<'HTML'
     <div class="cover-specs">
       <div class="spec-item">
         <div class="spec-label">Versi Sistem</div>
-        <div class="spec-value">RadiusManager v1.8.0 Enterprise</div>
+        <div class="spec-value">RadiusManager v1.9.2 Enterprise</div>
       </div>
       <div class="spec-item">
         <div class="spec-label">Basis Data & RADIUS</div>
@@ -557,13 +557,13 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Daftar Isi & Matriks Fitur</span>
   </div>
 
   <h1>Daftar Isi & Matriks Fitur Sistem</h1>
   <p>
-    Buku panduan ini menguraikan <strong>setiap fitur</strong> yang terdapat di dalam aplikasi RadiusManager v1.8.0, lengkap dengan petunjuk langkah-demi-langkah (<em>How-to</em>), tujuan teknis, dan contoh tindakan praktis.
+    Buku panduan ini menguraikan <strong>setiap fitur</strong> yang terdapat di dalam aplikasi RadiusManager v1.9.2, lengkap dengan petunjuk langkah-demi-langkah (<em>How-to</em>), tujuan teknis, dan contoh tindakan praktis.
   </p>
 
   <div class="toc-container">
@@ -663,7 +663,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-1">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 1: Arsitektur & Database Core</span>
   </div>
 
@@ -807,7 +807,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-2">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 2: Akses Sistem & Keamanan</span>
   </div>
 
@@ -887,7 +887,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-3">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 3: Dashboard & Analisis</span>
   </div>
 
@@ -950,7 +950,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-4">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 4: Manajemen Pengguna (Users)</span>
   </div>
 
@@ -1037,7 +1037,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-4b">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 5: Operasi Massal Pengguna</span>
   </div>
 
@@ -1098,7 +1098,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-5">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 6: Grup Kebijakan & Atribut</span>
   </div>
 
@@ -1154,7 +1154,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-6">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 7: Paket Bandwidth (Rate Plans)</span>
   </div>
 
@@ -1230,7 +1230,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-7">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 8: Perangkat NAS & AP</span>
   </div>
 
@@ -1238,7 +1238,7 @@ $html = <<<'HTML'
 
   <h2>8.1 Integrasi Ruijie Networks Wireless AC (`172.16.0.70`)</h2>
   <p>
-    Pada jaringan kampus, pusat kendali seluruh radio Access Point adalah <strong>Ruijie Wireless Access Controller</strong> dengan gateway IP <code>172.16.0.70</code>. RadiusManager v1.8.0 mendukung Ruijie sebagai tipe perangkat kelas satu dengan lencana biru berikon router:
+    Pada jaringan kampus, pusat kendali seluruh radio Access Point adalah <strong>Ruijie Wireless Access Controller</strong> dengan gateway IP <code>172.16.0.70</code>. RadiusManager v1.9.2 mendukung Ruijie sebagai tipe perangkat kelas satu dengan lencana biru berikon router:
   </p>
 
   <div class="card-box">
@@ -1304,7 +1304,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-8">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 9: Manajemen IP Pool</span>
   </div>
 
@@ -1351,7 +1351,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-9">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 10: Hotspot & Voucher</span>
   </div>
 
@@ -1429,7 +1429,7 @@ $html = <<<'HTML'
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-10">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 11: Peringatan Kadaluarsa</span>
   </div>
 
@@ -1486,7 +1486,7 @@ php /var/www/html/radiusmanager/radius-manager/expiry-check.php --cli</code></pr
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-11">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 12: Sesi Aktif & CoA Disconnect</span>
   </div>
 
@@ -1558,7 +1558,7 @@ php /var/www/html/radiusmanager/radius-manager/expiry-check.php --cli</code></pr
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-12">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 13: Riwayat Akuntansi</span>
   </div>
 
@@ -1621,7 +1621,7 @@ php /var/www/html/radiusmanager/radius-manager/expiry-check.php --cli</code></pr
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-13">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 14: Laporan Eksekutif Jaringan</span>
   </div>
 
@@ -1669,7 +1669,7 @@ php /var/www/html/radiusmanager/radius-manager/expiry-check.php --cli</code></pr
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-14">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 15: Log Autentikasi Post-Auth</span>
   </div>
 
@@ -1715,7 +1715,7 @@ php /var/www/html/radiusmanager/radius-manager/expiry-check.php --cli</code></pr
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-15">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 16: Jejak Audit Operator</span>
   </div>
 
@@ -1784,7 +1784,7 @@ php /var/www/html/radiusmanager/radius-manager/expiry-check.php --cli</code></pr
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-16">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 17: Mesin Ekspor Data Universal</span>
   </div>
 
@@ -1841,7 +1841,7 @@ php /var/www/html/radiusmanager/radius-manager/expiry-check.php --cli</code></pr
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-17">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 18: Hak Akses Operator (RBAC)</span>
   </div>
 
@@ -1905,7 +1905,7 @@ php /var/www/html/radiusmanager/radius-manager/expiry-check.php --cli</code></pr
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-18">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 19: Portal Mandiri Pengguna</span>
   </div>
 
@@ -1971,69 +1971,80 @@ php /var/www/html/radiusmanager/radius-manager/expiry-check.php --cli</code></pr
      ═══════════════════════════════════════════════════════════════════════ -->
 <div class="page page-break" id="modul-19">
   <div class="doc-header">
-    <span>RadiusManager v1.8.0 — Modul Pelatihan Lengkap</span>
+    <span>RadiusManager v1.9.2 — Modul Pelatihan Lengkap</span>
     <span>Modul 20: Pengaturan & Diagnostik</span>
   </div>
 
-  <h1>Modul 20: Pengaturan Sistem & Diagnostik (`settings.php`)</h1>
+  <h1>Modul 20: Pengaturan Sistem & Konfigurasi Global (`settings.php`)</h1>
 
-  <h2>20.1 Halaman Pengaturan Akun Operator</h2>
+  <h2>20.1 Paritas Konfigurasi daloRADIUS & Penyimpanan Persisten (`rm_settings`)</h2>
   <p>
-    Halaman <strong>Settings</strong> (`settings.php`) menyediakan dua modul utama untuk mengelola preferensi operator yang sedang masuk:
+    Modul <strong>Configuration & Settings</strong> (`settings.php`) mengadopsi struktur konfigurasi <strong>daloRADIUS</strong> secara 100% penuh dan memodernisasinya ke dalam antarmuka Bootstrap 5 yang terintegrasi langsung dengan database persisten <code>rm_settings</code>. Nilai konfigurasi disimpan dinamis di tabel database tanpa memerlukan perubahan berkas PHP secara manual di server.
   </p>
+  <div class="card-box">
+    <strong>Arsitektur Navigasi Pengaturan:</strong><br>
+    &bull; <strong>Tab Utama Atas:</strong> <code>General</code>, <code>Mail</code>, <code>Maintenance</code>, <code>Operators</code>, <code>Backup</code>, dan <code>My Account</code>.<br>
+    &bull; <strong>Sub-Navigasi Global Settings:</strong> Terletak di bilah samping kiri pada tab General, memuat 7 sub-modul kebijakan operasional FreeRADIUS.
+  </div>
+
+  <h2>20.2 Pengaturan Global (Global Settings - 7 Sub-Modul)</h2>
   <ol class="step-list">
     <li>
-      <strong>Ubah Kata Sandi Operator:</strong> Masukkan Password Saat Ini &rarr; masukkan Password Baru (minimal 6 karakter) &rarr; konfirmasi kata sandi &rarr; simpan. Sistem akan mengenkripsi sandi dengan standar bcrypt terbaru.
+      <strong>User Settings:</strong>
+      <ul style="margin-left: 15px; margin-top: 3px;">
+        <li><code>Allow cleartext password in db</code>: Mengatur apakah kata sandi disimpan sebagai teks biasa (PAP Cleartext) atau dienkripsi aman di tabel <code>radcheck</code>.</li>
+        <li><code>Allowed Random Characters</code>: Menentukan karakter acak yang digunakan generator kata sandi dan voucher (default mengeliminasi karakter ambigu seperti 0, O, 1, l, I).</li>
+        <li><code>Password min length</code> & <code>Password max length</code>: Membatasi panjang minimal (default 8) dan maksimal (default 14) kata sandi pengguna.</li>
+        <li><code>Default User Group</code> & <code>Default Expiry Period</code>: Menentukan grup kebijakan bawaan dan masa berlaku akun (hari).</li>
+      </ul>
     </li>
     <li>
-      <strong>Perbarui Profil Diri:</strong> Memperbarui Nama Depan, Nama Belakang, Unit Kerja/Departemen, Alamat Email, dan Nomor Telepon langsung di database.
+      <strong>Database Settings:</strong> Mengonfigurasi Host, Port, Nama Basis Data, Pengguna Database, serta Port UDP FreeRADIUS Authentication (<code>1812</code>) dan Accounting (<code>1813</code>). Dilengkapi tombol <em>Test UDP Socket</em> untuk memverifikasi kesiapan FreeRADIUS.
+    </li>
+    <li>
+      <strong>Language Settings:</strong> Pemilihan bahasa antarmuka (<em>English / Bahasa Indonesia</em>), Charset dokumen (<code>UTF-8</code>), dan Zona Waktu Server (<code>Asia/Jakarta</code> / WIB).
+    </li>
+    <li>
+      <strong>Logging Settings:</strong> Mengatur mode lingkungan aplikasi (<em>Production / Development Debug</em>), pengaktifan pencatatan galat runtime ke <code>storage/logs/app.log</code>, jalur log server FreeRADIUS (<code>/var/log/freeradius/radius.log</code>), dan penampil baris log terkini secara live.
+    </li>
+    <li>
+      <strong>Interface Settings:</strong> Mengubah nama identitas sistem (<code>RadiusManager</code>), jumlah baris paginasi per halaman (10, 20, 25, 50, 100), format penanggalan, dan skema warna aksen antarmuka.
+    </li>
+    <li>
+      <strong>Message Settings:</strong> Menyesuaikan template pesan selamat datang pelanggan baru (mendukung token <code>{username}</code>, <code>{password}</code>, <code>{app_name}</code>), subjek email verifikasi OTP, dan pesan bantuan portal subscriber.
+    </li>
+    <li>
+      <strong>Recurring Tasks Settings:</strong> Mengatur batas toleransi hari retensi sesi usang (stale sessions), jendela pembersihan token OTP kadaluarsa, serta tombol eksekusi langsung <strong>Clean Stale Sessions Now</strong> untuk menutup sesi akuntansi yang tertinggal tanpa paket Stop.
     </li>
   </ol>
 
-  <h2>20.2 Panel Diagnostik Server & FreeRADIUS Service Info</h2>
+  <h2>20.3 Layanan Email & Pengujian SMTP (`Mail`)</h2>
   <p>
-    Di sisi kanan halaman pengaturan, terdapat kartu diagnostik kesehatan server secara transparan:
+    Tab <strong>Mail</strong> mengelola mesin pengiriman surel sistem (Socket SMTP mandiri tanpa dependensi eksternal vs PHP native <code>mail()</code>). Dilengkapi formulir kredensial SMTP (Host, Port 587/465/25, Enkripsi STARTTLS/SSL, Pengguna, Kata Sandi, dan Alamat Pengirim), alat uji langsung <strong>Send Test Verification Email</strong>, serta pemantau riwayat transaksi email di <code>storage/logs/mail.log</code>.
   </p>
-  <table class="table-custom">
-    <thead>
-      <tr>
-        <th style="width:35%;">Indikator Sistem</th>
-        <th style="width:65%;">Nilai & Keterangan</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>Status Koneksi Database</strong></td>
-        <td><span class="badge badge-success">Connected</span> (MariaDB / MySQL localhost:3306)</td>
-      </tr>
-      <tr>
-        <td><strong>Versi Mesin PHP</strong></td>
-        <td>PHP 8.2+ (Ekstensi aktif: <code>pdo_mysql</code>, <code>mbstring</code>, <code>openssl</code>)</td>
-      </tr>
-      <tr>
-        <td><strong>Kapasitas Memori & Eksekusi</strong></td>
-        <td>Memory Limit: <code>512M</code> &bull; Max Execution Time: <code>300s</code></td>
-      </tr>
-      <tr>
-        <td><strong>Jumlah Baris Tabel Akuntansi</strong></td>
-        <td><code>941.600+</code> baris rekaman tersimpan di <code>radacct</code></td>
-      </tr>
-      <tr>
-        <td><strong>Status Indeks SARGable</strong></td>
-        <td><span class="badge badge-success">Optimized</span> (Indeks komposit aktif dari install.sql)</td>
-      </tr>
-    </tbody>
-  </table>
 
-  <h2>20.3 Prosedur Cadangan Rutin (Backup & Restore)</h2>
-  <pre><code># 1. Perintah Cadangan Database (Single-Transaction tanpa mengunci tabel):
-mysqldump -u root -p --single-transaction --routines --triggers radius > /backup/radius_$(date +%F).sql
+  <h2>20.4 Pemeliharaan Sistem & Keamanan Brute Force (`Maintenance`)</h2>
+  <p>
+    Tab <strong>Maintenance</strong> menyatukan informasi diagnostik server (PHP Runtime, Versi MySQL, Batas Memori, Batas Waktu Eksekusi), indikator kapasitas data FreeRADIUS (rekaman autentikasi 24M+, sesi akuntansi 1M+), pembersih sesi akuntansi tanpa Stop packet, serta tabel <strong>Active IP Lockouts</strong> yang memungkinkan Superadmin memantau dan membuka blokir IP yang terkunci akibat serangan brute-force.
+  </p>
 
-# 2. Perintah Pemulihan (Restore) Database:
-mysql -u root -p radius < /backup/radius_2026-09-28.sql</code></pre>
+  <h2>20.5 Direktori Operator & Cadangan Bencana (`Operators` & `Backup`)</h2>
+  <p>
+    Tab <strong>Operators</strong> menampilkan direktori seluruh operator sistem dari tabel <code>operators</code> dan <code>rm_admins</code>. Tab <strong>Backup</strong> menyediakan alat pemulihan bencana satu-klik:
+  </p>
+  <ul style="margin-left: 20px; margin-bottom: 12px;">
+    <li><strong>Unduh Skema Database DDL (.sql):</strong> Mengunduh struktur DDL lengkap seluruh tabel FreeRADIUS dan RadiusManager (`export.php?type=schema`).</li>
+    <li><strong>Unduh Snapshot Konfigurasi (.json):</strong> Mengekspor seluruh kunci pengaturan <code>rm_settings</code> dalam format JSON terenkripsi/termaskir (`export.php?type=config`).</li>
+    <li><strong>Unduh Arsip CSV Entitas:</strong> Ekspor instan untuk Pelanggan, Perangkat NAS, Riwayat Sesi, dan Log Audit Administrator.</li>
+  </ul>
+
+  <h2>20.6 Pengaturan Akun Pribadi & Kata Sandi Operator (`My Account`)</h2>
+  <p>
+    Tab <strong>My Account</strong> memungkinkan operator yang sedang masuk untuk memperbarui kata sandi akun pribadinya secara mandiri dengan verifikasi sandi lama dan enkripsi Bcrypt terbaru, serta memperbarui rincian profil (Nama, Departemen, Email, Telepon).
+  </p>
 
   <div style="margin-top: 20px; padding: 10px; background: #f1f5f9; border-radius: 6px; text-align: center; font-size: 8pt; color: #64748b;">
-    <strong>RadiusManager v1.8.0 Enterprise Documentation</strong> &bull; Seluruh Fitur Telah Terdokumentasi Lengkap.<br>
+    <strong>RadiusManager v1.9.2 Enterprise Documentation</strong> &bull; Seluruh Fitur Telah Terdokumentasi Lengkap.<br>
     &copy; 2026 RadiusManager Project. Hak Cipta Dilindungi Undang-Undang.
   </div>
 </div>

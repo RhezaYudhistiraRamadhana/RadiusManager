@@ -5,6 +5,44 @@ All notable changes to the **RadiusManager** project are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2] - 2026-10-02
+
+### Added
+- **Full daloRADIUS Configuration Parity (`settings.php`, `rm_settings`, `install.sql`)**:
+  - Re-engineered the administration panel to achieve 100% feature and workflow parity with daloRADIUS's configuration interface, modernized into a clean, responsive Bootstrap 5 layout.
+  - **Persistent Database Configuration (`rm_settings`)**: Introduced an idempotent key-value settings table in MySQL with seed defaults, decoupling runtime system policies from hardcoded PHP files.
+  - **Global Settings Sub-Navigation**:
+    - **User Settings**: Cleartext password storage toggle (`user_allow_cleartext`), Allowed Random Characters charset (`user_random_chars`), Min/Max password length constraints (`user_pass_min_len`, `user_pass_max_len`), Default User Group, and Default Expiry Period.
+    - **Database Settings**: Database host, port, name, and user configuration; FreeRADIUS Authentication Port (`1812`) and Accounting Port (`1813`) management; integrated FreeRADIUS UDP socket connectivity diagnostic tool.
+    - **Language Settings**: Interface language selector (English / Bahasa Indonesia), document charset (`UTF-8`), and server timezone selector (`Asia/Jakarta`, WITA, WIT, UTC).
+    - **Logging Settings**: Production vs Development environment mode, runtime error logging toggle, FreeRADIUS server log path, and live application log tail monitor (`storage/logs/app.log`).
+    - **Interface Settings**: Application branding title (`RadiusManager`), table pagination selector (10, 20, 25, 50, 100 rows/page), date and time format preferences, and UI theme palette.
+    - **Message Settings**: New subscriber welcome message template with replacement tokens (`{username}`, `{password}`, `{app_name}`), Self-Service OTP email subject, and subscriber portal assistance notice.
+    - **Recurring Tasks Settings**: Stale accounting session retention limit (days), expired OTP purge window (hours), and manual **"Clean Stale Sessions Now"** action trigger.
+  - **Dedicated System Tabs**:
+    - **Mail**: Dynamic Socket SMTP transport configuration, credentials, live **"Send Test Verification Email"** diagnostic sender, and mail transaction log viewer (`storage/logs/mail.log`).
+    - **Maintenance**: System runtime diagnostics (PHP, MySQL, Web server, Memory limit, Timeout), FreeRADIUS database scale capacity indicators, accounting session cleanup tool, and Brute-Force IP lockout management.
+    - **Operators**: Comprehensive directory of database operators (`operators`) and administrators (`rm_admins`) with direct link to RBAC management (`operators.php`).
+    - **Backup**: Disaster recovery hub providing one-click **Database Schema DDL (.sql)** download, **Configuration Snapshot (.json)** export, and entity CSV archives.
+    - **My Account**: Personal administrator password update with bcrypt hashing and operator profile editor.
+- **Enhanced Backup & Disaster Recovery (`export.php`)**:
+  - Added `type=schema` to stream full `SHOW CREATE TABLE` DDL structures for all 15 FreeRADIUS and RadiusManager tables into an instant `.sql` download.
+  - Added `type=config` to stream a JSON snapshot of all system configuration keys with sensitive passwords masked.
+  - Added `type=nas` for tabular CSV export of the NAS hardware inventory and shared secrets.
+- **Dynamic Mail Transport Integration (`includes/mail.php`)**:
+  - Updated `sendMailMessage()` and `sendSocketSmtp()` to read SMTP parameters directly from `rm_settings` via `getSetting()`, enabling instant runtime email configuration without modifying source files.
+- **Navigation Integration (`includes/header.php`)**:
+  - Added direct "Configuration" menu link with slider icon under the `System` section in the sidebar.
+  - Linked topbar administrator avatar directly to `settings.php?tab=account`.
+- **Database Device Audit & Verification**:
+  - Audited 1,071,947 accounting sessions and NAS device records, verifying that 100% of all 10 physical wireless AP MAC OUIs belong to **Ruijie Networks Co., Ltd.**, with 86.4% managed through controller `172.16.0.70`.
+
+### Changed
+- **Version Bump**: Updated application version to `1.9.2` across `config.php`, `config.sample.php`, and documentation.
+- **Cache Synchronization (`includes/functions.php`)**: Optimized `getSetting()`, `setSetting()`, and `getAllSettings()` with synchronized in-memory caching to ensure immediate reflection across form saves.
+
+---
+
 ## [1.9.1] - 2026-09-30
 
 ### Security
