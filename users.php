@@ -8,29 +8,42 @@ $db = getDB();
 $hasUserinfo = dbTableExists('userinfo');
 $userInfoJoin = $hasUserinfo ? "LEFT JOIN userinfo ui ON ui.username = rc.username" : "";
 
-// Search & pagination
-$search  = trim($_GET['q'] ?? '');
-$page    = max(1, (int)($_GET['page'] ?? 1));
-$perPage = defined('ROWS_PER_PAGE') ? ROWS_PER_PAGE : 20;
-$offset  = ($page - 1) * $perPage;
-$lim     = (int)$perPage;
-$off     = (int)$offset;
+// Search, group filter & pagination
+$search      = trim($_GET['q'] ?? '');
+$groupFilter = trim($_GET['group'] ?? '');
+$page        = max(1, (int)($_GET['page'] ?? 1));
+$perPage     = defined('ROWS_PER_PAGE') ? ROWS_PER_PAGE : 20;
+$offset      = ($page - 1) * $perPage;
+$lim         = (int)$perPage;
+$off         = (int)$offset;
 
-if ($search) {
+$whereClauses = [];
+$params = [];
+
+if ($groupFilter !== '') {
+    $whereClauses[] = "rug.groupname = ?";
+    $params[] = $groupFilter;
+}
+
+if ($search !== '') {
     $q = "%$search%";
     if ($hasUserinfo) {
-        $totalStmt = $db->prepare("SELECT COUNT(DISTINCT rc.username) c FROM radcheck rc LEFT JOIN userinfo ui ON ui.username = rc.username WHERE rc.username LIKE ? OR ui.firstname LIKE ? OR ui.department LIKE ? OR ui.email LIKE ?");
-        $totalStmt->execute([$q, $q, $q, $q]);
-        $total = (int)($totalStmt->fetch()['c'] ?? 0);
-        $uStmt = $db->prepare("SELECT DISTINCT rc.username FROM radcheck rc LEFT JOIN userinfo ui ON ui.username = rc.username WHERE rc.username LIKE ? OR ui.firstname LIKE ? OR ui.department LIKE ? OR ui.email LIKE ? ORDER BY rc.username LIMIT $lim OFFSET $off");
-        $uStmt->execute([$q, $q, $q, $q]);
+        $whereClauses[] = "(rc.username LIKE ? OR ui.firstname LIKE ? OR ui.lastname LIKE ? OR ui.department LIKE ? OR ui.email LIKE ? OR rug.groupname LIKE ?)";
+        $params = array_merge($params, [$q, $q, $q, $q, $q, $q]);
     } else {
-        $totalStmt = $db->prepare("SELECT COUNT(DISTINCT username) c FROM radcheck WHERE username LIKE ?");
-        $totalStmt->execute([$q]);
-        $total = (int)($totalStmt->fetch()['c'] ?? 0);
-        $uStmt = $db->prepare("SELECT DISTINCT username FROM radcheck WHERE username LIKE ? ORDER BY username LIMIT $lim OFFSET $off");
-        $uStmt->execute([$q]);
+        $whereClauses[] = "(rc.username LIKE ? OR rug.groupname LIKE ?)";
+        $params = array_merge($params, [$q, $q]);
     }
+}
+
+if (!empty($whereClauses)) {
+    $whereSql = "WHERE " . implode(' AND ', $whereClauses);
+    $totalStmt = $db->prepare("SELECT COUNT(DISTINCT rc.username) c FROM radcheck rc $userInfoJoin LEFT JOIN radusergroup rug ON rug.username = rc.username $whereSql");
+    $totalStmt->execute($params);
+    $total = (int)($totalStmt->fetch()['c'] ?? 0);
+
+    $uStmt = $db->prepare("SELECT DISTINCT rc.username FROM radcheck rc $userInfoJoin LEFT JOIN radusergroup rug ON rug.username = rc.username $whereSql ORDER BY rc.username LIMIT $lim OFFSET $off");
+    $uStmt->execute($params);
     $usernames = $uStmt->fetchAll(PDO::FETCH_COLUMN);
 } else {
     $total = (int)$db->query("SELECT COUNT(DISTINCT username) FROM radcheck")->fetchColumn();
@@ -84,16 +97,32 @@ if (!empty($usernames)) {
 // Flash message
 $flash = getFlash();
 
+$exportParams = ['type' => 'users'];
+if ($search !== '') $exportParams['q'] = $search;
+if ($groupFilter !== '') $exportParams['group'] = $groupFilter;
+$exportUrl = 'export.php?' . http_build_query($exportParams);
+
+$returnParams = [];
+if ($search !== '') $returnParams['q'] = $search;
+if ($groupFilter !== '') $returnParams['group'] = $groupFilter;
+if ($page > 1) $returnParams['page'] = $page;
+$returnUrl = 'users.php' . (!empty($returnParams) ? '?' . http_build_query($returnParams) : '');
+
 include __DIR__ . '/includes/header.php';
 ?>
 
 <div class="page-header d-flex align-items-center justify-content-between">
     <div>
         <h4><i class="bi bi-people me-2 text-primary"></i>Users</h4>
-        <p><?= number_format($total) ?> total users</p>
+        <p class="mb-0 text-muted">
+            <?= number_format($total) ?> total users
+            <?php if ($groupFilter !== ''): ?>
+            <span class="ms-1">in group <span class="badge bg-primary"><?= htmlspecialchars($groupFilter) ?></span></span>
+            <?php endif; ?>
+        </p>
     </div>
     <div class="d-flex gap-2">
-        <a href="export.php?type=users<?= $search ? '&q=' . urlencode($search) : '' ?>" class="btn btn-outline-success btn-sm">
+        <a href="<?= $exportUrl ?>" class="btn btn-outline-success btn-sm">
             <i class="bi bi-download me-1"></i>Export CSV
         </a>
         <a href="user-import.php" class="btn btn-outline-primary btn-sm">
@@ -112,15 +141,54 @@ include __DIR__ . '/includes/header.php';
 </div>
 <?php endif; ?>
 
-<!-- Search bar -->
+<!-- Search & Filter bar -->
 <div class="card mb-3">
     <div class="card-body py-2">
-        <form method="GET" class="d-flex gap-2">
-            <input type="text" name="q" class="form-control form-control-sm"
-                   placeholder="Search username, name, department..." value="<?= htmlspecialchars($search) ?>">
-            <button class="btn btn-sm btn-primary px-3">Search</button>
-            <?php if ($search): ?>
-            <a href="users.php" class="btn btn-sm btn-outline-secondary">Clear</a>
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-5">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control"
+                           placeholder="Search username, name, department..." value="<?= htmlspecialchars($search) ?>">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-tag"></i> Group</span>
+                    <select name="group" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Groups / Plans</option>
+                        <?php foreach ($allGroups as $grpName): ?>
+                        <option value="<?= htmlspecialchars($grpName) ?>" <?= $groupFilter === $grpName ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($grpName) ?>
+                        </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary px-3">Filter</button>
+                <?php if ($search !== '' || $groupFilter !== ''): ?>
+                <a href="users.php" class="btn btn-sm btn-outline-secondary">Reset</a>
+                <?php endif; ?>
+            </div>
+
+            <?php if ($groupFilter !== '' || $search !== ''): ?>
+            <div class="col-12 pt-2 border-top d-flex align-items-center gap-2 flex-wrap">
+                <span class="small text-muted">Active filters:</span>
+                <?php if ($groupFilter !== ''): ?>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-tag-fill me-1"></i> Group: <strong><?= htmlspecialchars($groupFilter) ?></strong>
+                    <a href="users.php?<?= http_build_query(array_filter(['q' => $search])) ?>" class="text-primary text-decoration-none ms-1" title="Remove group filter">&times;</a>
+                </span>
+                <?php endif; ?>
+                <?php if ($search !== ''): ?>
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-search me-1"></i> Keyword: <strong><?= htmlspecialchars($search) ?></strong>
+                    <a href="users.php?<?= http_build_query(array_filter(['group' => $groupFilter])) ?>" class="text-secondary text-decoration-none ms-1" title="Remove keyword filter">&times;</a>
+                </span>
+                <?php endif; ?>
+                <a href="users.php" class="small text-danger text-decoration-none ms-2">Clear all</a>
+            </div>
             <?php endif; ?>
         </form>
     </div>
@@ -242,9 +310,15 @@ include __DIR__ . '/includes/header.php';
     <div class="card-footer bg-white border-top d-flex align-items-center justify-content-between">
         <span class="small text-muted">Page <?= $page ?> of <?= $pages ?> (<?= number_format($total) ?> total)</span>
         <nav><ul class="pagination pagination-sm mb-0">
-            <?php for ($i = max(1,$page-2); $i <= min($pages,$page+2); $i++): ?>
+            <?php 
+            $basePageParams = [];
+            if ($search !== '') $basePageParams['q'] = $search;
+            if ($groupFilter !== '') $basePageParams['group'] = $groupFilter;
+            for ($i = max(1,$page-2); $i <= min($pages,$page+2); $i++): 
+                $pParams = array_merge($basePageParams, ['page' => $i]);
+            ?>
             <li class="page-item <?= $i==$page?'active':'' ?>">
-                <a class="page-link" href="?q=<?= urlencode($search) ?>&page=<?= $i ?>"><?= $i ?></a>
+                <a class="page-link" href="?<?= http_build_query($pParams) ?>"><?= $i ?></a>
             </li>
             <?php endfor; ?>
         </ul></nav>
@@ -261,6 +335,7 @@ include __DIR__ . '/includes/header.php';
         </div>
         <form id="batchForm" method="POST" action="user-batch.php" class="d-flex align-items-center gap-2 mb-0">
             <?= csrfField() ?>
+            <input type="hidden" name="return_url" value="<?= htmlspecialchars($returnUrl) ?>">
             <div id="batchUsernamesContainer"></div>
 
             <select name="action" id="batchActionSelect" class="form-select form-select-sm" style="width: 170px;" onchange="toggleGroupSelect(this.value)" required>
@@ -293,6 +368,7 @@ include __DIR__ . '/includes/header.php';
 <form id="deleteForm" method="POST" action="user-delete.php">
     <?= csrfField() ?>
     <input type="hidden" name="username" id="deleteUsername">
+    <input type="hidden" name="return_url" value="<?= htmlspecialchars($returnUrl) ?>">
 </form>
 
 <!-- Toggle form (hidden) -->
@@ -300,7 +376,7 @@ include __DIR__ . '/includes/header.php';
     <?= csrfField() ?>
     <input type="hidden" name="username" id="toggleUsername">
     <input type="hidden" name="state" id="toggleState">
-    <input type="hidden" name="return_url" value="users.php<?= $search ? '?q=' . urlencode($search) : '' ?>">
+    <input type="hidden" name="return_url" value="<?= htmlspecialchars($returnUrl) ?>">
 </form>
 
 <?php

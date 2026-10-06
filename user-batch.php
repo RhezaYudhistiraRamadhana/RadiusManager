@@ -10,9 +10,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 
 verifyCsrf();
 
-$action = trim($_POST['batch_action'] ?? '');
+$action = trim($_POST['batch_action'] ?? $_POST['action'] ?? '');
 $usernames = $_POST['usernames'] ?? [];
-$targetGroup = trim($_POST['target_group'] ?? '');
+$targetGroup = trim($_POST['target_group'] ?? $_POST['new_group'] ?? '');
 $returnUrl = trim($_POST['return_url'] ?? 'users.php');
 
 if (empty($returnUrl) || str_contains($returnUrl, '://') || (!str_starts_with($returnUrl, '/') && !str_starts_with($returnUrl, 'user'))) {

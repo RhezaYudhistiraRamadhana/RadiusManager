@@ -5,6 +5,29 @@ All notable changes to the **RadiusManager** project are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.3] - 2026-10-06
+
+### Fixed
+- **Subscriber Count Navigation & Group Filter Linking (`plans.php`, `groups.php`, `users.php`)**:
+  - Resolved issue where clicking the subscriber badge (e.g., "458 users" for the `Pegawai` rate plan) displayed 0 users.
+  - Corrected link in `plans.php` from generic search query (`?q=Pegawai`) to dedicated group filter parameter (`?group=Pegawai`).
+  - Added direct subscriber table navigation link in `groups.php` under the group members panel.
+  - Enhanced `users.php` search SQL query to inspect `radusergroup.groupname` alongside username and profile details, allowing text searches for group names (e.g., typing "Pegawai" in the search box) to seamlessly find all assigned subscribers.
+
+### Added
+- **Group Filter Dropdown & Active Filter Pills (`users.php`)**:
+  - Integrated an interactive `<select name="group">` filter dropdown in the user search header, populated dynamically from all active groups in `radusergroup` and `radgroupcheck`.
+  - Added removable badge pills for active filters (e.g., `Group: Pegawai [×]`, `Keyword: ... [×]`) with a 1-click "Clear all" trigger.
+  - Filter-aware CSV export button: dynamically updates the export URL (`export.php?type=users&group=...&q=...`) to download only the currently filtered subscribers.
+
+### Improved
+- **State Preservation in Batch Actions & Pagination (`users.php`, `export.php`, `user-batch.php`, `user-delete.php`)**:
+  - Updated pagination link generator to preserve both `group` and `q` query parameters across pages.
+  - Added sanitized `return_url` forwarding in single-user toggle (`user-toggle.php`), batch operations (`user-batch.php`), and deletion (`user-delete.php`) to return administrators directly to their active group filter and page.
+  - Synchronized `user-batch.php` parameter handling to support both legacy and updated form field names (`action`/`batch_action`, `new_group`/`target_group`).
+
+---
+
 ## [1.9.2] - 2026-10-02
 
 ### Added

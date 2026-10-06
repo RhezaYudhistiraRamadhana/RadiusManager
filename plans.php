@@ -201,7 +201,7 @@ include __DIR__ . '/includes/header.php';
                         </td>
                         <td>
                             <?php if ((int)$p['subscriber_count'] > 0): ?>
-                            <a href="users.php?q=<?= urlencode($p['groupname']) ?>" class="badge bg-success-subtle text-success border border-success-subtle text-decoration-none">
+                            <a href="users.php?group=<?= urlencode($p['groupname']) ?>" class="badge bg-success-subtle text-success border border-success-subtle text-decoration-none" title="Filter users by group <?= htmlspecialchars($p['groupname']) ?>">
                                 <i class="bi bi-person me-1"></i><?= number_format($p['subscriber_count']) ?> users
                             </a>
                             <?php else: ?>

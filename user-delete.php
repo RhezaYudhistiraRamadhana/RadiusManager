@@ -8,8 +8,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
     $username = trim($_POST['username'] ?? '');
 
+    $returnUrl = trim($_POST['return_url'] ?? 'users.php');
+    if (empty($returnUrl) || str_contains($returnUrl, '://') || (!str_starts_with($returnUrl, '/') && !str_starts_with($returnUrl, 'user'))) {
+        $returnUrl = 'users.php';
+    }
+
     if (!$username) {
-        header('Location: users.php');
+        header('Location: ' . $returnUrl);
         exit;
     }
 
@@ -30,6 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->rollBack();
         flash("Error deleting user: " . $e->getMessage(), 'danger');
     }
+
+    header('Location: ' . $returnUrl);
+    exit;
 }
 
 header('Location: users.php');

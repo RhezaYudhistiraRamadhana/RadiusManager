@@ -20,8 +20,10 @@ switch ($type) {
     // 1. EXPORT USERS
     // ══════════════════════════════════════════════════════════════════════
     case 'users':
-        $search = trim($_GET['q'] ?? '');
+        $search      = trim($_GET['q'] ?? '');
+        $groupFilter = trim($_GET['group'] ?? '');
         $hasUserinfo = dbTableExists('userinfo');
+        $userInfoJoin = $hasUserinfo ? "LEFT JOIN userinfo ui ON ui.username=rc.username" : "";
 
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="radius_users_' . $nowStr . '.csv"');
@@ -45,18 +47,29 @@ switch ($type) {
         ]);
 
         // Step 1: Fetch matching usernames
-        if ($search) {
+        $whereClauses = [];
+        $params = [];
+
+        if ($groupFilter !== '') {
+            $whereClauses[] = "rug.groupname = ?";
+            $params[] = $groupFilter;
+        }
+
+        if ($search !== '') {
             $q = "%$search%";
             if ($hasUserinfo) {
-                $uStmt = $db->prepare("SELECT DISTINCT rc.username FROM radcheck rc
-                    LEFT JOIN userinfo ui ON ui.username=rc.username
-                    WHERE rc.username LIKE ? OR ui.firstname LIKE ? OR ui.lastname LIKE ? OR ui.department LIKE ? OR ui.email LIKE ?
-                    ORDER BY rc.username");
-                $uStmt->execute([$q, $q, $q, $q, $q]);
+                $whereClauses[] = "(rc.username LIKE ? OR ui.firstname LIKE ? OR ui.lastname LIKE ? OR ui.department LIKE ? OR ui.email LIKE ? OR rug.groupname LIKE ?)";
+                $params = array_merge($params, [$q, $q, $q, $q, $q, $q]);
             } else {
-                $uStmt = $db->prepare("SELECT DISTINCT username FROM radcheck WHERE username LIKE ? ORDER BY username");
-                $uStmt->execute([$q]);
+                $whereClauses[] = "(rc.username LIKE ? OR rug.groupname LIKE ?)";
+                $params = array_merge($params, [$q, $q]);
             }
+        }
+
+        if (!empty($whereClauses)) {
+            $whereSql = "WHERE " . implode(' AND ', $whereClauses);
+            $uStmt = $db->prepare("SELECT DISTINCT rc.username FROM radcheck rc $userInfoJoin LEFT JOIN radusergroup rug ON rug.username=rc.username $whereSql ORDER BY rc.username");
+            $uStmt->execute($params);
             $usernames = $uStmt->fetchAll(PDO::FETCH_COLUMN);
         } else {
             $uStmt = $db->query("SELECT DISTINCT username FROM radcheck ORDER BY username");

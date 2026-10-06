@@ -181,7 +181,14 @@ include __DIR__ . '/includes/header.php';
 
     <!-- Members -->
     <div class="card-body border-bottom">
-        <h6 class="fw-semibold small text-muted mb-2">MEMBERS (<?= count($groupUsers) ?>)</h6>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="fw-semibold small text-muted mb-0">MEMBERS (<?= count($groupUsers) ?>)</h6>
+            <?php if (!empty($groupUsers)): ?>
+            <a href="users.php?group=<?= urlencode($viewGroup) ?>" class="small text-decoration-none">
+                <i class="bi bi-box-arrow-up-right me-1"></i>View in Users table
+            </a>
+            <?php endif; ?>
+        </div>
         <?php if (empty($groupUsers)): ?>
         <span class="text-muted small">No users assigned to this group.</span>
         <?php else: ?>
