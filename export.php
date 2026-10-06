@@ -20,10 +20,13 @@ switch ($type) {
     // 1. EXPORT USERS
     // ══════════════════════════════════════════════════════════════════════
     case 'users':
-        $search      = trim($_GET['q'] ?? '');
-        $groupFilter = trim($_GET['group'] ?? '');
-        $hasUserinfo = dbTableExists('userinfo');
-        $userInfoJoin = $hasUserinfo ? "LEFT JOIN userinfo ui ON ui.username=rc.username" : "";
+        $search         = trim($_GET['q'] ?? '');
+        $groupFilter    = trim($_GET['group'] ?? '');
+        $statusFilter   = trim($_GET['status'] ?? ''); // '', 'active', 'disabled', 'online'
+        $delimiter      = ($_GET['delimiter'] ?? ',') === ';' ? ';' : ',';
+        $includeHeaders = !isset($_GET['headers']) || $_GET['headers'] === '1';
+        $hasUserinfo    = dbTableExists('userinfo');
+        $userInfoJoin   = $hasUserinfo ? "LEFT JOIN userinfo ui ON ui.username=rc.username" : "";
 
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="radius_users_' . $nowStr . '.csv"');
@@ -34,17 +37,44 @@ switch ($type) {
         // UTF-8 BOM for Excel
         fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-        // CSV Header
-        fputcsv($out, [
-            'Username',
-            'Password',
-            'Groups',
-            'First Name',
-            'Last Name',
-            'Department',
-            'Email',
-            'Online Status'
-        ]);
+        $colLabels = [
+            'username'   => 'Username',
+            'password'   => 'Password',
+            'group'      => 'Groups / Plan',
+            'status'     => 'Account Status',
+            'online'     => 'Online Status',
+            'firstname'  => 'First Name',
+            'lastname'   => 'Last Name',
+            'department' => 'Department',
+            'email'      => 'Email',
+            'static_ip'  => 'Static IP'
+        ];
+
+        // Process requested columns
+        $requestedCols = $_GET['cols'] ?? [];
+        if (!is_array($requestedCols) || empty($requestedCols)) {
+            $selectedCols = ['username', 'password', 'group', 'status', 'online', 'firstname', 'lastname', 'department', 'email'];
+        } else {
+            $validKeys = array_keys($colLabels);
+            $selectedCols = [];
+            foreach ($requestedCols as $rc) {
+                if (in_array($rc, $validKeys, true) && !in_array($rc, $selectedCols, true)) {
+                    $selectedCols[] = $rc;
+                }
+            }
+            if (!in_array('username', $selectedCols, true)) {
+                array_unshift($selectedCols, 'username');
+            }
+        }
+
+        // CSV Header row
+        if ($includeHeaders) {
+            $headerRow = [];
+            foreach ($selectedCols as $ck) {
+                $headerRow[] = $colLabels[$ck];
+            }
+            fputcsv($out, $headerRow, $delimiter);
+        }
 
         // Step 1: Fetch matching usernames
         $whereClauses = [];
@@ -66,6 +96,14 @@ switch ($type) {
             }
         }
 
+        if ($statusFilter === 'disabled') {
+            $whereClauses[] = "EXISTS (SELECT 1 FROM radcheck rc_dis WHERE rc_dis.username = rc.username AND rc_dis.attribute = 'Auth-Type' AND rc_dis.value = 'Reject')";
+        } elseif ($statusFilter === 'active') {
+            $whereClauses[] = "NOT EXISTS (SELECT 1 FROM radcheck rc_act WHERE rc_act.username = rc.username AND rc_act.attribute = 'Auth-Type' AND rc_act.value = 'Reject')";
+        } elseif ($statusFilter === 'online') {
+            $whereClauses[] = "EXISTS (SELECT 1 FROM radacct ra_on WHERE ra_on.username = rc.username AND ra_on.acctstoptime IS NULL)";
+        }
+
         if (!empty($whereClauses)) {
             $whereSql = "WHERE " . implode(' AND ', $whereClauses);
             $uStmt = $db->prepare("SELECT DISTINCT rc.username FROM radcheck rc $userInfoJoin LEFT JOIN radusergroup rug ON rug.username=rc.username $whereSql ORDER BY rc.username");
@@ -78,7 +116,6 @@ switch ($type) {
 
         if (!empty($usernames)) {
             $uiCols = $hasUserinfo ? "MAX(ui.firstname) AS firstname, MAX(ui.lastname) AS lastname, MAX(ui.department) AS department, MAX(ui.email) AS email," : "";
-            $userInfoJoin = $hasUserinfo ? "LEFT JOIN userinfo ui ON ui.username=rc.username" : "";
 
             // Chunk usernames in batches of 250 for streaming
             $chunks = array_chunk($usernames, 250);
@@ -97,12 +134,15 @@ switch ($type) {
                         MAX(CASE WHEN rc.attribute='Cleartext-Password' THEN rc.value END),
                         MAX(CASE WHEN rc.attribute='User-Password' THEN rc.value END)
                     ) AS password,
+                    MAX(CASE WHEN rc.attribute='Auth-Type' AND rc.value='Reject' THEN 1 ELSE 0 END) AS is_disabled,
+                    MAX(CASE WHEN rr.attribute='Framed-IP-Address' THEN rr.value END) AS static_ip,
                     GROUP_CONCAT(DISTINCT rug.groupname ORDER BY rug.priority SEPARATOR ', ') AS groupname,
                     $uiCols
                     rc.username AS dummy
                   FROM radcheck rc
                   $userInfoJoin
                   LEFT JOIN radusergroup rug ON rug.username=rc.username
+                  LEFT JOIN radreply rr ON rr.username=rc.username
                   WHERE rc.username IN ($placeholders)
                   GROUP BY rc.username
                   ORDER BY rc.username");
@@ -111,16 +151,22 @@ switch ($type) {
 
                 foreach ($rows as $r) {
                     $isOnline = isset($onlineSet[$r['username']]) ? 'Online' : 'Offline';
-                    fputcsv($out, [
-                        $r['username'],
-                        $r['password'] ?? '',
-                        $r['groupname'] ?? '',
-                        $r['firstname'] ?? '',
-                        $r['lastname'] ?? '',
-                        $r['department'] ?? '',
-                        $r['email'] ?? '',
-                        $isOnline
-                    ]);
+                    $row = [];
+                    foreach ($selectedCols as $ck) {
+                        switch ($ck) {
+                            case 'username':   $row[] = $r['username']; break;
+                            case 'password':   $row[] = $r['password'] ?? ''; break;
+                            case 'group':      $row[] = $r['groupname'] ?? ''; break;
+                            case 'status':     $row[] = !empty($r['is_disabled']) ? 'Disabled' : 'Active'; break;
+                            case 'online':     $row[] = $isOnline; break;
+                            case 'firstname':  $row[] = $r['firstname'] ?? ''; break;
+                            case 'lastname':   $row[] = $r['lastname'] ?? ''; break;
+                            case 'department': $row[] = $r['department'] ?? ''; break;
+                            case 'email':      $row[] = $r['email'] ?? ''; break;
+                            case 'static_ip':  $row[] = $r['static_ip'] ?? ''; break;
+                        }
+                    }
+                    fputcsv($out, $row, $delimiter);
                 }
                 fflush($out);
             }
@@ -302,6 +348,85 @@ switch ($type) {
                 $r['reply'],
                 $r['authdate']
             ]);
+        }
+
+        fclose($out);
+        exit;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 4. EXPORT HOTSPOT VOUCHERS
+    // ══════════════════════════════════════════════════════════════════════
+    case 'vouchers':
+        $search      = trim($_GET['q'] ?? '');
+        $batchFilter = trim($_GET['batch'] ?? '');
+        $statusFilter= trim($_GET['status'] ?? '');
+        $delimiter   = ($_GET['delimiter'] ?? ',') === ';' ? ';' : ',';
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="radius_vouchers_' . $nowStr . '.csv"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $out = fopen('php://output', 'w');
+        fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        fputcsv($out, [
+            'ID',
+            'Batch Name',
+            'Username',
+            'Password',
+            'Plan / Profile',
+            'Status',
+            'Created By',
+            'Created At',
+            'Used At'
+        ], $delimiter);
+
+        if (dbTableExists('rm_vouchers')) {
+            $where = ["1=1"];
+            $params = [];
+
+            if ($search !== '') {
+                $where[] = "(v.username LIKE ? OR v.batch_name LIKE ? OR v.created_by LIKE ?)";
+                $params[] = "%$search%";
+                $params[] = "%$search%";
+                $params[] = "%$search%";
+            }
+
+            if ($batchFilter !== '') {
+                $where[] = "v.batch_name = ?";
+                $params[] = $batchFilter;
+            }
+
+            if (in_array($statusFilter, ['unused', 'active', 'expired'], true)) {
+                $where[] = "v.status = ?";
+                $params[] = $statusFilter;
+            }
+
+            $whereSql = "WHERE " . implode(' AND ', $where);
+            $planJoin = dbTableExists('rm_plans') ? "LEFT JOIN rm_plans p ON p.id = v.plan_id" : "";
+            $planCol  = dbTableExists('rm_plans') ? "COALESCE(p.name, '') AS plan_name" : "'' AS plan_name";
+
+            $stmt = $db->prepare("SELECT v.id, v.batch_name, v.username, v.password, $planCol, v.status, v.created_by, v.created_at, v.used_at
+                                  FROM rm_vouchers v
+                                  $planJoin
+                                  $whereSql
+                                  ORDER BY v.id DESC LIMIT 50000");
+            $stmt->execute($params);
+
+            while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                fputcsv($out, [
+                    $r['id'],
+                    $r['batch_name'],
+                    $r['username'],
+                    $r['password'],
+                    $r['plan_name'],
+                    ucfirst($r['status']),
+                    $r['created_by'] ?? '',
+                    $r['created_at'] ?? '',
+                    $r['used_at'] ?? ''
+                ], $delimiter);
+            }
         }
 
         fclose($out);

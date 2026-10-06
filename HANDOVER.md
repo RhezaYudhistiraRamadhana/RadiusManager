@@ -1,8 +1,8 @@
 # RadiusManager — Project Handover Document v3
 
-**Version:** 1.9.3 → 2.x  
+**Version:** 1.9.4 → 2.x  
 **Date:** 6 October 2026  
-**Status:** Active Development — Phase 3 (Priority 1 Complete, daloRADIUS Parity Complete, Group Navigation Complete, Priority 2 Next)
+**Status:** Active Development — Phase 3 (Configurable Export System Complete, daloRADIUS Parity Complete, Group Navigation Complete)
 
 ---
 
@@ -46,6 +46,7 @@ Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.
 | 1.9.1 | 2026-09-30 | Gemini | Priority 1: Brute force lockout, session fixation, SSL installer, error logging |
 | 1.9.2 | 2026-10-02 | Gemini | Full daloRADIUS Config parity (rm_settings), Schema/Config/NAS export, Ruijie AP audit |
 | 1.9.3 | 2026-10-06 | Gemini | Rate plan subscriber navigation link fix, Group filter dropdown, stateful pagination |
+| 1.9.4 | 2026-10-06 | Gemini | Configurable CSV Export modal with field selection, scope filtering, delimiter choice, and multi-dataset downloads |
 
 Full details in `CHANGELOG.md`.
 

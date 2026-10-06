@@ -122,9 +122,28 @@ include __DIR__ . '/includes/header.php';
         </p>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= $exportUrl ?>" class="btn btn-outline-success btn-sm">
-            <i class="bi bi-download me-1"></i>Export CSV
-        </a>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#exportModal">
+                <i class="bi bi-download me-1"></i>Export CSV
+            </button>
+            <button type="button" class="btn btn-outline-success btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" title="Export Options">
+                <span class="visually-hidden">Toggle Dropdown</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                <li><h6 class="dropdown-header text-uppercase fs-xs">Subscribers</h6></li>
+                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exportModal"><i class="bi bi-sliders me-2 text-primary"></i>Custom Export Options...</a></li>
+                <li><a class="dropdown-item" href="<?= $exportUrl ?>"><i class="bi bi-file-earmark-spreadsheet me-2 text-success"></i>Export Current View (Default)</a></li>
+                <li><a class="dropdown-item" href="export.php?type=users"><i class="bi bi-people me-2 text-secondary"></i>Export All Users CSV</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header text-uppercase fs-xs">Other Datasets</h6></li>
+                <li><a class="dropdown-item" href="export.php?type=accounting"><i class="bi bi-clock-history me-2 text-secondary"></i>Accounting Sessions</a></li>
+                <li><a class="dropdown-item" href="export.php?type=postauth"><i class="bi bi-shield-check me-2 text-secondary"></i>Authentication Logs</a></li>
+                <li><a class="dropdown-item" href="export.php?type=vouchers"><i class="bi bi-ticket-perforated me-2 text-secondary"></i>Hotspot Vouchers</a></li>
+                <li><a class="dropdown-item" href="export.php?type=nas"><i class="bi bi-router me-2 text-secondary"></i>NAS Devices Inventory</a></li>
+                <li><a class="dropdown-item" href="export.php?type=audit"><i class="bi bi-journal-text me-2 text-secondary"></i>Audit Trail</a></li>
+                <li><a class="dropdown-item" href="export.php?type=schema"><i class="bi bi-filetype-sql me-2 text-secondary"></i>Database Schema SQL</a></li>
+            </ul>
+        </div>
         <a href="user-import.php" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-upload me-1"></i>Import CSV
         </a>
@@ -379,8 +398,324 @@ include __DIR__ . '/includes/header.php';
     <input type="hidden" name="return_url" value="<?= htmlspecialchars($returnUrl) ?>">
 </form>
 
+<!-- Modal: Export Options -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-semibold text-dark" id="exportModalLabel">
+                    <i class="bi bi-download text-success me-2"></i>Export System Data
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body p-4">
+                <ul class="nav nav-pills nav-fill mb-3" id="exportTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-medium" id="export-users-tab" data-bs-toggle="tab" data-bs-target="#export-users-pane" type="button" role="tab">
+                            <i class="bi bi-people-fill me-1"></i> Subscribers / Users
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-medium" id="export-more-tab" data-bs-toggle="tab" data-bs-target="#export-more-pane" type="button" role="tab">
+                            <i class="bi bi-database-down me-1"></i> Other Datasets & Backups
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="exportTabContent">
+                    <!-- Tab 1: User Export Form -->
+                    <div class="tab-pane fade show active" id="export-users-pane" role="tabpanel">
+                        <form method="GET" action="export.php" id="customUserExportForm">
+                            <input type="hidden" name="type" value="users">
+                            
+                            <!-- Section: Scope & Filter -->
+                            <div class="card border mb-3">
+                                <div class="card-header bg-white py-2 fw-semibold text-muted small text-uppercase">
+                                    <i class="bi bi-funnel me-1 text-primary"></i> 1. Scope & Filter
+                                </div>
+                                <div class="card-body py-3">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Target Group / Scope</label>
+                                            <select name="group" class="form-select form-select-sm" id="exportGroupFilter">
+                                                <option value="" <?= ($groupFilter === '') ? 'selected' : '' ?>>All Groups (<?= number_format($total) ?> users)</option>
+                                                <?php foreach ($allGroups as $grpName): ?>
+                                                <option value="<?= htmlspecialchars($grpName) ?>" <?= ($groupFilter === $grpName) ? 'selected' : '' ?>>
+                                                    Group: <?= htmlspecialchars($grpName) ?>
+                                                </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary">Account Status</label>
+                                            <select name="status" class="form-select form-select-sm">
+                                                <option value="">All Statuses (Active & Disabled)</option>
+                                                <option value="active">Active Accounts Only</option>
+                                                <option value="disabled">Disabled Accounts Only</option>
+                                                <option value="online">Currently Online Only</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label small fw-semibold text-secondary">Keyword Search Filter (Optional)</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                                <input type="text" name="q" class="form-control" placeholder="Leave empty for all, or type keyword..." value="<?= htmlspecialchars($search) ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section: Column Selection -->
+                            <div class="card border mb-3">
+                                <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                                    <span class="fw-semibold text-muted small text-uppercase">
+                                        <i class="bi bi-columns-gap me-1 text-primary"></i> 2. Choose Fields to Export
+                                    </span>
+                                    <div class="small">
+                                        <button type="button" class="btn btn-link btn-xs p-0 text-decoration-none" onclick="toggleExportCols(true)">Select All</button>
+                                        <span class="text-muted mx-1">&bull;</span>
+                                        <button type="button" class="btn btn-link btn-xs p-0 text-decoration-none" onclick="resetDefaultExportCols()">Default</button>
+                                        <span class="text-muted mx-1">&bull;</span>
+                                        <button type="button" class="btn btn-link btn-xs p-0 text-decoration-none" onclick="toggleExportCols(false)">Clear Optional</button>
+                                    </div>
+                                </div>
+                                <div class="card-body py-3">
+                                    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-2">
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input export-col-check" type="checkbox" name="cols[]" value="username" id="col_username" checked disabled>
+                                                <input type="hidden" name="cols[]" value="username">
+                                                <label class="form-check-label fw-semibold" for="col_username">
+                                                    Username <span class="badge bg-secondary-subtle text-secondary fs-xs">Required</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input export-col-check" type="checkbox" name="cols[]" value="password" id="col_password" checked>
+                                                <label class="form-check-label" for="col_password">Password</label>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input export-col-check" type="checkbox" name="cols[]" value="group" id="col_group" checked>
+                                                <label class="form-check-label" for="col_group">Group / Profile</label>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input export-col-check" type="checkbox" name="cols[]" value="status" id="col_status" checked>
+                                                <label class="form-check-label" for="col_status">Account Status</label>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input export-col-check" type="checkbox" name="cols[]" value="online" id="col_online" checked>
+                                                <label class="form-check-label" for="col_online">Online Status</label>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input export-col-check" type="checkbox" name="cols[]" value="firstname" id="col_firstname" checked>
+                                                <label class="form-check-label" for="col_firstname">First Name</label>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input export-col-check" type="checkbox" name="cols[]" value="lastname" id="col_lastname" checked>
+                                                <label class="form-check-label" for="col_lastname">Last Name</label>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input export-col-check" type="checkbox" name="cols[]" value="department" id="col_department" checked>
+                                                <label class="form-check-label" for="col_department">Department</label>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input export-col-check" type="checkbox" name="cols[]" value="email" id="col_email" checked>
+                                                <label class="form-check-label" for="col_email">Email</label>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input export-col-check" type="checkbox" name="cols[]" value="static_ip" id="col_static_ip" checked>
+                                                <label class="form-check-label" for="col_static_ip">Static IP Address</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section: CSV Options -->
+                            <div class="card border mb-3">
+                                <div class="card-header bg-white py-2 fw-semibold text-muted small text-uppercase">
+                                    <i class="bi bi-file-earmark-code me-1 text-primary"></i> 3. CSV File Formatting
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="row g-3 align-items-center">
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-secondary mb-1">CSV Delimiter</label>
+                                            <select name="delimiter" class="form-select form-select-sm">
+                                                <option value="," selected>Comma ( , ) &mdash; Standard / Excel US</option>
+                                                <option value=";">Semicolon ( ; ) &mdash; Regional / Excel EU</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 pt-md-3">
+                                            <div class="form-check">
+                                                <input type="hidden" name="headers" value="0">
+                                                <input class="form-check-input" type="checkbox" name="headers" value="1" id="exportHeaders" checked>
+                                                <label class="form-check-label small" for="exportHeaders">
+                                                    Include header column names as row 1
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt-3 pt-2">
+                                <a href="<?= $exportUrl ?>" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-lightning-charge me-1"></i>Quick Export (Default)
+                                </a>
+                                <button type="submit" class="btn btn-success px-4">
+                                    <i class="bi bi-download me-1"></i>Download CSV
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Tab 2: Other Datasets -->
+                    <div class="tab-pane fade" id="export-more-pane" role="tabpanel">
+                        <p class="text-muted small mb-3">Need to export logs, accounting data, or system assets? Select an entity below to generate instant CSV / SQL downloads:</p>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card h-100 border p-3">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="rounded p-2 bg-primary-subtle text-primary">
+                                            <i class="bi bi-clock-history fs-4"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1 fw-bold">Accounting History</h6>
+                                            <p class="text-muted small mb-2">RADIUS session records with duration, upload/download octets, and termination causes.</p>
+                                            <a href="export.php?type=accounting" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-download me-1"></i>Export Accounting CSV
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card h-100 border p-3">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="rounded p-2 bg-warning-subtle text-warning">
+                                            <i class="bi bi-shield-check fs-4"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1 fw-bold">Authentication Logs</h6>
+                                            <p class="text-muted small mb-2">Access-Accept and Access-Reject post-auth history across all network NAS devices.</p>
+                                            <a href="export.php?type=postauth" class="btn btn-sm btn-outline-warning">
+                                                <i class="bi bi-download me-1"></i>Export Auth Logs CSV
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card h-100 border p-3">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="rounded p-2 bg-info-subtle text-info">
+                                            <i class="bi bi-ticket-perforated fs-4"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1 fw-bold">Hotspot Vouchers</h6>
+                                            <p class="text-muted small mb-2">Batch voucher codes, assigned profiles, status (unused/active/expired), and timestamps.</p>
+                                            <a href="export.php?type=vouchers" class="btn btn-sm btn-outline-info">
+                                                <i class="bi bi-download me-1"></i>Export Vouchers CSV
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card h-100 border p-3">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="rounded p-2 bg-success-subtle text-success">
+                                            <i class="bi bi-router fs-4"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1 fw-bold">NAS Devices Inventory</h6>
+                                            <p class="text-muted small mb-2">Configured MikroTik, Cisco, and generic access points with secrets and ports.</p>
+                                            <a href="export.php?type=nas" class="btn btn-sm btn-outline-success">
+                                                <i class="bi bi-download me-1"></i>Export NAS CSV
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card h-100 border p-3">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="rounded p-2 bg-dark-subtle text-dark">
+                                            <i class="bi bi-journal-text fs-4"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1 fw-bold">Administrator Audit Trail</h6>
+                                            <p class="text-muted small mb-2">All administrative modifications, operator IPs, and sensitive action timestamps.</p>
+                                            <a href="export.php?type=audit" class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-download me-1"></i>Export Audit CSV
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card h-100 border p-3">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <div class="rounded p-2 bg-danger-subtle text-danger">
+                                            <i class="bi bi-filetype-sql fs-4"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1 fw-bold">Database Schema DDL</h6>
+                                            <p class="text-muted small mb-2">Export complete MySQL table schemas and DDL structures for FreeRADIUS.</p>
+                                            <a href="export.php?type=schema" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-download me-1"></i>Export Schema SQL
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php
 $extra_js = '<script>
+function toggleExportCols(selectAll) {
+    document.querySelectorAll(".export-col-check:not([disabled])").forEach(c => {
+        c.checked = selectAll;
+    });
+}
+
+function resetDefaultExportCols() {
+    const defaults = ["password", "group", "status", "online", "firstname", "lastname", "department", "email"];
+    document.querySelectorAll(".export-col-check:not([disabled])").forEach(c => {
+        c.checked = defaults.includes(c.value);
+    });
+}
+
 function togglePw(id, pw) {
     const el = document.getElementById("pw_" + id);
     el.textContent = el.textContent === "••••••••" ? pw : "••••••••";

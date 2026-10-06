@@ -5,6 +5,27 @@ All notable changes to the **RadiusManager** project are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.4] - 2026-10-06
+
+### Added
+- **Configurable CSV Export System (`export.php`, `users.php`)**:
+  - **Interactive Export Modal (`#exportModal`)**: Replaced the static header export link with an interactive modal and split-button dropdown allowing administrators to customize exactly what to export.
+  - **Field / Column Selector**:
+    - Granular checkbox controls to toggle output fields: Username (required), Password, Group / Plan, Account Status, Online Status, First Name, Last Name, Department, Email, and Static IP (`Framed-IP-Address`).
+    - Quick selection helper controls: "Select All", "Default", and "Clear Optional".
+  - **Scope & Filter Controls**:
+    - Choose export scope: All subscribers in the database, specific group/plan, or active search keywords.
+    - Filter by subscriber status: All, Active accounts only, Disabled accounts only (`Auth-Type := Reject`), or currently Online subscribers only (`radacct.acctstoptime IS NULL`).
+  - **File Formatting & Delimiter Options**:
+    - Choice of standard comma (`,`) or European/regional semicolon (`;`) delimiters for seamless opening in regional Microsoft Excel installations.
+    - Toggle to include or omit the header column row.
+  - **Hotspot Vouchers Export (`export.php?type=vouchers`)**:
+    - Added dedicated vouchers CSV export endpoint supporting batch name, plan name, voucher status, timestamps, and custom delimiters.
+  - **Multi-Dataset Quick Exports Tab**:
+    - Embedded quick one-click export cards inside the modal for Accounting Sessions, Authentication Logs, Hotspot Vouchers, NAS Devices Inventory, Administrator Audit Trail, and Database Schema SQL.
+
+---
+
 ## [1.9.3] - 2026-10-06
 
 ### Fixed
