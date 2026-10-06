@@ -12,7 +12,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         :root {
-            --sidebar-w: 230px;
+            --sidebar-w: 240px;
             --primary: #2563eb;
             --primary-dark: #1d4ed8;
             --sidebar-bg: #1e293b;
@@ -84,9 +84,8 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             background-color: rgba(255, 255, 255, 0.35);
         }
         .sidebar-brand {
-            padding: 1.1rem 1.25rem; border-bottom: 1px solid #334155;
-            color: #fff; font-size: 1.05rem; font-weight: 700;
-            display: flex; align-items: center; gap: .65rem;
+            padding: 1rem 1.25rem; border-bottom: 1px solid #334155;
+            color: #fff; display: flex; align-items: center; gap: .75rem;
             text-decoration: none;
             transition: background .15s ease;
         }
@@ -106,13 +105,16 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         .sidebar-brand .brand-icon-wrap svg {
             width: 100%; height: 100%; display: block;
         }
+        .sidebar-brand .brand-info {
+            display: flex; flex-direction: column; line-height: 1.15; min-width: 0;
+        }
         .sidebar-brand .brand-title {
             letter-spacing: -0.01em; white-space: nowrap; font-weight: 700;
+            font-size: 1.05rem; color: #fff;
         }
-        .sidebar-brand .badge-ver {
-            font-size: .6rem; background: var(--primary);
-            padding: .15rem .45rem; border-radius: 4px;
-            font-weight: 600; margin-left: auto;
+        .sidebar-brand .brand-ver {
+            font-size: .68rem; color: #94a3b8; font-weight: 500; margin-top: 2px;
+            letter-spacing: 0.02em;
         }
         .sidebar-section {
             padding: .8rem 1.2rem .3rem;
@@ -213,8 +215,10 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         <div class="brand-icon-wrap">
             <img src="assets/img/logo.svg" alt="<?= APP_NAME ?> Logo" width="32" height="32">
         </div>
-        <span class="brand-title"><?= APP_NAME ?></span>
-        <span class="badge-ver">v<?= APP_VERSION ?></span>
+        <div class="brand-info">
+            <span class="brand-title"><?= APP_NAME ?></span>
+            <span class="brand-ver">v<?= APP_VERSION ?></span>
+        </div>
     </a>
 
     <div class="sidebar-section">Main</div>

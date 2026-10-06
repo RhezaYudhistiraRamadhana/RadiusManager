@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Multi-Dataset Quick Exports Tab**:
     - Embedded quick one-click export cards inside the modal for Accounting Sessions, Authentication Logs, Hotspot Vouchers, NAS Devices Inventory, Administrator Audit Trail, and Database Schema SQL.
 
+### Improved
+- **Clean Brand Header & Version Layout (`includes/header.php`)**:
+  - Simplified sidebar brand header by replacing the horizontally crowded blue pill badge with a clean stacked layout (`RadiusManager` title with subtle muted `v1.9.4` subtitle).
+  - Expanded sidebar width variable to 240px to eliminate right-edge badge clipping and scrollbar collisions.
+
 ---
 
 ## [1.9.3] - 2026-10-06
