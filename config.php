@@ -33,7 +33,7 @@ if (APP_ENV === 'production') {
 }
 
 // ─── SMTP & Email Settings ────────────────────────────────────────────────
-define('MAIL_FROM',       'noreply@polman-bandung.ac.id');
+define('MAIL_FROM',       'noreply@your-domain.edu');
 define('MAIL_FROM_NAME',  APP_NAME . ' Security');
 define('SMTP_HOST',       ''); // e.g. smtp.office365.com or smtp.gmail.com (leave blank for standard mail())
 define('SMTP_PORT',       587);

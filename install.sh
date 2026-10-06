@@ -35,29 +35,65 @@ apt-get install -y -qq apache2 php php-mysql php-mbstring libapache2-mod-php
 # ── Deploy files ──────────────────────────────────────────────────────────
 info "Deploying files to $WEB_ROOT..."
 mkdir -p "$WEB_ROOT"
+mkdir -p "$WEB_ROOT/storage/logs"
 cp -r . "$WEB_ROOT/"
 chown -R www-data:www-data "$WEB_ROOT"
 chmod -R 755 "$WEB_ROOT"
+chmod -R 775 "$WEB_ROOT/storage/logs"
 
 # ── Write config ──────────────────────────────────────────────────────────
 info "Writing config.php..."
 HASHED=$(php -r "echo password_hash('$APP_PASS', PASSWORD_DEFAULT);")
+API_KEY=$(php -r "echo bin2hex(random_bytes(16));")
 
 cat > "$WEB_ROOT/config.php" << CONF
 <?php
-define('DB_HOST',          '$DB_HOST');
-define('DB_NAME',          '$DB_NAME');
-define('DB_USER',          '$DB_USER');
-define('DB_PASS',          '$DB_PASS');
-define('DB_PORT',          '3306');
-define('APP_NAME',         'RadiusManager');
-define('APP_VERSION',      '1.0.0');
-define('APP_ADMIN',        'admin');
-define('APP_PASS',         '$HASHED');
-define('ROWS_PER_PAGE',    20);
+// ─── Database Configuration ───────────────────────────────────────────────
+define('DB_HOST',     '$DB_HOST');
+define('DB_NAME',     '$DB_NAME');
+define('DB_USER',     '$DB_USER');
+define('DB_PASS',     '$DB_PASS');
+define('DB_PORT',     '3306');
+
+// ─── App Configuration ────────────────────────────────────────────────────
+define('APP_NAME',       'RadiusManager');
+define('APP_VERSION',    '1.9.3');
+define('APP_ADMIN',      'admin');
+define('APP_PASS',       '$HASHED');
+define('ROWS_PER_PAGE',  20);
+define('EXPIRY_WARN_DAYS', 7);
+define('API_KEY',        '$API_KEY');
+
+// ─── Session lifetime (seconds) ──────────────────────────────────────────
 define('SESSION_LIFETIME', 3600);
 
+// ─── Environment & Error Logging ──────────────────────────────────────────
+define('APP_ENV',  'production');
+define('LOG_FILE', __DIR__ . '/storage/logs/app.log');
+
+if (APP_ENV === 'production') {
+    ini_set('display_errors', '0');
+    ini_set('log_errors',     '1');
+    ini_set('error_log',      LOG_FILE);
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', '1');
+    error_reporting(E_ALL);
+}
+
+// ─── SMTP & Email Settings (Production Mail Relay) ────────────────────────
+define('MAIL_FROM',       'noreply@your-domain.edu');
+define('MAIL_FROM_NAME',  APP_NAME . ' Security');
+define('SMTP_HOST',       '');
+define('SMTP_PORT',       587);
+define('SMTP_USER',       '');
+define('SMTP_PASS',       '');
+define('SMTP_SECURE',     'tls');
+define('DEV_MODE',        false);
+
+// ─── Load DB Connection & Mail Helpers ────────────────────────────────────
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/mail.php';
 CONF
 
 # ── Apache vhost ──────────────────────────────────────────────────────────

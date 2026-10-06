@@ -98,7 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Subscriber Portal Email OTP Verification (`portal/dashboard.php`, `includes/mail.php`, `config.php`)**:
   - Pure-PHP Socket SMTP Client (`includes/mail.php`): Zero-dependency TLS/SSL socket mailer (`stream_socket_client`) connecting directly to Microsoft 365, Gmail, or local relays.
   - Native fallback to `mail()` and local emergency file logger at `storage/logs/mail.log`.
-  - Privacy-preserving email masking (`maskEmail()`, e.g. `Rh***a@365.polman-bandung.ac.id`).
+  - Privacy-preserving email masking (`maskEmail()`, e.g. `us***r@your-domain.edu`).
   - Secure OTP Workflow: 6-digit numeric OTP valid for 10 minutes, 60-second cooldown timer, and maximum 5 failed attempts limit before invalidation.
   - Account Profile Enforcement: If a subscriber account has no registered email in `userinfo.email`, the password change form is locked with an alert prompting them to register their email with the IT department.
   - Verification with timing-attack safe `hash_equals()` before updating passwords in `radcheck` and `rm_vouchers`.
@@ -372,7 +372,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `user-add.php` & `user-edit.php`: Added fields to view and update Full Name, Department/Class, and Email address stored directly in `userinfo`.
   - `user-delete.php`: Automatically purges corresponding profile records from `userinfo` when a user is deleted.
 - **Multi-Source Authentication**:
-  - `includes/auth.php` & `login.php`: Supports logging in via config credentials (`admin` / `admin123`) **and** existing FreeRADIUS database operator accounts from the `operators` table (e.g., `administrator` / `4dm1nNamloP`), supporting Bcrypt, MD5, and cleartext legacy formats with automatic `lastlogin` timestamps.
+  - `includes/auth.php` & `login.php`: Supports logging in via config credentials (`admin` / `admin123`) **and** existing FreeRADIUS database operator accounts from the `operators` table (e.g., `administrator`), supporting Bcrypt, MD5, and cleartext legacy formats with automatic `lastlogin` timestamps.
   - Display full admin/operator name in the top navigation bar.
 - **CSRF Token Security**:
   - Added cryptographic CSRF token generation (`csrfToken()`, `csrfField()`) and enforcement (`verifyCsrf()`) across all state-altering forms (User Add/Edit/Delete, NAS Add/Edit/Delete, Group Create/Delete, Attribute Add/Delete, and CoA Disconnect).

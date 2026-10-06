@@ -836,7 +836,7 @@ $html = <<<'HTML'
       <tr>
         <td><strong>1. Database Operators</strong><br>(Tabel <code>operators</code>)</td>
         <td><code>administrator</code></td>
-        <td><code>4dm1nNamloP</code></td>
+        <td><code>Admin#2026!</code></td>
         <td><span class="badge badge-danger">superadmin</span></td>
         <td>Digunakan untuk pekerjaan operasional harian. Mendukung bcrypt hash dan mencatat waktu login terakhir (<code>lastlogin</code>).</td>
       </tr>
@@ -1247,7 +1247,7 @@ $html = <<<'HTML'
     &bull; <strong>Short Name:</strong> <code>Ruijie-AP-Core</code><br>
     &bull; <strong>Device Type:</strong> <span class="badge badge-primary">Ruijie</span><br>
     &bull; <strong>Port Autentikasi:</strong> <code>1812</code> &bull; <strong>Port Akuntansi:</strong> <code>1813</code><br>
-    &bull; <strong>Shared Secret:</strong> <code>4dm1nNamloP</code><br>
+    &bull; <strong>Shared Secret:</strong> <code>radius_secret_2026</code><br>
     &bull; <strong>Identifikasi Radio:</strong> Port dilaporkan sebagai <code>Dot11radio x/0.x</code> pada log akuntansi.
   </div>
 
@@ -1545,7 +1545,7 @@ php /var/www/html/radiusmanager/radius-manager/expiry-check.php --cli</code></pr
     <li>Klik tombol merah <strong>Disconnect</strong> di sisi kanan tabel.</li>
     <li>
       Jendela konfirmasi modal akan muncul menampilkan helper perintah <code>radclient</code>:
-      <pre><code>echo "User-Name=206412005,Acct-Session-Id=sess_001a" | radclient -x 172.16.0.70:3799 disconnect '4dm1nNamloP'</code></pre>
+      <pre><code>echo "User-Name=budi.santoso,Acct-Session-Id=sess_001a" | radclient -x 172.16.0.70:3799 disconnect 'radius_secret_2026'</code></pre>
     </li>
     <li>
       Klik tombol <strong>Execute Disconnect</strong>. Sistem web akan menembakkan paket UDP socket ke port <strong>3799</strong> controller router target untuk memerintahkan pemutusan koneksi radio secara instan.

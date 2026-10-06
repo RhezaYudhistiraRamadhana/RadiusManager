@@ -193,14 +193,14 @@ CREATE TABLE IF NOT EXISTS `operators` (
 
 -- Operator
 INSERT INTO `operators` (`id`, `username`, `password`, `firstname`, `lastname`) VALUES
-(1, 'administrator', '4dm1nNamloP', 'System', 'Administrator')
+(1, 'administrator', 'Admin#2026!', 'System', 'Administrator')
 ON DUPLICATE KEY UPDATE `username`=`username`;
 
 -- NAS Devices
 INSERT INTO `nas` (`id`, `nasname`, `shortname`, `type`, `ports`, `secret`, `description`) VALUES
-(1, '0.0.0.0/0', 'RadiusPolman', 'other', 0, '4dm1nNamloP', 'Default Catch-All Subnet'),
-(2, '167.205.23.60', 'eduroam-itb', 'other', 1812, '4dm1nNamloP', 'Eduroam Gateway'),
-(3, '172.16.0.70', 'Ruijie-AP-Core', 'ruijie', 1812, '4dm1nNamloP', 'Ruijie Wireless Access Controller & Campus AP Gateway')
+(1, '0.0.0.0/0', 'RadiusCatchAll', 'other', 0, 'radius_secret_2026', 'Default Catch-All Subnet'),
+(2, '192.168.1.1', 'Core-Gateway', 'other', 1812, 'radius_secret_2026', 'Campus Core Gateway'),
+(3, '172.16.0.70', 'Ruijie-AP-Core', 'ruijie', 1812, 'radius_secret_2026', 'Ruijie Wireless Access Controller & Campus AP Gateway')
 ON DUPLICATE KEY UPDATE `nasname`=`nasname`;
 
 -- Groups
@@ -212,35 +212,35 @@ ON DUPLICATE KEY UPDATE `groupname`=`groupname`;
 
 -- Users (Check attributes)
 INSERT INTO `radcheck` (`id`, `username`, `attribute`, `op`, `value`) VALUES
-(1, '206412005', 'Cleartext-Password', ':=', '22051981'),
-(2, '201403003', 'Cleartext-Password', ':=', '08021969'),
-(3, '224312005', 'Cleartext-Password', ':=', 'polman2024')
+(1, 'budi.santoso', 'Cleartext-Password', ':=', 'PassBudi2026!'),
+(2, 'siti.aminah', 'Cleartext-Password', ':=', 'SitiSecure789!'),
+(3, 'ahmad.fauzi', 'Cleartext-Password', ':=', 'AhmadSecure!01')
 ON DUPLICATE KEY UPDATE `username`=`username`;
 
 -- User Info
 INSERT INTO `userinfo` (`id`, `username`, `firstname`, `lastname`, `email`, `department`) VALUES
-(1, '206412005', 'Pando Utomo', 'BPU', 'pando@polman-bandung.ac.id', 'BPU'),
-(2, '201403003', 'Dede Sujana', 'BPU', 'edo@polman-bandung.ac.id', 'BPU'),
-(3, '224312005', 'Ahmad Fauzi', 'Mahasiswa', 'ahmad.fauzi@student.polman-bandung.ac.id', 'Teknik Mesin')
+(1, 'budi.santoso', 'Budi', 'Santoso', 'budi.santoso@example.com', 'Staff'),
+(2, 'siti.aminah', 'Siti', 'Aminah', 'siti.aminah@example.com', 'Keuangan'),
+(3, 'ahmad.fauzi', 'Ahmad', 'Fauzi', 'ahmad.fauzi@example.edu', 'Teknik Informatika')
 ON DUPLICATE KEY UPDATE `username`=`username`;
 
 -- User Groups
 INSERT INTO `radusergroup` (`id`, `username`, `groupname`, `priority`) VALUES
-(1, '206412005', 'Pegawai', 0),
-(2, '201403003', 'Pegawai', 0),
-(3, '224312005', 'Mhs2024', 0)
+(1, 'budi.santoso', 'Pegawai', 0),
+(2, 'siti.aminah', 'Pegawai', 0),
+(3, 'ahmad.fauzi', 'Mhs2024', 0)
 ON DUPLICATE KEY UPDATE `username`=`username`;
 
 -- Sample Active Session & Completed Session
 INSERT INTO `radacct` (`radacctid`, `acctsessionid`, `acctuniqueid`, `username`, `nasipaddress`, `acctstarttime`, `acctstoptime`, `acctsessiontime`, `acctinputoctets`, `acctoutputoctets`, `framedipaddress`, `callingstationid`) VALUES
-(1, 'sess_active_001', 'uniq_001', '206412005', '172.16.0.70', NOW() - INTERVAL 45 MINUTE, NULL, 2700, 10485760, 41943040, '172.16.10.45', 'c2-23-50-d6-5e-51'),
-(2, 'sess_done_002',   'uniq_002', '201403003', '172.16.0.70', NOW() - INTERVAL 3 HOUR, NOW() - INTERVAL 1 HOUR, 7200, 5242880, 20971520, '172.16.10.50', 'ba-6c-0a-65-ca-2d')
+(1, 'sess_active_001', 'uniq_001', 'budi.santoso', '172.16.0.70', NOW() - INTERVAL 45 MINUTE, NULL, 2700, 10485760, 41943040, '172.16.10.45', 'c2-23-50-d6-5e-51'),
+(2, 'sess_done_002',   'uniq_002', 'siti.aminah', '172.16.0.70', NOW() - INTERVAL 3 HOUR, NOW() - INTERVAL 1 HOUR, 7200, 5242880, 20971520, '172.16.10.50', 'ba-6c-0a-65-ca-2d')
 ON DUPLICATE KEY UPDATE `radacctid`=`radacctid`;
 
 -- Sample Auth Log
 INSERT INTO `radpostauth` (`id`, `username`, `pass`, `reply`, `authdate`) VALUES
-(1, '206412005', '', 'Access-Accept', NOW() - INTERVAL 45 MINUTE),
-(2, '201403003', '', 'Access-Accept', NOW() - INTERVAL 3 HOUR),
+(1, 'budi.santoso', '', 'Access-Accept', NOW() - INTERVAL 45 MINUTE),
+(2, 'siti.aminah', '', 'Access-Accept', NOW() - INTERVAL 3 HOUR),
 (3, 'baduser',   '', 'Access-Reject', NOW() - INTERVAL 10 MINUTE)
 ON DUPLICATE KEY UPDATE `id`=`id`;
 
@@ -264,11 +264,11 @@ CREATE TABLE IF NOT EXISTS `radippool` (
 
 -- Sample IP Pools (Active & Available Leases)
 INSERT INTO `radippool` (`id`, `pool_name`, `framedipaddress`, `nasipaddress`, `calledstationid`, `callingstationid`, `expiry_time`, `username`, `pool_key`) VALUES
-(1, 'main_pool',  '172.16.10.45', '172.16.0.70', 'AP-Polman-Core', 'c2-23-50-d6-5e-51', NOW() + INTERVAL 2 HOUR, '206412005', 'sess_active_001'),
+(1, 'main_pool',  '172.16.10.45', '172.16.0.70', 'AP-Campus-Core', 'c2-23-50-d6-5e-51', NOW() + INTERVAL 2 HOUR, 'budi.santoso', 'sess_active_001'),
 (2, 'main_pool',  '172.16.10.46', '172.16.0.70', '', '', NOW() - INTERVAL 1 HOUR, '', ''),
 (3, 'main_pool',  '172.16.10.47', '172.16.0.70', '', '', NOW() - INTERVAL 1 HOUR, '', ''),
-(4, 'guest_pool', '192.168.20.10', '167.205.23.60', '', '', NOW() - INTERVAL 1 HOUR, '', ''),
-(5, 'guest_pool', '192.168.20.11', '167.205.23.60', '', '', NOW() - INTERVAL 1 HOUR, '', '')
+(4, 'guest_pool', '192.168.20.10', '192.168.1.1', '', '', NOW() - INTERVAL 1 HOUR, '', ''),
+(5, 'guest_pool', '192.168.20.11', '192.168.1.1', '', '', NOW() - INTERVAL 1 HOUR, '', '')
 ON DUPLICATE KEY UPDATE `id`=`id`;
 
 -- 12. rm_audit_log: Administrator activity and audit trail

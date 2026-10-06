@@ -1127,7 +1127,7 @@ Dark mode toggle and global search go in the **topbar**, not the sidebar.
 
 - **FreeRADIUS DB:** MySQL, database name `radius`
 - **Production NAS:** `eduroam-itb`, `RadiusPolman`
-- **Operator account:** `administrator` / `4dm1nNamloP`
+- **Operator account:** `administrator` (Set via secure environment vault / hashed in `operators` table)
 - **`radpostauth`** does NOT have `nasipaddress` — always use `dbHasColumn()`
 - **`userinfo`** table exists — `dbTableExists()` returns true
 - **Target page load:** under 300ms on production scale
@@ -1148,12 +1148,13 @@ Dark mode toggle and global search go in the **topbar**, not the sidebar.
 
 ---
 
-## Default Credentials
+## Default Development Credentials
 
-| Source | Username | Password |
-|---|---|---|
-| Config (config.php) | `admin` | `admin123` |
-| Operators table (production) | `administrator` | `4dm1nNamloP` |
+| Source | Username | Password | Notes |
+|---|---|---|---|
+| Config (`config.php`) | `admin` | `admin123` | Default application superadmin |
+| Seed Data (`schema_seed.sql`) | `administrator` | `Admin#2026!` | Sample operator account for development |
+| Production DB | `administrator` | *Managed in Vault* | Change immediately during deployment |
 
 ---
 

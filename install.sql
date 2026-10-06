@@ -180,7 +180,7 @@ INSERT IGNORE INTO `rm_settings` (`setting_key`, `setting_value`) VALUES
 ('session_lifetime', '3600'),
 ('clean_stale_sessions_days', '30'),
 ('welcome_msg_template', 'Welcome to campus Wi-Fi! Your username is {username} and your initial password is {password}.'),
-('mail_from', 'noreply@polman-bandung.ac.id'),
+('mail_from', 'noreply@your-domain.edu'),
 ('mail_from_name', 'RadiusManager Security'),
 ('mail_transport', 'smtp'),
 ('smtp_host', ''),

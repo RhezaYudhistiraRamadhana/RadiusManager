@@ -1191,7 +1191,7 @@ include __DIR__ . '/includes/header.php';
                             <div class="row g-3 mb-4">
                                 <div class="col-md-6">
                                     <label class="form-label small fw-semibold">From Email Address</label>
-                                    <input type="email" name="mail_from" class="form-control" placeholder="noreply@polman-bandung.ac.id" value="<?= htmlspecialchars($cfg['mail_from'] ?? MAIL_FROM) ?>">
+                                    <input type="email" name="mail_from" class="form-control" placeholder="noreply@your-domain.edu" value="<?= htmlspecialchars($cfg['mail_from'] ?? MAIL_FROM) ?>">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small fw-semibold">From Sender Name</label>
@@ -1223,7 +1223,7 @@ include __DIR__ . '/includes/header.php';
                             <input type="hidden" name="action" value="test_mail">
                             <div class="mb-3">
                                 <label class="form-label small fw-semibold">Recipient Email Address</label>
-                                <input type="email" name="test_recipient" class="form-control" placeholder="your.name@polman-bandung.ac.id" required>
+                                <input type="email" name="test_recipient" class="form-control" placeholder="admin@your-domain.edu" required>
                             </div>
                             <button type="submit" class="btn btn-outline-success w-100">
                                 <i class="bi bi-send me-1"></i>Dispatch Test Email
@@ -1740,7 +1740,7 @@ include __DIR__ . '/includes/header.php';
 
                                 <div class="mb-4">
                                     <label class="form-label small fw-semibold text-secondary">Email Address</label>
-                                    <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($rmAdminData['email'] ?? '') ?>" placeholder="admin@polman-bandung.ac.id">
+                                    <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($rmAdminData['email'] ?? '') ?>" placeholder="admin@your-domain.edu">
                                 </div>
                             <?php endif; ?>
 

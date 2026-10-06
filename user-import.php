@@ -12,9 +12,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'template') {
     // Output UTF-8 BOM for Microsoft Excel compatibility
     fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
     fputcsv($out, ['username', 'password', 'group', 'firstname', 'lastname', 'department', 'email']);
-    fputcsv($out, ['budi.santoso', 'PassBudi2026!', 'Mahasiswa', 'Budi', 'Santoso', 'Teknik Mesin', 'budi.santoso@polman-bandung.ac.id']);
-    fputcsv($out, ['siti.aminah', 'SitiSecure789#', 'Pegawai', 'Siti', 'Aminah', 'Keuangan', 'siti.aminah@polman-bandung.ac.id']);
-    fputcsv($out, ['ahmad.fauzi', 'AhmadPolman!01', 'Dosen', 'Ahmad', 'Fauzi', 'Teknik Otomasi', 'ahmad.fauzi@polman-bandung.ac.id']);
+    fputcsv($out, ['budi.santoso', 'PassBudi2026!', 'Mahasiswa', 'Budi', 'Santoso', 'Teknik Mesin', 'budi.santoso@example.edu']);
+    fputcsv($out, ['siti.aminah', 'SitiSecure789#', 'Pegawai', 'Siti', 'Aminah', 'Keuangan', 'siti.aminah@example.edu']);
+    fputcsv($out, ['ahmad.fauzi', 'AhmadSecure!01', 'Dosen', 'Ahmad', 'Fauzi', 'Teknik Otomasi', 'ahmad.fauzi@example.edu']);
     fclose($out);
     exit;
 }
