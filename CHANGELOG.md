@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integrated an interactive `<select name="group">` filter dropdown in the user search header, populated dynamically from all active groups in `radusergroup` and `radgroupcheck`.
   - Added removable badge pills for active filters (e.g., `Group: Pegawai [×]`, `Keyword: ... [×]`) with a 1-click "Clear all" trigger.
   - Filter-aware CSV export button: dynamically updates the export URL (`export.php?type=users&group=...&q=...`) to download only the currently filtered subscribers.
+- **Existing Groups Dropdown for Rate Plans (`plan-add.php`, `plan-edit.php`)**:
+  - Replaced the text input and browser datalist for **Target RADIUS Group** with a dedicated `<select name="groupname">` dropdown menu populated from existing groups in the database.
+  - Added optional "+ Enter new group name..." capability with client-side toggle and space-validation to maintain flexibility when defining new groups on the fly.
 
 ### Improved
 - **State Preservation in Batch Actions & Pagination (`users.php`, `export.php`, `user-batch.php`, `user-delete.php`)**:

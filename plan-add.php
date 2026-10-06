@@ -20,7 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verifyCsrf();
 
     $name        = trim($_POST['name'] ?? '');
-    $groupname   = trim($_POST['groupname'] ?? '');
+    $rawGroup    = trim($_POST['groupname'] ?? '');
+    $customGrp   = trim($_POST['custom_groupname'] ?? '');
+    $groupname   = ($rawGroup === '__custom__') ? $customGrp : $rawGroup;
     $description = trim($_POST['description'] ?? '');
     $dl_kbps     = max(0, (int)($_POST['dl_kbps'] ?? 0));
     $ul_kbps     = max(0, (int)($_POST['ul_kbps'] ?? 0));
@@ -32,6 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (empty($groupname)) {
         $errors[] = 'Target RADIUS group is required.';
+    } elseif (preg_match('/\s/', $groupname)) {
+        $errors[] = 'Target RADIUS group name cannot contain spaces.';
     }
 
     if (empty($errors)) {
@@ -66,6 +70,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$postedGroup = $_POST['groupname'] ?? '';
+$isCustomGroup = ($postedGroup === '__custom__') || (!empty($postedGroup) && !in_array($postedGroup, $groups));
+$selectedGroup = $isCustomGroup ? '__custom__' : $postedGroup;
+$customGroupVal = $_POST['custom_groupname'] ?? ($isCustomGroup ? $postedGroup : '');
 
 include __DIR__ . '/includes/header.php';
 ?>
@@ -103,14 +112,23 @@ include __DIR__ . '/includes/header.php';
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold small">Target RADIUS Group <span class="text-danger">*</span></label>
-                            <input type="text" name="groupname" list="groupList" class="form-control" required
-                                   placeholder="Select or type group name"
-                                   value="<?= htmlspecialchars($_POST['groupname'] ?? '') ?>">
-                            <datalist id="groupList">
+                            <select name="groupname" id="groupSelect" class="form-select" required onchange="handleGroupChange(this)">
+                                <option value="">-- Select Existing Group --</option>
                                 <?php foreach ($groups as $g): ?>
-                                <option value="<?= htmlspecialchars($g) ?>"><?= htmlspecialchars($g) ?></option>
+                                <option value="<?= htmlspecialchars($g) ?>" <?= ($selectedGroup === $g) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($g) ?>
+                                </option>
                                 <?php endforeach; ?>
-                            </datalist>
+                                <option value="__custom__" <?= $isCustomGroup ? 'selected' : '' ?>>+ Enter new group name...</option>
+                            </select>
+                            <div id="customGroupContainer" class="mt-2 <?= $isCustomGroup ? '' : 'd-none' ?>">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="bi bi-tag"></i></span>
+                                    <input type="text" name="custom_groupname" id="customGroupName" class="form-control"
+                                           placeholder="Type new group name (no spaces)"
+                                           value="<?= htmlspecialchars($customGroupVal) ?>" <?= $isCustomGroup ? 'required' : '' ?>>
+                                </div>
+                            </div>
                             <div class="form-text">Users assigned to this group will inherit these policies.</div>
                         </div>
                     </div>
@@ -218,6 +236,19 @@ include __DIR__ . '/includes/header.php';
 $extra_js = '<script>
 function setSpeed(fieldId, value) {
     document.getElementById(fieldId).value = value;
+}
+
+function handleGroupChange(select) {
+    const container = document.getElementById("customGroupContainer");
+    const input = document.getElementById("customGroupName");
+    if (select.value === "__custom__") {
+        container.classList.remove("d-none");
+        input.setAttribute("required", "required");
+        input.focus();
+    } else {
+        container.classList.add("d-none");
+        input.removeAttribute("required");
+    }
 }
 </script>';
 
