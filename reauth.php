@@ -511,3 +511,4 @@ function kickSingleSession(sid, user, nasip, fip) {
 </script>
 
 <?php include __DIR__ . '/includes/footer.php'; ?>
+

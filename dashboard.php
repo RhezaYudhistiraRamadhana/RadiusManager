@@ -11,7 +11,7 @@ if (!in_array($viewMode, ['today', 'general'])) {
 }
 $_SESSION['dash_view'] = $viewMode;
 
-// ── Stats ──────────────────────────────────────────────────────────────────
+// ── Top Stats (Instant indexed lookups, < 3ms) ─────────────────────────────
 $totalUsers     = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
 $activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL")->fetch()['c'] ?? 0);
 $totalNas       = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
@@ -84,246 +84,250 @@ if (!empty($topTrafficUsers) && dbTableExists('userinfo')) {
     }
 }
 
-// ── Comprehensive Analytics Cache (120 seconds) ────────────────────────────
-if (isset($_SESSION['dash_charts_time']) && (time() - $_SESSION['dash_charts_time'] < 120) && !empty($_SESSION['dash_charts_data'])) {
-    $chartHub = $_SESSION['dash_charts_data'];
+// Common date anchors
+$anchorDay = ($trafficDateParam === $todayDate) ? $todayDate : $trafficDateParam;
+$prevDay   = date('Y-m-d', strtotime('-1 day', strtotime($anchorDay)));
+$authTargetDay = ($latestDate < $todayDate) ? $latestDate : $todayDate;
+
+// ── LAZY LOADED ANALYTICS CACHE BY VIEW MODE ──────────────────────────────
+// Evaluates ONLY the active mode's charts to eliminate multi-second cold query stalls!
+if ($viewMode === 'today') {
+    if (isset($_SESSION['dash_today_time']) && (time() - $_SESSION['dash_today_time'] < 120) && !empty($_SESSION['dash_today_data'])) {
+        $todayData = $_SESSION['dash_today_data'];
+    } else {
+        // 1. Hourly active sessions (Today vs Yesterday)
+        $todayHoursStmt = $db->prepare("
+            SELECT HOUR(acctstarttime) AS h, COUNT(*) AS c
+            FROM radacct
+            WHERE acctstarttime >= ? AND acctstarttime <= ?
+            GROUP BY HOUR(acctstarttime)
+        ");
+        $todayHoursStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
+        $todayHourMap = $todayHoursStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+        $prevHoursStmt = $db->prepare("
+            SELECT HOUR(acctstarttime) AS h, COUNT(*) AS c
+            FROM radacct
+            WHERE acctstarttime >= ? AND acctstarttime <= ?
+            GROUP BY HOUR(acctstarttime)
+        ");
+        $prevHoursStmt->execute(["$prevDay 00:00:00", "$prevDay 23:59:59"]);
+        $prevHourMap = $prevHoursStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+        $hourlyLabels = [];
+        $hourlyToday  = [];
+        $hourlyPrev   = [];
+        for ($h = 0; $h < 24; $h++) {
+            $hourlyLabels[] = sprintf('%02d:00', $h);
+            $hourlyToday[]  = (int)($todayHourMap[$h] ?? 0);
+            $hourlyPrev[]   = (int)($prevHourMap[$h] ?? 0);
+        }
+
+        // 2. Hourly Bandwidth Today (Upload vs Download in MB)
+        $hourlyBwStmt = $db->prepare("
+            SELECT HOUR(acctstarttime) AS h,
+                   COALESCE(SUM(acctinputoctets), 0) AS up,
+                   COALESCE(SUM(acctoutputoctets), 0) AS down
+            FROM radacct
+            WHERE acctstarttime >= ? AND acctstarttime <= ?
+            GROUP BY HOUR(acctstarttime)
+        ");
+        $hourlyBwStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
+        $hourlyBwRaw = $hourlyBwStmt->fetchAll(PDO::FETCH_ASSOC);
+        $hourlyBwMap = [];
+        foreach ($hourlyBwRaw as $r) {
+            $hourlyBwMap[$r['h']] = $r;
+        }
+        $hourlyUploadMB   = [];
+        $hourlyDownloadMB = [];
+        for ($h = 0; $h < 24; $h++) {
+            $hourlyUploadMB[]   = round(($hourlyBwMap[$h]['up'] ?? 0) / (1024 * 1024), 2);
+            $hourlyDownloadMB[] = round(($hourlyBwMap[$h]['down'] ?? 0) / (1024 * 1024), 2);
+        }
+
+        // 3. Hourly Auth Decisions Today (Accept vs Reject)
+        $hourlyAuthStmt = $db->prepare("
+            SELECT HOUR(authdate) AS h,
+                   SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END) AS accepts,
+                   SUM(CASE WHEN reply != 'Access-Accept' THEN 1 ELSE 0 END) AS rejects
+            FROM radpostauth
+            WHERE authdate >= ? AND authdate <= ?
+            GROUP BY HOUR(authdate)
+        ");
+        $hourlyAuthStmt->execute(["$authTargetDay 00:00:00", "$authTargetDay 23:59:59"]);
+        $hourlyAuthRaw = $hourlyAuthStmt->fetchAll(PDO::FETCH_ASSOC);
+        $hourlyAuthMap = [];
+        foreach ($hourlyAuthRaw as $r) {
+            $hourlyAuthMap[$r['h']] = $r;
+        }
+        $hourlyAccepts = [];
+        $hourlyRejects = [];
+        for ($h = 0; $h < 24; $h++) {
+            $hourlyAccepts[] = (int)($hourlyAuthMap[$h]['accepts'] ?? 0);
+            $hourlyRejects[] = (int)($hourlyAuthMap[$h]['rejects'] ?? 0);
+        }
+
+        // 4. Top 5 NAS Devices by Bandwidth Today
+        $topNasTodayStmt = $db->prepare("
+            SELECT ra.nasipaddress,
+                   COALESCE(n.shortname, ra.nasipaddress) AS label,
+                   COALESCE(SUM(ra.acctinputoctets + ra.acctoutputoctets), 0) AS total_bytes
+            FROM radacct ra
+            LEFT JOIN nas n ON n.nasname = ra.nasipaddress
+            WHERE ra.acctstarttime >= ? AND ra.acctstarttime <= ?
+            GROUP BY ra.nasipaddress, label
+            ORDER BY total_bytes DESC
+            LIMIT 5
+        ");
+        $topNasTodayStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
+        $nasTodayRows = $topNasTodayStmt->fetchAll(PDO::FETCH_ASSOC);
+        $nasTodayLabels = [];
+        $nasTodayValues = [];
+        foreach ($nasTodayRows as $nr) {
+            $nasTodayLabels[] = $nr['label'];
+            $nasTodayValues[] = round($nr['total_bytes'] / (1024 * 1024), 2);
+        }
+
+        $todayData = [
+            'anchorDay'        => $anchorDay,
+            'prevDay'          => $prevDay,
+            'hourlyLabels'     => $hourlyLabels,
+            'hourlyToday'      => $hourlyToday,
+            'hourlyPrev'       => $hourlyPrev,
+            'hourlyUploadMB'   => $hourlyUploadMB,
+            'hourlyDownloadMB' => $hourlyDownloadMB,
+            'hourlyAccepts'    => $hourlyAccepts,
+            'hourlyRejects'    => $hourlyRejects,
+            'nasTodayLabels'   => $nasTodayLabels,
+            'nasTodayValues'   => $nasTodayValues,
+        ];
+        $_SESSION['dash_today_data'] = $todayData;
+        $_SESSION['dash_today_time'] = time();
+    }
+
+    // Top Stat Card Auth Display (instantly from hourly array)
+    if ($latestDate < $todayDate) {
+        $authLabel        = "Recent Auth ($latestDate)";
+        $authDateParam    = $latestDate;
+    } else {
+        $authLabel        = 'Auth Today';
+        $authDateParam    = $todayDate;
+    }
+    $authCountDisplay = array_sum($todayData['hourlyAccepts']) + array_sum($todayData['hourlyRejects']);
+
 } else {
-    $anchorDay = ($trafficDateParam === $todayDate) ? $todayDate : $trafficDateParam;
-    $prevDay   = date('Y-m-d', strtotime('-1 day', strtotime($anchorDay)));
+    // ── GENERAL CHARTS ANALYTICS ──
+    if (isset($_SESSION['dash_general_time']) && (time() - $_SESSION['dash_general_time'] < 300) && !empty($_SESSION['dash_general_data'])) {
+        $generalData = $_SESSION['dash_general_data'];
+    } else {
+        $start14d = date('Y-m-d 00:00:00', strtotime('-13 days', strtotime($anchorDay)));
 
-    // 1. Concurrent / Hourly active sessions for today & yesterday
-    $todayHoursStmt = $db->prepare("
-        SELECT HOUR(acctstarttime) AS h, COUNT(*) AS c
-        FROM radacct
-        WHERE acctstarttime >= ? AND acctstarttime <= ?
-        GROUP BY HOUR(acctstarttime)
-    ");
-    $todayHoursStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
-    $todayHourMap = $todayHoursStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        // 1. 14-Day Daily Sessions Trend
+        $sessions14dStmt = $db->prepare("
+            SELECT DATE(acctstarttime) AS d, COUNT(*) AS c
+            FROM radacct
+            WHERE acctstarttime >= ? AND acctstarttime <= ?
+            GROUP BY DATE(acctstarttime)
+            ORDER BY d ASC
+        ");
+        $sessions14dStmt->execute([$start14d, "$anchorDay 23:59:59"]);
+        $sessions14dMap = $sessions14dStmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-    $prevHoursStmt = $db->prepare("
-        SELECT HOUR(acctstarttime) AS h, COUNT(*) AS c
-        FROM radacct
-        WHERE acctstarttime >= ? AND acctstarttime <= ?
-        GROUP BY HOUR(acctstarttime)
-    ");
-    $prevHoursStmt->execute(["$prevDay 00:00:00", "$prevDay 23:59:59"]);
-    $prevHourMap = $prevHoursStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        $sessions14dLabels = [];
+        $sessions14dValues = [];
+        $cur = strtotime($start14d);
+        $endCur = strtotime($anchorDay);
+        while ($cur <= $endCur) {
+            $dStr = date('Y-m-d', $cur);
+            $sessions14dLabels[] = date('d M', $cur);
+            $sessions14dValues[] = (int)($sessions14dMap[$dStr] ?? 0);
+            $cur = strtotime('+1 day', $cur);
+        }
 
-    $hourlyLabels = [];
-    $hourlyToday  = [];
-    $hourlyPrev   = [];
-    for ($h = 0; $h < 24; $h++) {
-        $hourlyLabels[] = sprintf('%02d:00', $h);
-        $hourlyToday[]  = (int)($todayHourMap[$h] ?? 0);
-        $hourlyPrev[]   = (int)($prevHourMap[$h] ?? 0);
+        // 2. 14-Day Bandwidth Volume Trend (Upload vs Download MB)
+        $bw14dStmt = $db->prepare("
+            SELECT DATE(acctstarttime) AS d,
+                   COALESCE(SUM(acctinputoctets), 0) AS up,
+                   COALESCE(SUM(acctoutputoctets), 0) AS down
+            FROM radacct
+            WHERE acctstarttime >= ? AND acctstarttime <= ?
+            GROUP BY DATE(acctstarttime)
+            ORDER BY d ASC
+        ");
+        $bw14dStmt->execute([$start14d, "$anchorDay 23:59:59"]);
+        $raw14d = $bw14dStmt->fetchAll(PDO::FETCH_ASSOC);
+        $bw14Map = [];
+        foreach ($raw14d as $row) {
+            $bw14Map[$row['d']] = $row;
+        }
+
+        $bw14Labels   = [];
+        $bw14Upload   = [];
+        $bw14Download = [];
+        $cur = strtotime($start14d);
+        while ($cur <= $endCur) {
+            $dStr = date('Y-m-d', $cur);
+            $bw14Labels[]   = date('d M', $cur);
+            $bw14Upload[]   = round(($bw14Map[$dStr]['up'] ?? 0) / (1024 * 1024), 2);
+            $bw14Download[] = round(($bw14Map[$dStr]['down'] ?? 0) / (1024 * 1024), 2);
+            $cur = strtotime('+1 day', $cur);
+        }
+
+        // 3. 7-Day Authentications (Fast index-covering queries on idx_authdate)
+        $auth7dStmt = $db->prepare("SELECT COUNT(*) FROM radpostauth WHERE authdate >= ? AND authdate <= ?");
+        $auth7dLabels = [];
+        $auth7dValues = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $d = date('Y-m-d', strtotime("-$i days", strtotime($latestDate)));
+            $auth7dStmt->execute(["$d 00:00:00", "$d 23:59:59"]);
+            $auth7dLabels[] = date('d M', strtotime($d));
+            $auth7dValues[] = (int)$auth7dStmt->fetchColumn();
+        }
+
+        // 4. Top NAS Devices Overall (Past 14 Days)
+        $topNas14dStmt = $db->prepare("
+            SELECT ra.nasipaddress,
+                   COALESCE(n.shortname, ra.nasipaddress) AS label,
+                   COALESCE(SUM(ra.acctinputoctets + ra.acctoutputoctets), 0) AS total_bytes
+            FROM radacct ra
+            LEFT JOIN nas n ON n.nasname = ra.nasipaddress
+            WHERE ra.acctstarttime >= ? AND ra.acctstarttime <= ?
+            GROUP BY ra.nasipaddress, label
+            ORDER BY total_bytes DESC
+            LIMIT 5
+        ");
+        $topNas14dStmt->execute([$start14d, "$anchorDay 23:59:59"]);
+        $topNas14dRows = $topNas14dStmt->fetchAll(PDO::FETCH_ASSOC);
+        $nas14dLabels = [];
+        $nas14dValues = [];
+        foreach ($topNas14dRows as $nr) {
+            $nas14dLabels[] = $nr['label'];
+            $nas14dValues[] = round($nr['total_bytes'] / (1024 * 1024), 2);
+        }
+
+        $generalData = [
+            'sessions14dLabels' => $sessions14dLabels,
+            'sessions14dValues' => $sessions14dValues,
+            'bw14Labels'        => $bw14Labels,
+            'bw14Upload'        => $bw14Upload,
+            'bw14Download'      => $bw14Download,
+            'auth7dLabels'      => $auth7dLabels,
+            'auth7dValues'      => $auth7dValues,
+            'nas14dLabels'      => $nas14dLabels,
+            'nas14dValues'      => $nas14dValues,
+        ];
+        $_SESSION['dash_general_data'] = $generalData;
+        $_SESSION['dash_general_time'] = time();
     }
 
-    // 2. Hourly Bandwidth Today (Upload vs Download in MB)
-    $hourlyBwStmt = $db->prepare("
-        SELECT HOUR(acctstarttime) AS h,
-               COALESCE(SUM(acctinputoctets), 0) AS up,
-               COALESCE(SUM(acctoutputoctets), 0) AS down
-        FROM radacct
-        WHERE acctstarttime >= ? AND acctstarttime <= ?
-        GROUP BY HOUR(acctstarttime)
-    ");
-    $hourlyBwStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
-    $hourlyBwRaw = $hourlyBwStmt->fetchAll(PDO::FETCH_ASSOC);
-    $hourlyBwMap = [];
-    foreach ($hourlyBwRaw as $r) {
-        $hourlyBwMap[$r['h']] = $r;
+    if ($latestDate < $todayDate) {
+        $authLabel        = "Recent Auth ($latestDate)";
+        $authDateParam    = $latestDate;
+    } else {
+        $authLabel        = 'Auth Today';
+        $authDateParam    = $todayDate;
     }
-    $hourlyUploadMB   = [];
-    $hourlyDownloadMB = [];
-    for ($h = 0; $h < 24; $h++) {
-        $hourlyUploadMB[]   = round(($hourlyBwMap[$h]['up'] ?? 0) / (1024 * 1024), 2);
-        $hourlyDownloadMB[] = round(($hourlyBwMap[$h]['down'] ?? 0) / (1024 * 1024), 2);
-    }
-
-    // 3. Hourly Auth Decisions Today (Accept vs Reject)
-    $authTargetDay = ($latestDate < $todayDate) ? $latestDate : $todayDate;
-    $hourlyAuthStmt = $db->prepare("
-        SELECT HOUR(authdate) AS h,
-               SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END) AS accepts,
-               SUM(CASE WHEN reply != 'Access-Accept' THEN 1 ELSE 0 END) AS rejects
-        FROM radpostauth
-        WHERE authdate >= ? AND authdate <= ?
-        GROUP BY HOUR(authdate)
-    ");
-    $hourlyAuthStmt->execute(["$authTargetDay 00:00:00", "$authTargetDay 23:59:59"]);
-    $hourlyAuthRaw = $hourlyAuthStmt->fetchAll(PDO::FETCH_ASSOC);
-    $hourlyAuthMap = [];
-    foreach ($hourlyAuthRaw as $r) {
-        $hourlyAuthMap[$r['h']] = $r;
-    }
-    $hourlyAccepts = [];
-    $hourlyRejects = [];
-    for ($h = 0; $h < 24; $h++) {
-        $hourlyAccepts[] = (int)($hourlyAuthMap[$h]['accepts'] ?? 0);
-        $hourlyRejects[] = (int)($hourlyAuthMap[$h]['rejects'] ?? 0);
-    }
-
-    // 4. Top 5 NAS Devices by Bandwidth Today
-    $topNasTodayStmt = $db->prepare("
-        SELECT ra.nasipaddress,
-               COALESCE(n.shortname, ra.nasipaddress) AS label,
-               COALESCE(SUM(ra.acctinputoctets + ra.acctoutputoctets), 0) AS total_bytes
-        FROM radacct ra
-        LEFT JOIN nas n ON n.nasname = ra.nasipaddress
-        WHERE ra.acctstarttime >= ? AND ra.acctstarttime <= ?
-        GROUP BY ra.nasipaddress, label
-        ORDER BY total_bytes DESC
-        LIMIT 5
-    ");
-    $topNasTodayStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
-    $nasTodayRows = $topNasTodayStmt->fetchAll(PDO::FETCH_ASSOC);
-    $nasTodayLabels = [];
-    $nasTodayValues = [];
-    foreach ($nasTodayRows as $nr) {
-        $nasTodayLabels[] = $nr['label'];
-        $nasTodayValues[] = round($nr['total_bytes'] / (1024 * 1024), 2);
-    }
-
-    // 5. 14-Day Daily Sessions Trend (General)
-    $start14d = date('Y-m-d 00:00:00', strtotime('-13 days', strtotime($anchorDay)));
-    $sessions14dStmt = $db->prepare("
-        SELECT DATE(acctstarttime) AS d, COUNT(*) AS c
-        FROM radacct
-        WHERE acctstarttime >= ? AND acctstarttime <= ?
-        GROUP BY DATE(acctstarttime)
-        ORDER BY d ASC
-    ");
-    $sessions14dStmt->execute([$start14d, "$anchorDay 23:59:59"]);
-    $sessions14dMap = $sessions14dStmt->fetchAll(PDO::FETCH_KEY_PAIR);
-
-    $sessions14dLabels = [];
-    $sessions14dValues = [];
-    $cur = strtotime($start14d);
-    $endCur = strtotime($anchorDay);
-    while ($cur <= $endCur) {
-        $dStr = date('Y-m-d', $cur);
-        $sessions14dLabels[] = date('d M', $cur);
-        $sessions14dValues[] = (int)($sessions14dMap[$dStr] ?? 0);
-        $cur = strtotime('+1 day', $cur);
-    }
-
-    // 6. 14-Day Bandwidth Volume Trend (Upload vs Download MB)
-    $bw14dStmt = $db->prepare("
-        SELECT DATE(acctstarttime) AS d,
-               COALESCE(SUM(acctinputoctets), 0) AS up,
-               COALESCE(SUM(acctoutputoctets), 0) AS down
-        FROM radacct
-        WHERE acctstarttime >= ? AND acctstarttime <= ?
-        GROUP BY DATE(acctstarttime)
-        ORDER BY d ASC
-    ");
-    $bw14dStmt->execute([$start14d, "$anchorDay 23:59:59"]);
-    $raw14d = $bw14dStmt->fetchAll(PDO::FETCH_ASSOC);
-    $bw14Map = [];
-    foreach ($raw14d as $row) {
-        $bw14Map[$row['d']] = $row;
-    }
-
-    $bw14Labels   = [];
-    $bw14Upload   = [];
-    $bw14Download = [];
-    $cur = strtotime($start14d);
-    while ($cur <= $endCur) {
-        $dStr = date('Y-m-d', $cur);
-        $bw14Labels[]   = date('d M', $cur);
-        $bw14Upload[]   = round(($bw14Map[$dStr]['up'] ?? 0) / (1024 * 1024), 2);
-        $bw14Download[] = round(($bw14Map[$dStr]['down'] ?? 0) / (1024 * 1024), 2);
-        $cur = strtotime('+1 day', $cur);
-    }
-
-    // 7. 7-Day Authentications Trend (Accept vs Reject)
-    $start7d = date('Y-m-d 00:00:00', strtotime('-6 days', strtotime($latestDate)));
-    $auth7dStmt = $db->prepare("
-        SELECT DATE(authdate) AS d,
-               SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END) AS accepts,
-               SUM(CASE WHEN reply != 'Access-Accept' THEN 1 ELSE 0 END) AS rejects
-        FROM radpostauth
-        WHERE authdate >= ? AND authdate <= ?
-        GROUP BY DATE(authdate)
-        ORDER BY d ASC
-    ");
-    $auth7dStmt->execute([$start7d, "$latestDate 23:59:59"]);
-    $auth7dRaw = $auth7dStmt->fetchAll(PDO::FETCH_ASSOC);
-    $auth7dMap = [];
-    foreach ($auth7dRaw as $row) {
-        $auth7dMap[$row['d']] = $row;
-    }
-    $auth7dLabels  = [];
-    $auth7dAccepts = [];
-    $auth7dRejects = [];
-    $cur7 = strtotime($start7d);
-    $end7 = strtotime($latestDate);
-    while ($cur7 <= $end7) {
-        $dStr = date('Y-m-d', $cur7);
-        $auth7dLabels[]  = date('d M', $cur7);
-        $auth7dAccepts[] = (int)($auth7dMap[$dStr]['accepts'] ?? 0);
-        $auth7dRejects[] = (int)($auth7dMap[$dStr]['rejects'] ?? 0);
-        $cur7 = strtotime('+1 day', $cur7);
-    }
-
-    // 8. Top NAS Devices Overall (Past 14 Days)
-    $topNas14dStmt = $db->prepare("
-        SELECT ra.nasipaddress,
-               COALESCE(n.shortname, ra.nasipaddress) AS label,
-               COALESCE(SUM(ra.acctinputoctets + ra.acctoutputoctets), 0) AS total_bytes
-        FROM radacct ra
-        LEFT JOIN nas n ON n.nasname = ra.nasipaddress
-        WHERE ra.acctstarttime >= ? AND ra.acctstarttime <= ?
-        GROUP BY ra.nasipaddress, label
-        ORDER BY total_bytes DESC
-        LIMIT 5
-    ");
-    $topNas14dStmt->execute([$start14d, "$anchorDay 23:59:59"]);
-    $topNas14dRows = $topNas14dStmt->fetchAll(PDO::FETCH_ASSOC);
-    $nas14dLabels = [];
-    $nas14dValues = [];
-    foreach ($topNas14dRows as $nr) {
-        $nas14dLabels[] = $nr['label'];
-        $nas14dValues[] = round($nr['total_bytes'] / (1024 * 1024), 2);
-    }
-
-    $chartHub = [
-        'anchorDay'         => $anchorDay,
-        'prevDay'           => $prevDay,
-        'hourlyLabels'      => $hourlyLabels,
-        'hourlyToday'       => $hourlyToday,
-        'hourlyPrev'        => $hourlyPrev,
-        'hourlyUploadMB'    => $hourlyUploadMB,
-        'hourlyDownloadMB'  => $hourlyDownloadMB,
-        'hourlyAccepts'     => $hourlyAccepts,
-        'hourlyRejects'     => $hourlyRejects,
-        'nasTodayLabels'    => $nasTodayLabels,
-        'nasTodayValues'    => $nasTodayValues,
-        'sessions14dLabels' => $sessions14dLabels,
-        'sessions14dValues' => $sessions14dValues,
-        'bw14Labels'        => $bw14Labels,
-        'bw14Upload'        => $bw14Upload,
-        'bw14Download'      => $bw14Download,
-        'auth7dLabels'      => $auth7dLabels,
-        'auth7dAccepts'     => $auth7dAccepts,
-        'auth7dRejects'     => $auth7dRejects,
-        'nas14dLabels'      => $nas14dLabels,
-        'nas14dValues'      => $nas14dValues,
-    ];
-    $_SESSION['dash_charts_data'] = $chartHub;
-    $_SESSION['dash_charts_time'] = time();
-}
-
-// Stat card for Auth count (derived instantly from chartHub)
-if ($latestDate < $todayDate) {
-    $authLabel        = "Recent Auth ($latestDate)";
-    $authDateParam    = $latestDate;
-    $authCountDisplay = !empty($chartHub['auth7dAccepts']) ? (end($chartHub['auth7dAccepts']) + end($chartHub['auth7dRejects'])) : 0;
-} else {
-    $authLabel        = 'Auth Today';
-    $authDateParam    = $todayDate;
-    $authCountDisplay = !empty($chartHub['hourlyAccepts']) ? (array_sum($chartHub['hourlyAccepts']) + array_sum($chartHub['hourlyRejects'])) : 0;
+    $authCountDisplay = !empty($generalData['auth7dValues']) ? end($generalData['auth7dValues']) : 0;
 }
 
 include __DIR__ . '/includes/header.php';
@@ -430,7 +434,7 @@ include __DIR__ . '/includes/header.php';
                 <p class="text-muted small mb-0">
                     <?= $viewMode === 'today' 
                         ? 'Memvisualisasikan profil sesi per jam, throughput bandwidth upload/download hari ini, dan autentikasi 24 jam.' 
-                        : 'Memvisualisasikan tren multi-hari: volume bandwidth 14 hari, histori sesi harian, dan log autentikasi.' ?>
+                        : 'Memvisualisasikan tren multi-hari: volume bandwidth 14 hari, histori sesi harian, dan tren autentikasi 7 hari.' ?>
                 </p>
             </div>
         </div>
@@ -507,7 +511,7 @@ include __DIR__ . '/includes/header.php';
                 <a href="nas.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">NAS Devices</a>
             </div>
             <div class="card-body">
-                <?php if (empty($chartHub['nasTodayValues'])): ?>
+                <?php if (empty($todayData['nasTodayValues'])): ?>
                 <div class="text-center text-muted py-5 small">Belum ada lalu lintas NAS yang tercatat hari ini</div>
                 <?php else: ?>
                 <canvas id="todayNasChart" height="130"></canvas>
@@ -576,7 +580,7 @@ include __DIR__ . '/includes/header.php';
                 <a href="nas.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">NAS Devices</a>
             </div>
             <div class="card-body">
-                <?php if (empty($chartHub['nas14dValues'])): ?>
+                <?php if (empty($generalData['nas14dValues'])): ?>
                 <div class="text-center text-muted py-5 small">Belum ada data NAS 14 hari terakhir</div>
                 <?php else: ?>
                 <canvas id="generalNasChart" height="130"></canvas>
@@ -724,18 +728,18 @@ if ($viewMode === 'today') {
         new Chart(ctxTodayConcurrent, {
             type: "line",
             data: {
-                labels: ' . json_encode($chartHub['hourlyLabels']) . ',
+                labels: ' . json_encode($todayData['hourlyLabels']) . ',
                 datasets: [
                     {
-                        label: "Hari Ini (' . date('d M', strtotime($chartHub['anchorDay'])) . ')",
-                        data: ' . json_encode($chartHub['hourlyToday']) . ',
+                        label: "Hari Ini (' . date('d M', strtotime($todayData['anchorDay'])) . ')",
+                        data: ' . json_encode($todayData['hourlyToday']) . ',
                         borderColor: "#2563eb",
                         backgroundColor: "rgba(37,99,235,0.08)",
                         tension: 0.35, fill: true, pointRadius: 2
                     },
                     {
-                        label: "Kemarin (' . date('d M', strtotime($chartHub['prevDay'])) . ')",
-                        data: ' . json_encode($chartHub['hourlyPrev']) . ',
+                        label: "Kemarin (' . date('d M', strtotime($todayData['prevDay'])) . ')",
+                        data: ' . json_encode($todayData['hourlyPrev']) . ',
                         borderColor: "#94a3b8",
                         borderDash: [4, 4],
                         backgroundColor: "transparent",
@@ -760,18 +764,18 @@ if ($viewMode === 'today') {
         new Chart(ctxTodayBw, {
             type: "line",
             data: {
-                labels: ' . json_encode($chartHub['hourlyLabels']) . ',
+                labels: ' . json_encode($todayData['hourlyLabels']) . ',
                 datasets: [
                     {
                         label: "Download (MB)",
-                        data: ' . json_encode($chartHub['hourlyDownloadMB']) . ',
+                        data: ' . json_encode($todayData['hourlyDownloadMB']) . ',
                         borderColor: "#10b981",
                         backgroundColor: "rgba(16,185,129,0.1)",
                         tension: 0.3, fill: true, pointRadius: 2
                     },
                     {
                         label: "Upload (MB)",
-                        data: ' . json_encode($chartHub['hourlyUploadMB']) . ',
+                        data: ' . json_encode($todayData['hourlyUploadMB']) . ',
                         borderColor: "#2563eb",
                         backgroundColor: "rgba(37,99,235,0.06)",
                         tension: 0.3, fill: true, pointRadius: 2
@@ -795,17 +799,17 @@ if ($viewMode === 'today') {
         new Chart(ctxTodayAuth, {
             type: "bar",
             data: {
-                labels: ' . json_encode($chartHub['hourlyLabels']) . ',
+                labels: ' . json_encode($todayData['hourlyLabels']) . ',
                 datasets: [
                     {
                         label: "Access-Accept",
-                        data: ' . json_encode($chartHub['hourlyAccepts']) . ',
+                        data: ' . json_encode($todayData['hourlyAccepts']) . ',
                         backgroundColor: "rgba(16,185,129,0.75)",
                         borderRadius: 3
                     },
                     {
                         label: "Access-Reject",
-                        data: ' . json_encode($chartHub['hourlyRejects']) . ',
+                        data: ' . json_encode($todayData['hourlyRejects']) . ',
                         backgroundColor: "rgba(239,68,68,0.75)",
                         borderRadius: 3
                     }
@@ -828,10 +832,10 @@ if ($viewMode === 'today') {
         new Chart(ctxTodayNas, {
             type: "bar",
             data: {
-                labels: ' . json_encode($chartHub['nasTodayLabels']) . ',
+                labels: ' . json_encode($todayData['nasTodayLabels']) . ',
                 datasets: [{
                     label: "Traffic Hari Ini (MB)",
-                    data: ' . json_encode($chartHub['nasTodayValues']) . ',
+                    data: ' . json_encode($todayData['nasTodayValues']) . ',
                     backgroundColor: "rgba(6,182,212,0.3)",
                     borderColor: "rgba(6,182,212,1)",
                     borderWidth: 2, borderRadius: 4
@@ -856,10 +860,10 @@ if ($viewMode === 'today') {
         new Chart(ctxGenSessions, {
             type: "bar",
             data: {
-                labels: ' . json_encode($chartHub['sessions14dLabels']) . ',
+                labels: ' . json_encode($generalData['sessions14dLabels']) . ',
                 datasets: [{
                     label: "Total Sesi Harian",
-                    data: ' . json_encode($chartHub['sessions14dValues']) . ',
+                    data: ' . json_encode($generalData['sessions14dValues']) . ',
                     backgroundColor: "rgba(37,99,235,0.2)",
                     borderColor: "rgba(37,99,235,1)",
                     borderWidth: 2, borderRadius: 4
@@ -869,7 +873,7 @@ if ($viewMode === 'today') {
                 responsive: true,
                 plugins: { legend: { display: false } },
                 scales: {
-                    y: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { precision: 0 } },
+                    y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
                     x: { grid: { display: false } }
                 }
             }
@@ -882,18 +886,18 @@ if ($viewMode === 'today') {
         new Chart(ctxGenBw, {
             type: "line",
             data: {
-                labels: ' . json_encode($chartHub['bw14Labels']) . ',
+                labels: ' . json_encode($generalData['bw14Labels']) . ',
                 datasets: [
                     {
                         label: "Download (MB)",
-                        data: ' . json_encode($chartHub['bw14Download']) . ',
+                        data: ' . json_encode($generalData['bw14Download']) . ',
                         borderColor: "#10b981",
                         backgroundColor: "rgba(16,185,129,0.1)",
                         tension: 0.3, fill: true, pointRadius: 2
                     },
                     {
                         label: "Upload (MB)",
-                        data: ' . json_encode($chartHub['bw14Upload']) . ',
+                        data: ' . json_encode($generalData['bw14Upload']) . ',
                         borderColor: "#2563eb",
                         backgroundColor: "rgba(37,99,235,0.06)",
                         tension: 0.3, fill: true, pointRadius: 2
@@ -917,27 +921,20 @@ if ($viewMode === 'today') {
         new Chart(ctxGenAuth, {
             type: "bar",
             data: {
-                labels: ' . json_encode($chartHub['auth7dLabels']) . ',
-                datasets: [
-                    {
-                        label: "Access-Accept",
-                        data: ' . json_encode($chartHub['auth7dAccepts']) . ',
-                        backgroundColor: "rgba(16,185,129,0.75)",
-                        borderRadius: 3
-                    },
-                    {
-                        label: "Access-Reject",
-                        data: ' . json_encode($chartHub['auth7dRejects']) . ',
-                        backgroundColor: "rgba(239,68,68,0.75)",
-                        borderRadius: 3
-                    }
-                ]
+                labels: ' . json_encode($generalData['auth7dLabels']) . ',
+                datasets: [{
+                    label: "Authentications",
+                    data: ' . json_encode($generalData['auth7dValues']) . ',
+                    backgroundColor: "rgba(147,51,234,0.18)",
+                    borderColor: "rgba(147,51,234,1)",
+                    borderWidth: 2, borderRadius: 4
+                }]
             },
             options: {
                 responsive: true,
-                plugins: { legend: { display: true, position: "top", labels: { boxWidth: 12, font: { size: 11 } } } },
+                plugins: { legend: { display: false } },
                 scales: {
-                    y: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { precision: 0 } },
+                    y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
                     x: { grid: { display: false } }
                 }
             }
@@ -950,10 +947,10 @@ if ($viewMode === 'today') {
         new Chart(ctxGenNas, {
             type: "bar",
             data: {
-                labels: ' . json_encode($chartHub['nas14dLabels']) . ',
+                labels: ' . json_encode($generalData['nas14dLabels']) . ',
                 datasets: [{
                     label: "Traffic 14 Hari (MB)",
-                    data: ' . json_encode($chartHub['nas14dValues']) . ',
+                    data: ' . json_encode($generalData['nas14dValues']) . ',
                     backgroundColor: "rgba(6,182,212,0.3)",
                     borderColor: "rgba(6,182,212,1)",
                     borderWidth: 2, borderRadius: 4
