@@ -72,7 +72,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             width: var(--sidebar-w); height: 100vh; position: fixed;
             top: 0; left: 0; background: var(--sidebar-bg);
             overflow-y: auto; overflow-x: hidden; z-index: 1000;
-            transition: width .2s cubic-bezier(0.4, 0, 0.2, 1), transform .3s ease;
+            transition: width .2s cubic-bezier(0.4, 0, 0.2, 1), transform .3s ease, box-shadow .2s ease;
             scrollbar-width: thin;
             scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
         }
@@ -335,8 +335,73 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         .sidebar-tooltip .tooltip-arrow::before {
             border-right-color: #0f172a !important;
         }
-        body:not(.sidebar-collapsed) .sidebar-tooltip {
+        body:not(.sidebar-collapsed) .sidebar-tooltip,
+        body.sidebar-collapsed .tooltip {
             display: none !important;
+        }
+
+        @keyframes fadeInText {
+            from { opacity: 0; transform: translateX(-4px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (min-width: 769px) {
+            /* Hover-Expand Flyout on Minimized Sidebar:
+               Automatically opens on mouse hover and closes on mouse leave */
+            body.sidebar-collapsed #sidebar:hover {
+                width: var(--sidebar-w) !important;
+                box-shadow: 10px 0 30px rgba(0, 0, 0, 0.45);
+            }
+            body.sidebar-collapsed #sidebar:hover .sidebar-header {
+                padding: 0.85rem 1rem !important;
+                justify-content: space-between !important;
+                flex-direction: row !important;
+                gap: 0.5rem !important;
+            }
+            body.sidebar-collapsed #sidebar:hover .sidebar-brand {
+                justify-content: flex-start !important;
+                padding: 0 !important;
+                flex: 1 !important;
+            }
+            body.sidebar-collapsed #sidebar:hover .brand-info {
+                display: flex !important;
+                animation: fadeInText 0.18s ease-in-out forwards;
+            }
+            body.sidebar-collapsed #sidebar:hover .sidebar-brand .brand-icon-wrap {
+                width: 32px !important;
+                height: 32px !important;
+                margin: 0 !important;
+            }
+            body.sidebar-collapsed #sidebar:hover .sidebar-collapse-btn i,
+            body.sidebar-collapsed #sidebar:hover .collapse-footer-icon {
+                transform: rotate(0deg) !important;
+            }
+            body.sidebar-collapsed #sidebar:hover .sidebar-section {
+                padding: .8rem 1.2rem .3rem !important;
+                margin: 0 !important;
+                height: auto !important;
+                background: transparent !important;
+                font-size: .65rem !important;
+                color: #64748b !important;
+                line-height: normal !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+            body.sidebar-collapsed #sidebar:hover .sidebar-link {
+                justify-content: flex-start !important;
+                padding: .6rem 1.5rem !important;
+                gap: .75rem !important;
+            }
+            body.sidebar-collapsed #sidebar:hover .sidebar-link .link-text {
+                display: inline !important;
+                animation: fadeInText 0.18s ease-in-out forwards;
+            }
+            body.sidebar-collapsed #sidebar:hover .sidebar-link i {
+                font-size: 1rem !important;
+                width: 1.2rem !important;
+                margin: 0 !important;
+                text-align: left !important;
+            }
         }
 
         @media (max-width: 768px) {
