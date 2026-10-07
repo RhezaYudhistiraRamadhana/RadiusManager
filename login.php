@@ -2,7 +2,7 @@
 require_once __DIR__ . '/auth.php';
 
 if (isLoggedIn()) {
-    header('Location: dashboard.php');
+    header('Location: welcome.php');
     exit;
 }
 
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Please enter both username and password.';
         } elseif (attemptLogin($user, $pass)) {
             clearLoginAttempts($ip);
-            header('Location: dashboard.php');
+            header('Location: welcome.php');
             exit;
         } else {
             $totalAttempts = recordLoginFailure($ip, $user);

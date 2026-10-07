@@ -198,4 +198,79 @@ function getAllSettings(): array {
     }
 }
 
+/**
+ * Terminate a single active session or all sessions for a user in radacct
+ */
+function terminateRadiusSession(string $sessionId, string $username = '', string $reason = 'Admin-Reset'): int {
+    $db = getDB();
+    if ($sessionId !== '') {
+        $stmt = $db->prepare("UPDATE radacct SET acctstoptime = NOW(), acctsessiontime = GREATEST(0, TIMESTAMPDIFF(SECOND, acctstarttime, NOW())), acctterminatecause = ? WHERE acctsessionid = ? AND acctstoptime IS NULL");
+        $stmt->execute([$reason, $sessionId]);
+        return $stmt->rowCount();
+    } elseif ($username !== '') {
+        $stmt = $db->prepare("UPDATE radacct SET acctstoptime = NOW(), acctsessiontime = GREATEST(0, TIMESTAMPDIFF(SECOND, acctstarttime, NOW())), acctterminatecause = ? WHERE username = ? AND acctstoptime IS NULL");
+        $stmt->execute([$reason, $username]);
+        return $stmt->rowCount();
+    }
+    return 0;
+}
+
+/**
+ * Terminate all currently active sessions across all accounts in radacct
+ */
+function terminateAllRadiusSessions(string $reason = 'Admin-Force-Reauth'): int {
+    $db = getDB();
+    $stmt = $db->prepare("UPDATE radacct SET acctstoptime = NOW(), acctsessiontime = GREATEST(0, TIMESTAMPDIFF(SECOND, acctstarttime, NOW())), acctterminatecause = ? WHERE acctstoptime IS NULL");
+    $stmt->execute([$reason]);
+    return $stmt->rowCount();
+}
+
+/**
+ * Send RADIUS Disconnect-Request (PoD / CoA RFC 3576 / RFC 5176) to NAS gateway
+ */
+function sendRadiusDisconnect(string $nasIp, string $username, string $sessionId = '', string $framedIp = ''): array {
+    $db = getDB();
+    $nas = $db->prepare("SELECT secret FROM nas WHERE nasname = ? LIMIT 1");
+    $nas->execute([$nasIp]);
+    $secret = $nas->fetchColumn() ?: 'secret';
+
+    $attributes = ["User-Name=$username"];
+    if ($sessionId !== '') {
+        $attributes[] = "Acct-Session-Id=$sessionId";
+    }
+    if ($framedIp !== '') {
+        $attributes[] = "Framed-IP-Address=$framedIp";
+    }
+    $attrString = implode(',', $attributes);
+
+    $cmd = "echo \"$attrString\" | radclient -x " . escapeshellarg("$nasIp:3799") . " disconnect " . escapeshellarg($secret) . " 2>&1";
+
+    $output = '';
+    $executed = false;
+
+    if (function_exists('shell_exec') && stripos(PHP_OS, 'WIN') === false) {
+        $radclientCheck = trim((string)@shell_exec('which radclient 2>/dev/null'));
+        if ($radclientCheck !== '') {
+            $output = (string)@shell_exec($cmd);
+            $executed = true;
+        }
+    }
+
+    if (!$executed && function_exists('fsockopen') && $nasIp !== '' && $nasIp !== '0.0.0.0/0') {
+        try {
+            $fp = @fsockopen("udp://$nasIp", 3799, $errno, $errstr, 1);
+            if ($fp) {
+                fclose($fp);
+            }
+        } catch (Exception $e) {}
+    }
+
+    return [
+        'command'  => $cmd,
+        'executed' => $executed,
+        'output'   => $output,
+        'secret'   => $secret,
+    ];
+}
+
 

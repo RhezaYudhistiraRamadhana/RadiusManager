@@ -451,7 +451,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
 <!-- Sidebar -->
 <nav id="sidebar">
     <div class="sidebar-header">
-        <a href="dashboard.php" class="sidebar-brand" title="<?= defined('APP_FULL_NAME') ? APP_FULL_NAME : 'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi' ?>">
+        <a href="welcome.php" class="sidebar-brand" title="<?= defined('APP_FULL_NAME') ? APP_FULL_NAME : 'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi' ?>">
             <div class="brand-icon-wrap" aria-label="<?= APP_NAME ?> Logo">
                 <?php
                 $headerLogo = __DIR__ . '/../assets/img/logo.svg';
@@ -473,8 +473,11 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     </div>
 
     <div class="sidebar-section">Main</div>
-    <a href="dashboard.php" class="sidebar-link <?= $current_page==='dashboard'?'active':'' ?>" title="Dashboard" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Dashboard">
-        <i class="bi bi-speedometer2"></i> <span class="link-text">Dashboard</span>
+    <a href="welcome.php" class="sidebar-link <?= $current_page==='welcome'?'active':'' ?>" title="Beranda" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Beranda">
+        <i class="bi bi-house-door"></i> <span class="link-text">Beranda</span>
+    </a>
+    <a href="dashboard.php" class="sidebar-link <?= $current_page==='dashboard'?'active':'' ?>" title="Dashboard Grafik" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Dashboard Grafik">
+        <i class="bi bi-speedometer2"></i> <span class="link-text">Dashboard Grafik</span>
     </a>
 
     <div class="sidebar-section">RADIUS</div>
@@ -521,6 +524,9 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         <i class="bi bi-sliders"></i> <span class="link-text">Configuration</span>
     </a>
     <?php if (hasRole('superadmin')): ?>
+    <a href="reauth.php" class="sidebar-link <?= $current_page==='reauth'?'active':'' ?>" title="Paksa Re-Login (Reset)" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Paksa Re-Login (Reset)">
+        <i class="bi bi-arrow-repeat text-warning"></i> <span class="link-text">Paksa Re-Login</span>
+    </a>
     <a href="operators.php" class="sidebar-link <?= $current_page==='operators'?'active':'' ?>" title="Operators & RBAC" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Operators & RBAC">
         <i class="bi bi-person-badge"></i> <span class="link-text">Operators & RBAC</span>
     </a>
