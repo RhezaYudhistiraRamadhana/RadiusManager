@@ -94,13 +94,51 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         #sidebar::-webkit-scrollbar-thumb:hover {
             background-color: rgba(255, 255, 255, 0.35);
         }
-        .sidebar-brand {
-            padding: 1rem 1.25rem; border-bottom: 1px solid #334155;
-            color: #fff; display: flex; align-items: center; gap: .75rem;
-            text-decoration: none;
-            transition: background .15s ease;
+        .sidebar-header {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 62px;
+            box-sizing: border-box;
+            gap: 0.5rem;
         }
-        .sidebar-brand:hover { color: #fff; background: rgba(255,255,255,.03); }
+        .sidebar-brand {
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            text-decoration: none;
+            transition: opacity .15s ease;
+            min-width: 0;
+            flex: 1;
+        }
+        .sidebar-brand:hover { color: #fff; opacity: 0.9; }
+        .sidebar-collapse-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 0;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+        .sidebar-collapse-btn:hover {
+            background: rgba(255, 255, 255, 0.22);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+        .sidebar-collapse-btn i,
+        .collapse-footer-icon {
+            transition: transform 0.2s ease;
+        }
         .sidebar-brand .brand-icon-wrap {
             width: 32px; height: 32px; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
@@ -223,11 +261,18 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         body.sidebar-collapsed #main {
             margin-left: var(--sidebar-collapsed-w);
         }
+        html.sidebar-collapsed-preload .sidebar-header,
+        body.sidebar-collapsed .sidebar-header {
+            padding: 0.75rem 0;
+            justify-content: center;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
         html.sidebar-collapsed-preload .sidebar-brand,
         body.sidebar-collapsed .sidebar-brand {
-            padding: 0.9rem 0;
+            padding: 0;
             justify-content: center;
-            gap: 0;
+            flex: initial;
         }
         html.sidebar-collapsed-preload .sidebar-brand .brand-info,
         body.sidebar-collapsed .sidebar-brand .brand-info {
@@ -238,6 +283,10 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             width: 36px;
             height: 36px;
             margin: 0 auto;
+        }
+        body.sidebar-collapsed .sidebar-collapse-btn i,
+        body.sidebar-collapsed .collapse-footer-icon {
+            transform: rotate(180deg);
         }
         html.sidebar-collapsed-preload .sidebar-section,
         body.sidebar-collapsed .sidebar-section {
@@ -336,22 +385,27 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
 
 <!-- Sidebar -->
 <nav id="sidebar">
-    <a href="dashboard.php" class="sidebar-brand" title="<?= defined('APP_FULL_NAME') ? APP_FULL_NAME : 'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi' ?>">
-        <div class="brand-icon-wrap" aria-label="<?= APP_NAME ?> Logo">
-            <?php
-            $headerLogo = __DIR__ . '/../assets/img/logo.svg';
-            if (file_exists($headerLogo)) {
-                readfile($headerLogo);
-            } else {
-                echo '<img src="assets/img/logo.svg?v=tree_' . APP_VERSION . '" alt="' . APP_NAME . ' Logo" width="32" height="32">';
-            }
-            ?>
-        </div>
-        <div class="brand-info">
-            <span class="brand-title"><?= APP_NAME ?></span>
-            <span class="brand-ver">v<?= APP_VERSION ?></span>
-        </div>
-    </a>
+    <div class="sidebar-header">
+        <a href="dashboard.php" class="sidebar-brand" title="<?= defined('APP_FULL_NAME') ? APP_FULL_NAME : 'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi' ?>">
+            <div class="brand-icon-wrap" aria-label="<?= APP_NAME ?> Logo">
+                <?php
+                $headerLogo = __DIR__ . '/../assets/img/logo.svg';
+                if (file_exists($headerLogo)) {
+                    readfile($headerLogo);
+                } else {
+                    echo '<img src="assets/img/logo.svg?v=tree_' . APP_VERSION . '" alt="' . APP_NAME . ' Logo" width="32" height="32">';
+                }
+                ?>
+            </div>
+            <div class="brand-info">
+                <span class="brand-title"><?= APP_NAME ?></span>
+                <span class="brand-ver">v<?= APP_VERSION ?></span>
+            </div>
+        </a>
+        <button type="button" class="sidebar-collapse-btn sidebar-collapse-trigger d-none d-md-flex" title="Minimize Sidebar" aria-label="Minimize Sidebar">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+    </div>
 
     <div class="sidebar-section">Main</div>
     <a href="dashboard.php" class="sidebar-link <?= $current_page==='dashboard'?'active':'' ?>" title="Dashboard" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Dashboard">
@@ -416,6 +470,12 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     <a href="logout.php" class="sidebar-link text-danger" title="Logout" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Logout">
         <i class="bi bi-box-arrow-left"></i> <span class="link-text">Logout</span>
     </a>
+
+    <div class="sidebar-collapse-footer d-none d-md-block border-top border-secondary border-opacity-25 mt-2 py-1">
+        <button type="button" class="sidebar-link sidebar-collapse-trigger w-100 border-0 bg-transparent text-secondary text-start py-2" title="Minimize / Expand Sidebar" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Minimize / Expand Sidebar">
+            <i class="bi bi-chevron-bar-left collapse-footer-icon"></i> <span class="link-text">Minimize Sidebar</span>
+        </button>
+    </div>
 </nav>
 
 <!-- Main -->
@@ -423,7 +483,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     <!-- Topbar -->
     <div id="topbar">
         <!-- Desktop Sidebar Collapse Toggle Button -->
-        <button id="sidebarCollapseBtn" class="btn btn-sm btn-light border me-2 d-none d-md-inline-flex align-items-center justify-content-center shadow-none" 
+        <button id="sidebarCollapseBtn" class="sidebar-collapse-trigger btn btn-sm btn-light border me-2 d-none d-md-inline-flex align-items-center justify-content-center shadow-none" 
                 title="Minimize / Expand Sidebar" aria-label="Toggle Sidebar"
                 style="width: 34px; height: 34px; border-radius: 8px; color: #475569; transition: all .15s ease;">
             <i class="bi bi-layout-sidebar-inset fs-6" style="transition: transform .2s ease;"></i>
