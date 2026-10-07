@@ -7,7 +7,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= APP_NAME ?> <?= isset($page_title) ? '- ' . $page_title : '' ?></title>
-    <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+    <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg?v=cendana_tree_<?= APP_VERSION ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -212,8 +212,15 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
 <!-- Sidebar -->
 <nav id="sidebar">
     <a href="dashboard.php" class="sidebar-brand" title="<?= defined('APP_FULL_NAME') ? APP_FULL_NAME : 'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi' ?>">
-        <div class="brand-icon-wrap">
-            <img src="assets/img/logo.svg" alt="<?= APP_NAME ?> Logo" width="32" height="32">
+        <div class="brand-icon-wrap" aria-label="<?= APP_NAME ?> Logo">
+            <?php
+            $headerLogo = __DIR__ . '/../assets/img/logo.svg';
+            if (file_exists($headerLogo)) {
+                readfile($headerLogo);
+            } else {
+                echo '<img src="assets/img/logo.svg?v=tree_' . APP_VERSION . '" alt="' . APP_NAME . ' Logo" width="32" height="32">';
+            }
+            ?>
         </div>
         <div class="brand-info">
             <span class="brand-title"><?= APP_NAME ?></span>

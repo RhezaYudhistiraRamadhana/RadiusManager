@@ -1,79 +1,96 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%">
   <defs>
-    <!-- Background Gradient: Emerald Nature to Enterprise Tech Blue -->
+    <!-- Background Gradient: Deep Enterprise Slate with Subtle Emerald Sheen -->
     <linearGradient id="cendana-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#10b981" />
-      <stop offset="35%" stop-color="#059669" />
-      <stop offset="70%" stop-color="#0284c7" />
-      <stop offset="100%" stop-color="#0f172a" />
+      <stop offset="0%" stop-color="#064e3b" />
+      <stop offset="40%" stop-color="#0f292e" />
+      <stop offset="100%" stop-color="#09131f" />
     </linearGradient>
 
-    <!-- Branch Glow Gradient -->
-    <linearGradient id="cendana-stem" x1="0%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#6ee7b7" />
+    <!-- Lush Canopy Gradient: Emerald Green to Vibrant Cyan -->
+    <linearGradient id="canopy-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="45%" stop-color="#10b981" />
+      <stop offset="85%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+
+    <!-- Branch / Trunk Gradient: Pearlescent Silver to White -->
+    <linearGradient id="trunk-grad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#cbd5e1" />
       <stop offset="50%" stop-color="#ffffff" />
       <stop offset="100%" stop-color="#e0f2fe" />
     </linearGradient>
 
-    <!-- Leaf / Node Gradient -->
-    <linearGradient id="cendana-leaf" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#a7f3d0" />
-      <stop offset="100%" stop-color="#38bdf8" />
-    </linearGradient>
-
-    <!-- Soft Glow Filter -->
-    <filter id="cendana-glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="1.2" result="blur" />
+    <!-- Core Glow Filter -->
+    <filter id="node-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
 
   <!-- Squircle Container -->
   <rect width="64" height="64" rx="16" fill="url(#cendana-bg)" />
-  <rect x="1" y="1" width="62" height="62" rx="15" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1.2" />
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="none" stroke="rgba(16, 185, 129, 0.4)" stroke-width="1.2" />
 
-  <!-- Radio Wave Canopy Arcs (Wi-Fi waves forming Tree Foliage) -->
-  <path d="M 15 20 A 20 20 0 0 1 49 20" fill="none" stroke="rgba(255, 255, 255, 0.35)" stroke-width="2.2" stroke-linecap="round" />
-  <path d="M 20.5 24.5 A 13.5 13.5 0 0 1 43.5 24.5" fill="none" stroke="rgba(255, 255, 255, 0.65)" stroke-width="2.2" stroke-linecap="round" />
-  <path d="M 26 29 A 7 7 0 0 1 38 29" fill="none" stroke="#a7f3d0" stroke-width="2.2" stroke-linecap="round" filter="url(#cendana-glow)" />
+  <!-- Outer Wi-Fi / Radio Broadcast Arc above Tree Canopy -->
+  <path d="M 17 14 A 18 18 0 0 1 47 14" fill="none" stroke="rgba(56, 189, 248, 0.45)" stroke-width="2.2" stroke-linecap="round" />
+  <path d="M 22 18 A 12 12 0 0 1 42 18" fill="none" stroke="rgba(167, 243, 208, 0.75)" stroke-width="2" stroke-linecap="round" />
 
-  <!-- Tree Trunk & Digital Branches -->
-  <!-- Main Trunk -->
-  <path d="M 32 49 L 32 29" stroke="url(#cendana-stem)" stroke-width="3.2" stroke-linecap="round" />
-  
-  <!-- Root Flares (Grounding) -->
-  <path d="M 26 51 C 29 50.5 31 49.5 32 49 C 33 49.5 35 50.5 38 51" fill="none" stroke="#6ee7b7" stroke-width="2.2" stroke-linecap="round" opacity="0.85" />
+  <!-- LUSH TREE CANOPY (Silhouette of Cendana Foliage) -->
+  <g fill="url(#canopy-grad)">
+    <!-- Top Central Crown -->
+    <circle cx="32" cy="22" r="11" />
+    <!-- Upper Left Lobe -->
+    <circle cx="23" cy="26" r="9.5" />
+    <!-- Upper Right Lobe -->
+    <circle cx="41" cy="26" r="9.5" />
+    <!-- Lower Left Lobe -->
+    <circle cx="17.5" cy="33.5" r="7.5" />
+    <!-- Lower Right Lobe -->
+    <circle cx="46.5" cy="33.5" r="7.5" />
+    <!-- Central Foliage Fill -->
+    <circle cx="32" cy="31" r="9" />
+  </g>
 
-  <!-- Lower Branches (Curving upward like tree limbs & network forks) -->
-  <path d="M 32 42 C 28 41 22 39 19 33" fill="none" stroke="url(#cendana-stem)" stroke-width="2.2" stroke-linecap="round" />
-  <path d="M 32 42 C 36 41 42 39 45 33" fill="none" stroke="url(#cendana-stem)" stroke-width="2.2" stroke-linecap="round" />
+  <!-- Solid Ground Platform (Roots base) -->
+  <path d="M 22 52 C 26 51 30 50.5 32 50.5 C 34 50.5 38 51 42 52" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" opacity="0.9" />
 
-  <!-- Mid Branches -->
-  <path d="M 32 35 C 29 33 24 30 23 25" fill="none" stroke="url(#cendana-stem)" stroke-width="2" stroke-linecap="round" />
-  <path d="M 32 35 C 35 33 40 30 41 25" fill="none" stroke="url(#cendana-stem)" stroke-width="2" stroke-linecap="round" />
+  <!-- TREE TRUNK & DIGITAL BRANCHES (White & Silver) -->
+  <!-- Tapered Main Trunk -->
+  <path d="M 30 51 L 31 36 L 33 36 L 34 51 Z" fill="url(#trunk-grad)" />
 
-  <!-- Upper Stem / Crown Lead -->
-  <path d="M 32 29 L 32 16" stroke="url(#cendana-stem)" stroke-width="2.2" stroke-linecap="round" />
+  <!-- Left Main Branch -->
+  <path d="M 31.5 38 C 28 36 21 34 18 29" fill="none" stroke="url(#trunk-grad)" stroke-width="2.4" stroke-linecap="round" />
+  <!-- Left Sub-branch -->
+  <path d="M 26 36 C 24 31 23 26 23 22" fill="none" stroke="url(#trunk-grad)" stroke-width="1.8" stroke-linecap="round" />
 
-  <!-- Canopy Leaf Nodes / Network Data Points -->
-  <!-- Top Pinnacle Node (Crown Apex) -->
-  <circle cx="32" cy="14" r="3.2" fill="#ffffff" filter="url(#cendana-glow)" />
-  <circle cx="32" cy="14" r="1.6" fill="#10b981" />
+  <!-- Right Main Branch -->
+  <path d="M 32.5 38 C 36 36 43 34 46 29" fill="none" stroke="url(#trunk-grad)" stroke-width="2.4" stroke-linecap="round" />
+  <!-- Right Sub-branch -->
+  <path d="M 38 36 C 40 31 41 26 41 22" fill="none" stroke="url(#trunk-grad)" stroke-width="1.8" stroke-linecap="round" />
 
-  <!-- Upper Canopy Nodes -->
-  <circle cx="23" cy="24.5" r="2.6" fill="url(#cendana-leaf)" />
-  <circle cx="41" cy="24.5" r="2.6" fill="url(#cendana-leaf)" />
+  <!-- Center Apex Stem -->
+  <path d="M 32 36 L 32 18" stroke="url(#trunk-grad)" stroke-width="2.2" stroke-linecap="round" />
 
-  <!-- Mid Canopy Nodes -->
-  <circle cx="19" cy="32.5" r="2.8" fill="#ffffff" />
-  <circle cx="19" cy="32.5" r="1.5" fill="#0284c7" />
-  <circle cx="45" cy="32.5" r="2.8" fill="#ffffff" />
-  <circle cx="45" cy="32.5" r="1.5" fill="#0284c7" />
+  <!-- NETWORK DATA NODES (Illuminating the Tree Canopy) -->
+  <!-- Crown Apex Node (Central RADIUS Beacon) -->
+  <circle cx="32" cy="17" r="3.2" fill="#ffffff" filter="url(#node-glow)" />
+  <circle cx="32" cy="17" r="1.6" fill="#0284c7" />
 
-  <!-- Outer Foliage Accent Nodes -->
-  <circle cx="15" cy="20" r="1.8" fill="#a7f3d0" />
-  <circle cx="49" cy="20" r="1.8" fill="#a7f3d0" />
+  <!-- Left Canopy Nodes -->
+  <circle cx="23" cy="22" r="2.5" fill="#ffffff" />
+  <circle cx="23" cy="22" r="1.3" fill="#10b981" />
+  <circle cx="17.5" cy="29" r="2.4" fill="#ffffff" />
+  <circle cx="17.5" cy="29" r="1.2" fill="#0284c7" />
 
-  <!-- Central Core / AAA Beacon (Heart of the Tree) -->
-  <circle cx="32" cy="29" r="2" fill="#ffffff" filter="url(#cendana-glow)" />
+  <!-- Right Canopy Nodes -->
+  <circle cx="41" cy="22" r="2.5" fill="#ffffff" />
+  <circle cx="41" cy="22" r="1.3" fill="#10b981" />
+  <circle cx="46.5" cy="29" r="2.4" fill="#ffffff" />
+  <circle cx="46.5" cy="29" r="1.2" fill="#0284c7" />
+
+  <!-- Central Heart Beacon (Tree Trunk Core) -->
+  <circle cx="32" cy="33" r="2.4" fill="#ffffff" filter="url(#node-glow)" />
+  <circle cx="32" cy="33" r="1.2" fill="#10b981" />
 </svg>

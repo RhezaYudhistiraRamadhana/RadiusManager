@@ -45,7 +45,7 @@ $timeout = isset($_GET['timeout']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title><?= APP_NAME ?> — Login</title>
-    <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg">
+    <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg?v=cendana_tree_<?= APP_VERSION ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -62,6 +62,8 @@ $timeout = isset($_GET['timeout']);
                       box-shadow: 0 4px 24px rgba(0,0,0,.08); }
         .brand-logo-img { width: 58px; height: 58px; border-radius: 14px;
                           box-shadow: 0 6px 20px rgba(16,185,129,.28), 0 3px 10px rgba(37,99,235,.22); margin-bottom: 1rem; }
+        .brand-logo-img img,
+        .brand-logo-img svg { width: 100%; height: 100%; display: block; }
         .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 .2rem rgba(37,99,235,.15); }
         .btn-login { background: #2563eb; border: none; width: 100%;
                      padding: .7rem; font-weight: 600; }
@@ -71,7 +73,16 @@ $timeout = isset($_GET['timeout']);
 <body>
 <div class="login-card">
     <div class="text-center">
-        <img src="assets/img/logo.svg" alt="<?= APP_NAME ?> Logo" class="brand-logo-img">
+        <div class="brand-logo-img d-inline-flex align-items-center justify-content-center overflow-hidden">
+            <?php
+            $loginLogo = __DIR__ . '/assets/img/logo.svg';
+            if (file_exists($loginLogo)) {
+                readfile($loginLogo);
+            } else {
+                echo '<img src="assets/img/logo.svg?v=tree_' . APP_VERSION . '" alt="' . APP_NAME . ' Logo">';
+            }
+            ?>
+        </div>
     </div>
     <h4 class="text-center fw-bold mb-1"><?= APP_NAME ?></h4>
     <p class="text-center text-secondary small mb-1" style="font-size: .78rem; font-weight: 500;"><?= defined('APP_FULL_NAME') ? APP_FULL_NAME : 'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi' ?></p>
