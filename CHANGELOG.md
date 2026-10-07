@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enhanced login interface (`login.php`) to showcase the official Indonesian full name and system subtitle.
   - Added full title tooltips to sidebar navigation brand link and modernized notification mailers (`X-Mailer: CENDANA-Mailer/1.9`, `CENDANA-SMTP/1.9`).
   - Updated executive reports, database schema backup headers, and CLI audit banners to dynamically use the new CENDANA identity.
+- **New CENDANA Tree Network Logo (`assets/img/logo.svg`, `icon.svg`)**:
+  - Designed custom vector emblem fusing the silhouette of the majestic Cendana tree with digital network topology (radiating Wi-Fi canopy arcs, branching data paths, and luminous leaf nodes).
+  - Adopted an organic emerald-to-cyber-blue gradient palette (`#10b981` to `#2563eb`) embodying nature, stability, and enterprise network connectivity.
 
 ---
 

@@ -94,12 +94,12 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             width: 32px; height: 32px; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
             border-radius: 8px; overflow: hidden;
-            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
             transition: transform .2s ease, box-shadow .2s ease;
         }
         .sidebar-brand:hover .brand-icon-wrap {
             transform: scale(1.06);
-            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.5);
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
         }
         .sidebar-brand .brand-icon-wrap img,
         .sidebar-brand .brand-icon-wrap svg {

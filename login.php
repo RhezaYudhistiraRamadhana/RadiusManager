@@ -61,7 +61,7 @@ $timeout = isset($_GET['timeout']);
                       border-radius: 12px; padding: 2.5rem;
                       box-shadow: 0 4px 24px rgba(0,0,0,.08); }
         .brand-logo-img { width: 58px; height: 58px; border-radius: 14px;
-                          box-shadow: 0 6px 18px rgba(37,99,235,.25); margin-bottom: 1rem; }
+                          box-shadow: 0 6px 20px rgba(16,185,129,.28), 0 3px 10px rgba(37,99,235,.22); margin-bottom: 1rem; }
         .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 .2rem rgba(37,99,235,.15); }
         .btn-login { background: #2563eb; border: none; width: 100%;
                      padding: .7rem; font-weight: 600; }
