@@ -1,5 +1,5 @@
 -- ============================================================
--- FreeRADIUS + RadiusManager Sample Schema & Seed Data
+-- FreeRADIUS + CENDANA Sample Schema & Seed Data
 -- Mirrors the production schema structure from radius.sql
 -- For testing and local development without loading full 2.35GB dump
 -- ============================================================

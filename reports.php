@@ -129,7 +129,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
     // Summary Section
-    fputcsv($out, ['RadiusManager Executive Report']);
+    fputcsv($out, [APP_NAME . ' Executive Report']);
     fputcsv($out, ['Reporting Period', "$dateFrom to $dateTo"]);
     fputcsv($out, ['Generated At', date('Y-m-d H:i:s')]);
     fputcsv($out, []);

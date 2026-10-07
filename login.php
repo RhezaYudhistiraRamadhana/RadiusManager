@@ -73,8 +73,9 @@ $timeout = isset($_GET['timeout']);
     <div class="text-center">
         <img src="assets/img/logo.svg" alt="<?= APP_NAME ?> Logo" class="brand-logo-img">
     </div>
-    <h5 class="text-center fw-bold mb-1"><?= APP_NAME ?></h5>
-    <p class="text-center text-muted small mb-4">FreeRADIUS Management System</p>
+    <h4 class="text-center fw-bold mb-1"><?= APP_NAME ?></h4>
+    <p class="text-center text-secondary small mb-1" style="font-size: .78rem; font-weight: 500;"><?= defined('APP_FULL_NAME') ? APP_FULL_NAME : 'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi' ?></p>
+    <p class="text-center text-muted mb-4" style="font-size: .7rem; letter-spacing: .06em; text-transform: uppercase;">FreeRADIUS Management &amp; Access Control</p>
 
     <?php if ($timeout): ?>
     <div class="alert alert-warning py-2 small">Session expired. Please login again.</div>

@@ -1,14 +1,15 @@
-# RadiusManager — Project Handover Document v3
+# CENDANA (Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi) — Project Handover Document v3
 
-**Version:** 1.9.4 → 2.x  
-**Date:** 6 October 2026  
-**Status:** Active Development — Phase 3 (Configurable Export System Complete, daloRADIUS Parity Complete, Group Navigation Complete)
+**Version:** 1.9.5 → 2.x  
+**Project Code:** CENDANA (formerly RadiusManager)  
+**Date:** 7 October 2026  
+**Status:** Active Development — Phase 3 (CENDANA Rebranding Complete, Configurable Export System Complete, daloRADIUS Parity Complete)
 
 ---
 
 ## Project Overview
 
-**RadiusManager** is a lightweight PHP web application for managing FreeRADIUS — built as a fast, clean replacement for daloRADIUS. As of v1.8.0 through v1.9.2, it has **achieved 100% full feature parity with daloRADIUS** (with modern additions including Ruijie Networks AP integration, an automated PDF/HTML User Guide generator, Subscriber Portal Email OTP password reset with IT email registration notices, full persistent database configuration in `rm_settings`, and disaster recovery schema exports). It is now proceeding through Phase 3: security hardening, notifications, and features that go beyond what daloRADIUS offers.
+**CENDANA** (**C**entral **E**valuasi **N**etwork, **D**irektori **A**kun, dan **N**avigasi **A**utentikasi; formerly *RadiusManager*) is a lightweight PHP web application for managing FreeRADIUS — built as a fast, clean replacement for daloRADIUS. As of v1.8.0 through v1.9.4, it has **achieved 100% full feature parity with daloRADIUS** (with modern additions including Ruijie Networks AP integration, an automated PDF/HTML User Guide generator, Subscriber Portal Email OTP password reset with IT email registration notices, full persistent database configuration in `rm_settings`, disaster recovery schema exports, and configurable CSV export modals). It is now proceeding through Phase 3: security hardening, notifications, and features that go beyond what daloRADIUS offers.
 
 Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.1.0 through v1.9.2)**.
 
@@ -47,6 +48,7 @@ Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.
 | 1.9.2 | 2026-10-02 | Gemini | Full daloRADIUS Config parity (rm_settings), Schema/Config/NAS export, Ruijie AP audit |
 | 1.9.3 | 2026-10-06 | Gemini | Rate plan subscriber navigation link fix, Group filter dropdown, stateful pagination |
 | 1.9.4 | 2026-10-06 | Gemini | Configurable CSV Export modal with field selection, scope filtering, delimiter choice, and multi-dataset downloads |
+| 1.9.5 | 2026-10-07 | Gemini | Official rebranding to CENDANA (Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi) |
 
 Full details in `CHANGELOG.md`.
 

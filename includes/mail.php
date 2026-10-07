@@ -1,6 +1,6 @@
 <?php
 /**
- * RadiusManager — Email Dispatcher & OTP Notification Service
+ * CENDANA — Email Dispatcher & OTP Notification Service
  * Supports pure-PHP Socket SMTP (TLS/SSL) and native PHP mail() transport.
  */
 
@@ -38,7 +38,7 @@ function sendMailMessage(string $to, string $subject, string $htmlBody, string $
     }
 
     $fromEmail = (function_exists('getSetting') && getSetting('mail_from')) ? getSetting('mail_from') : (defined('MAIL_FROM') && MAIL_FROM ? MAIL_FROM : 'noreply@' . ($_SERVER['SERVER_NAME'] ?? 'localhost'));
-    $fromName  = (function_exists('getSetting') && getSetting('mail_from_name')) ? getSetting('mail_from_name') : (defined('MAIL_FROM_NAME') && MAIL_FROM_NAME ? MAIL_FROM_NAME : (defined('APP_NAME') ? APP_NAME : 'RadiusManager'));
+    $fromName  = (function_exists('getSetting') && getSetting('mail_from_name')) ? getSetting('mail_from_name') : (defined('MAIL_FROM_NAME') && MAIL_FROM_NAME ? MAIL_FROM_NAME : (defined('APP_NAME') ? APP_NAME : 'CENDANA'));
 
     if (empty($textBody)) {
         $textBody = strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>'], "\n", $htmlBody));
@@ -62,7 +62,7 @@ function sendMailMessage(string $to, string $subject, string $htmlBody, string $
     $boundary = '=_rm_mime_' . md5((string)microtime(true));
     $headers  = "From: =?UTF-8?B?" . base64_encode($fromName) . "?= <$fromEmail>\r\n";
     $headers .= "Reply-To: $fromEmail\r\n";
-    $headers .= "X-Mailer: RadiusManager-Mailer/1.8\r\n";
+    $headers .= "X-Mailer: CENDANA-Mailer/1.9\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/alternative; boundary=\"$boundary\"\r\n";
 
@@ -214,7 +214,7 @@ function sendSocketSmtp(string $to, string $subject, string $htmlBody, string $t
     $headers .= "To: <$to>\r\n";
     $headers .= "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=\r\n";
     $headers .= "Date: " . date('r') . "\r\n";
-    $headers .= "X-Mailer: RadiusManager-SMTP/1.8\r\n";
+    $headers .= "X-Mailer: CENDANA-SMTP/1.9\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: multipart/alternative; boundary=\"$boundary\"\r\n";
 
@@ -258,7 +258,7 @@ function logMailEvent(string $status, string $to, string $subject, string $detai
  * Send Branded One-Time Password (OTP) Email for Self-Service Password Reset
  */
 function sendOtpEmail(string $toEmail, string $recipientName, string $otpCode): array {
-    $appName = defined('APP_NAME') ? APP_NAME : 'RadiusManager';
+    $appName = defined('APP_NAME') ? APP_NAME : 'CENDANA';
     $subject = "[$appName] One-Time Password (OTP) Verification Code";
 
     $html = <<<HTML

@@ -1,12 +1,14 @@
-# RadiusManager
+# CENDANA
+### Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi
+*(Formerly RadiusManager)*
 
-[![Version](https://img.shields.io/badge/version-1.9.4-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.9.5-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4.svg)](https://www.php.net/)
 [![FreeRADIUS](https://img.shields.io/badge/FreeRADIUS-2.x%20%7C%203.x-orange.svg)](https://freeradius.org/)
 [![Database](https://img.shields.io/badge/MySQL%20%2F%20MariaDB-Optimized-4479A1.svg)](https://www.mysql.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A modern, fast, and lightweight PHP web administration panel for **FreeRADIUS**, designed as a complete, high-performance replacement for **daloRADIUS**. Engineered specifically to handle high-density production enterprise networks with millions of accounting and authentication records in sub-second response times.
+**CENDANA** (**C**entral **E**valuasi **N**etwork, **D**irektori **A**kun, dan **N**avigasi **A**utentikasi) is a modern, fast, and lightweight PHP web administration panel for **FreeRADIUS**, designed as a complete, high-performance replacement for **daloRADIUS**. Engineered specifically to handle high-density production enterprise networks with millions of accounting and authentication records in sub-second response times.
 
 ---
 

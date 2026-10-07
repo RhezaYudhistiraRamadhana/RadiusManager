@@ -211,7 +211,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
 
 <!-- Sidebar -->
 <nav id="sidebar">
-    <a href="dashboard.php" class="sidebar-brand">
+    <a href="dashboard.php" class="sidebar-brand" title="<?= defined('APP_FULL_NAME') ? APP_FULL_NAME : 'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi' ?>">
         <div class="brand-icon-wrap">
             <img src="assets/img/logo.svg" alt="<?= APP_NAME ?> Logo" width="32" height="32">
         </div>

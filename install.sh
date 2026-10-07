@@ -1,6 +1,7 @@
 #!/bin/bash
 # ============================================================
-# RadiusManager — Auto Installer for Ubuntu/Debian
+# CENDANA — Auto Installer for Ubuntu/Debian
+# Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi
 # Usage: sudo bash install.sh
 # ============================================================
 set -e
@@ -15,7 +16,7 @@ error()   { echo -e "${RED}[ERR]${NC}  $1"; exit 1; }
 # ── Collect config ────────────────────────────────────────────────────────
 echo ""
 echo "============================================"
-echo "   RadiusManager Installer"
+echo "   CENDANA Installer"
 echo "============================================"
 echo ""
 
@@ -56,8 +57,10 @@ define('DB_PASS',     '$DB_PASS');
 define('DB_PORT',     '3306');
 
 // ─── App Configuration ────────────────────────────────────────────────────
-define('APP_NAME',       'RadiusManager');
-define('APP_VERSION',    '1.9.3');
+define('APP_NAME',       'CENDANA');
+define('APP_FULL_NAME',  'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi');
+define('APP_TAGLINE',    'FreeRADIUS Management & Access Control System');
+define('APP_VERSION',    '1.9.4');
 define('APP_ADMIN',      'admin');
 define('APP_PASS',       '$HASHED');
 define('ROWS_PER_PAGE',  20);
@@ -141,7 +144,7 @@ if [[ "$DO_SSL" == "y" || "$DO_SSL" == "Y" ]]; then
         openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
             -keyout /etc/ssl/private/radiusmanager.key \
             -out /etc/ssl/certs/radiusmanager.crt \
-            -subj "/CN=RadiusManager/O=RadiusManager"
+            -subj "/CN=CENDANA/O=CENDANA"
         a2enmod ssl
         a2ensite default-ssl
         PROTO="https"

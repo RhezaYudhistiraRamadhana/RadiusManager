@@ -356,7 +356,7 @@ require_once __DIR__ . '/includes/header.php';
                         <label class="form-label small fw-semibold text-secondary">Storage Backend</label>
                         <select name="target_table" class="form-select">
                             <option value="operators" selected>FreeRADIUS Operators Table (daloRADIUS compatible)</option>
-                            <option value="rm_admins">RadiusManager Admins Table (rm_admins)</option>
+                            <option value="rm_admins">CENDANA Admins Table (rm_admins)</option>
                         </select>
                     </div>
                 </div>

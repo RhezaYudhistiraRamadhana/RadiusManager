@@ -1,6 +1,7 @@
 <?php
 /**
- * RadiusManager — Core Bootstrap File
+ * CENDANA — Core Bootstrap File
+ * Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi
  * Loads configuration, database layer, authentication helpers, and utilities.
  */
 

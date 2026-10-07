@@ -281,7 +281,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // ── 9. Global Settings: Interface Settings ─────────────────────────────────
     if ($action === 'save_interface_settings') {
         requireRole('superadmin');
-        $appName     = trim($_POST['app_name'] ?? 'RadiusManager');
+        $appName     = trim($_POST['app_name'] ?? 'CENDANA');
         $rowsPerPage = max(5, min(200, (int)($_POST['rows_per_page'] ?? 20)));
         $dateFormat  = trim($_POST['date_format'] ?? 'Y-m-d H:i');
         $theme       = trim($_POST['default_theme'] ?? 'light');
@@ -392,7 +392,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $subject = '[' . APP_NAME . '] SMTP Configuration Verification';
             $html = '<div style="font-family:sans-serif;max-width:520px;margin:20px auto;padding:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;">'
                   . '<h2 style="color:#2563eb;margin-top:0;"><i style="font-style:normal;">&#x2705;</i> ' . htmlspecialchars(APP_NAME) . ' SMTP Test</h2>'
-                  . '<p style="color:#334155;font-size:14px;line-height:1.6;">Congratulations! Your mail transport configuration is functioning properly. RadiusManager can successfully dispatch system notifications and password reset OTPs.</p>'
+                  . '<p style="color:#334155;font-size:14px;line-height:1.6;">Congratulations! Your mail transport configuration is functioning properly. ' . htmlspecialchars(APP_NAME) . ' can successfully dispatch system notifications and password reset OTPs.</p>'
                   . '<div style="background:#f8fafc;padding:12px;border-radius:6px;font-size:12px;color:#64748b;margin-top:16px;">'
                   . '<strong>Sent at:</strong> ' . date('Y-m-d H:i:s') . '<br>'
                   . '<strong>Operator:</strong> ' . htmlspecialchars($currentUser) . '<br>'
@@ -1195,7 +1195,7 @@ include __DIR__ . '/includes/header.php';
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small fw-semibold">From Sender Name</label>
-                                    <input type="text" name="mail_from_name" class="form-control" placeholder="RadiusManager Security" value="<?= htmlspecialchars($cfg['mail_from_name'] ?? MAIL_FROM_NAME) ?>">
+                                    <input type="text" name="mail_from_name" class="form-control" placeholder="CENDANA Security" value="<?= htmlspecialchars($cfg['mail_from_name'] ?? MAIL_FROM_NAME) ?>">
                                 </div>
                             </div>
 
@@ -1560,7 +1560,7 @@ include __DIR__ . '/includes/header.php';
                             <div class="p-3 bg-light rounded-3 border d-flex align-items-center justify-content-between">
                                 <div>
                                     <h6 class="mb-1 fw-bold text-dark"><i class="bi bi-filetype-sql text-primary me-2"></i>Database Schema DDL (.sql)</h6>
-                                    <div class="text-muted" style="font-size: .78rem;">Full table structures for FreeRADIUS &amp; RadiusManager tables</div>
+                                    <div class="text-muted" style="font-size: .78rem;">Full table structures for FreeRADIUS &amp; CENDANA tables</div>
                                 </div>
                                 <a href="export.php?type=schema" class="btn btn-outline-primary btn-sm px-3">
                                     <i class="bi bi-download me-1"></i>Download SQL

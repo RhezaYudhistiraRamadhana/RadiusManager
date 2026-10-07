@@ -5,6 +5,18 @@ All notable changes to the **RadiusManager** project are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.5] - 2026-10-07
+
+### Added
+- **Official Project Rebranding to CENDANA (`config.php`, `login.php`, `header.php`, `settings.php`, `mail.php`)**:
+  - Adopted official Indonesian tree-based acronym branding: **CENDANA** (**C**entral **E**valuasi **N**etwork, **D**irektori **A**kun, dan **N**avigasi **A**utentikasi).
+  - Synchronized `APP_NAME`, `APP_FULL_NAME`, and `APP_TAGLINE` across all configuration templates (`config.php`, `config.sample.php`), system loaders, and installer scripts (`install.sh`).
+  - Enhanced login interface (`login.php`) to showcase the official Indonesian full name and system subtitle.
+  - Added full title tooltips to sidebar navigation brand link and modernized notification mailers (`X-Mailer: CENDANA-Mailer/1.9`, `CENDANA-SMTP/1.9`).
+  - Updated executive reports, database schema backup headers, and CLI audit banners to dynamically use the new CENDANA identity.
+
+---
+
 ## [1.9.4] - 2026-10-06
 
 ### Added

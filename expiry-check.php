@@ -127,7 +127,7 @@ usort($validUsers, fn($a, $b) => $a['timestamp'] <=> $b['timestamp']);
 // ── CLI / Cron Execution Mode ─────────────────────────────────────────────
 if ($isCli) {
     echo "====================================================\n";
-    echo "  RadiusManager Account Expiry Audit (CLI/Cron)\n";
+    echo "  " . APP_NAME . " Account Expiry Audit (CLI/Cron)\n";
     echo "====================================================\n";
     echo "Timestamp:      " . date('Y-m-d H:i:s') . "\n";
     echo "Warning Window: Next $warnDays days (until " . date('Y-m-d H:i:s', $warnHorizon) . ")\n\n";

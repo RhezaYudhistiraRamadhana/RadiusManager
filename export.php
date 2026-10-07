@@ -541,7 +541,7 @@ switch ($type) {
     // ══════════════════════════════════════════════════════════════════════
     case 'config':
         header('Content-Type: application/json; charset=utf-8');
-        header('Content-Disposition: attachment; filename="radiusmanager_config_' . $nowStr . '.json"');
+        header('Content-Disposition: attachment; filename="cendana_config_' . $nowStr . '.json"');
         header('Pragma: no-cache');
         header('Expires: 0');
 
@@ -569,7 +569,7 @@ switch ($type) {
         header('Expires: 0');
 
         echo "-- ============================================================\n";
-        echo "-- RadiusManager / FreeRADIUS Database Schema Backup\n";
+        echo "-- " . APP_NAME . " / FreeRADIUS Database Schema Backup\n";
         echo "-- Exported on: " . date('Y-m-d H:i:s') . "\n";
         echo "-- Database: " . DB_NAME . " @ " . DB_HOST . "\n";
         echo "-- ============================================================\n\n";
