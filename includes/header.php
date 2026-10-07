@@ -10,9 +10,19 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     <link rel="icon" type="image/svg+xml" href="assets/img/logo.svg?v=cendana_tree_<?= APP_VERSION ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script>
+        (function() {
+            try {
+                if (localStorage.getItem('cendana_sidebar_collapsed') === 'true') {
+                    document.documentElement.classList.add('sidebar-collapsed-preload');
+                }
+            } catch (e) {}
+        })();
+    </script>
     <style>
         :root {
             --sidebar-w: 240px;
+            --sidebar-collapsed-w: 68px;
             --primary: #2563eb;
             --primary-dark: #1d4ed8;
             --sidebar-bg: #1e293b;
@@ -61,7 +71,8 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         #sidebar {
             width: var(--sidebar-w); height: 100vh; position: fixed;
             top: 0; left: 0; background: var(--sidebar-bg);
-            overflow-y: auto; z-index: 1000; transition: .3s;
+            overflow-y: auto; overflow-x: hidden; z-index: 1000;
+            transition: width .2s cubic-bezier(0.4, 0, 0.2, 1), transform .3s ease;
             scrollbar-width: thin;
             scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
         }
@@ -135,7 +146,10 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         .sidebar-link i { font-size: 1rem; width: 1.2rem; }
 
         /* Main content */
-        #main { margin-left: var(--sidebar-w); min-height: 100vh; }
+        #main {
+            margin-left: var(--sidebar-w); min-height: 100vh;
+            transition: margin-left .2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
         #topbar {
             height: var(--topbar-h); background: #fff;
             border-bottom: 1px solid #e2e8f0;
@@ -200,14 +214,125 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         .page-header h4 { font-weight: 700; color: #1e293b; margin: 0; }
         .page-header p { color: #64748b; font-size: .875rem; margin: .2rem 0 0; }
 
+        /* Collapsed Sidebar (Minimized state) */
+        html.sidebar-collapsed-preload #sidebar,
+        body.sidebar-collapsed #sidebar {
+            width: var(--sidebar-collapsed-w);
+        }
+        html.sidebar-collapsed-preload #main,
+        body.sidebar-collapsed #main {
+            margin-left: var(--sidebar-collapsed-w);
+        }
+        html.sidebar-collapsed-preload .sidebar-brand,
+        body.sidebar-collapsed .sidebar-brand {
+            padding: 0.9rem 0;
+            justify-content: center;
+            gap: 0;
+        }
+        html.sidebar-collapsed-preload .sidebar-brand .brand-info,
+        body.sidebar-collapsed .sidebar-brand .brand-info {
+            display: none !important;
+        }
+        html.sidebar-collapsed-preload .sidebar-brand .brand-icon-wrap,
+        body.sidebar-collapsed .sidebar-brand .brand-icon-wrap {
+            width: 36px;
+            height: 36px;
+            margin: 0 auto;
+        }
+        html.sidebar-collapsed-preload .sidebar-section,
+        body.sidebar-collapsed .sidebar-section {
+            padding: 0;
+            margin: 0.6rem 0.8rem;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 0;
+            color: transparent;
+            overflow: hidden;
+            line-height: 0;
+        }
+        html.sidebar-collapsed-preload .sidebar-link,
+        body.sidebar-collapsed .sidebar-link {
+            justify-content: center;
+            padding: 0.75rem 0;
+            gap: 0;
+            border-left-width: 3px;
+        }
+        html.sidebar-collapsed-preload .sidebar-link .link-text,
+        body.sidebar-collapsed .sidebar-link .link-text {
+            display: none !important;
+        }
+        html.sidebar-collapsed-preload .sidebar-link i,
+        body.sidebar-collapsed .sidebar-link i {
+            font-size: 1.25rem;
+            width: auto;
+            margin: 0 auto;
+            text-align: center;
+        }
+        body.sidebar-collapsed #sidebarCollapseBtn i {
+            transform: rotate(180deg);
+        }
+
+        /* Tooltip styling for collapsed sidebar */
+        .sidebar-tooltip .tooltip-inner {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+        .sidebar-tooltip .tooltip-arrow::before {
+            border-right-color: #0f172a !important;
+        }
+        body:not(.sidebar-collapsed) .sidebar-tooltip {
+            display: none !important;
+        }
+
         @media (max-width: 768px) {
-            #sidebar { transform: translateX(-100%); }
+            #sidebar { transform: translateX(-100%); width: var(--sidebar-w) !important; }
             #sidebar.show { transform: translateX(0); }
-            #main { margin-left: 0; }
+            #main { margin-left: 0 !important; }
+            body.sidebar-collapsed #sidebar,
+            html.sidebar-collapsed-preload #sidebar { width: var(--sidebar-w) !important; }
+            body.sidebar-collapsed #main,
+            html.sidebar-collapsed-preload #main { margin-left: 0 !important; }
+            body.sidebar-collapsed .sidebar-brand .brand-info,
+            body.sidebar-collapsed .sidebar-link .link-text { display: inline !important; }
+            body.sidebar-collapsed .sidebar-section {
+                height: auto !important;
+                font-size: .65rem !important;
+                color: #64748b !important;
+                padding: .8rem 1.2rem .3rem !important;
+                margin: 0 !important;
+                background: transparent !important;
+            }
+            body.sidebar-collapsed .sidebar-brand {
+                justify-content: flex-start !important;
+                padding: 1rem 1.25rem !important;
+                gap: .75rem !important;
+            }
+            body.sidebar-collapsed .sidebar-link {
+                justify-content: flex-start !important;
+                padding: .6rem 1.5rem !important;
+                gap: .75rem !important;
+            }
+            body.sidebar-collapsed .sidebar-link i {
+                margin: 0 !important;
+                width: 1.2rem !important;
+                font-size: 1rem !important;
+            }
         }
     </style>
 </head>
 <body>
+<script>
+    if (document.documentElement.classList.contains('sidebar-collapsed-preload')) {
+        document.body.classList.add('sidebar-collapsed');
+        document.documentElement.classList.remove('sidebar-collapsed-preload');
+    }
+</script>
 
 <!-- Sidebar -->
 <nav id="sidebar">
@@ -229,67 +354,67 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     </a>
 
     <div class="sidebar-section">Main</div>
-    <a href="dashboard.php" class="sidebar-link <?= $current_page==='dashboard'?'active':'' ?>">
-        <i class="bi bi-speedometer2"></i> Dashboard
+    <a href="dashboard.php" class="sidebar-link <?= $current_page==='dashboard'?'active':'' ?>" title="Dashboard" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Dashboard">
+        <i class="bi bi-speedometer2"></i> <span class="link-text">Dashboard</span>
     </a>
 
     <div class="sidebar-section">RADIUS</div>
-    <a href="users.php" class="sidebar-link <?= $current_page==='users'||$current_page==='user-add'||$current_page==='user-edit'||$current_page==='user-import'?'active':'' ?>">
-        <i class="bi bi-people"></i> Users
+    <a href="users.php" class="sidebar-link <?= in_array($current_page, ['users','user-add','user-edit','user-import','user-batch'])?'active':'' ?>" title="Users" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Users">
+        <i class="bi bi-people"></i> <span class="link-text">Users</span>
     </a>
-    <a href="groups.php" class="sidebar-link <?= $current_page==='groups'?'active':'' ?>">
-        <i class="bi bi-collection"></i> Groups
+    <a href="groups.php" class="sidebar-link <?= $current_page==='groups'?'active':'' ?>" title="Groups" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Groups">
+        <i class="bi bi-collection"></i> <span class="link-text">Groups</span>
     </a>
-    <a href="plans.php" class="sidebar-link <?= $current_page==='plans'?'active':'' ?>">
-        <i class="bi bi-speedometer"></i> Rate Plans
+    <a href="plans.php" class="sidebar-link <?= in_array($current_page, ['plans','plan-add','plan-edit'])?'active':'' ?>" title="Rate Plans" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Rate Plans">
+        <i class="bi bi-speedometer"></i> <span class="link-text">Rate Plans</span>
     </a>
-    <a href="nas.php" class="sidebar-link <?= $current_page==='nas'||$current_page==='nas-add'||$current_page==='nas-edit'?'active':'' ?>">
-        <i class="bi bi-hdd-network"></i> NAS Devices
+    <a href="nas.php" class="sidebar-link <?= in_array($current_page, ['nas','nas-add','nas-edit'])?'active':'' ?>" title="NAS Devices" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="NAS Devices">
+        <i class="bi bi-hdd-network"></i> <span class="link-text">NAS Devices</span>
     </a>
     <?php if (dbTableExists('radippool')): ?>
-    <a href="ippool.php" class="sidebar-link <?= $current_page==='ippool'?'active':'' ?>">
-        <i class="bi bi-diagram-3"></i> IP Pools
+    <a href="ippool.php" class="sidebar-link <?= $current_page==='ippool'?'active':'' ?>" title="IP Pools" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="IP Pools">
+        <i class="bi bi-diagram-3"></i> <span class="link-text">IP Pools</span>
     </a>
     <?php endif; ?>
-    <a href="expiry-check.php" class="sidebar-link <?= $current_page==='expiry-check'?'active':'' ?>">
-        <i class="bi bi-hourglass-split"></i> Expiry Warnings
+    <a href="expiry-check.php" class="sidebar-link <?= $current_page==='expiry-check'?'active':'' ?>" title="Expiry Warnings" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Expiry Warnings">
+        <i class="bi bi-hourglass-split"></i> <span class="link-text">Expiry Warnings</span>
     </a>
-    <a href="vouchers.php" class="sidebar-link <?= $current_page==='vouchers'||$current_page==='voucher-generate'?'active':'' ?>">
-        <i class="bi bi-ticket-perforated"></i> Vouchers & Hotspot
+    <a href="vouchers.php" class="sidebar-link <?= in_array($current_page, ['vouchers','voucher-generate'])?'active':'' ?>" title="Vouchers & Hotspot" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Vouchers & Hotspot">
+        <i class="bi bi-ticket-perforated"></i> <span class="link-text">Vouchers & Hotspot</span>
     </a>
 
     <div class="sidebar-section">Reporting</div>
-    <a href="reports.php" class="sidebar-link <?= $current_page==='reports'?'active':'' ?>">
-        <i class="bi bi-file-earmark-bar-graph"></i> Reports
+    <a href="reports.php" class="sidebar-link <?= $current_page==='reports'?'active':'' ?>" title="Reports" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Reports">
+        <i class="bi bi-file-earmark-bar-graph"></i> <span class="link-text">Reports</span>
     </a>
-    <a href="accounting.php" class="sidebar-link <?= $current_page==='accounting'?'active':'' ?>">
-        <i class="bi bi-clock-history"></i> Accounting
+    <a href="accounting.php" class="sidebar-link <?= $current_page==='accounting'?'active':'' ?>" title="Accounting" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Accounting">
+        <i class="bi bi-clock-history"></i> <span class="link-text">Accounting</span>
     </a>
-    <a href="sessions.php" class="sidebar-link <?= $current_page==='sessions'?'active':'' ?>">
-        <i class="bi bi-activity"></i> Active Sessions
+    <a href="sessions.php" class="sidebar-link <?= $current_page==='sessions'?'active':'' ?>" title="Active Sessions" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Active Sessions">
+        <i class="bi bi-activity"></i> <span class="link-text">Active Sessions</span>
     </a>
-    <a href="postauth.php" class="sidebar-link <?= $current_page==='postauth'?'active':'' ?>">
-        <i class="bi bi-shield-check"></i> Auth Log
+    <a href="postauth.php" class="sidebar-link <?= $current_page==='postauth'?'active':'' ?>" title="Auth Log" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Auth Log">
+        <i class="bi bi-shield-check"></i> <span class="link-text">Auth Log</span>
     </a>
 
     <div class="sidebar-section">System</div>
-    <a href="settings.php" class="sidebar-link <?= $current_page==='settings'?'active':'' ?>">
-        <i class="bi bi-sliders"></i> Configuration
+    <a href="settings.php" class="sidebar-link <?= $current_page==='settings'?'active':'' ?>" title="Configuration" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Configuration">
+        <i class="bi bi-sliders"></i> <span class="link-text">Configuration</span>
     </a>
     <?php if (hasRole('superadmin')): ?>
-    <a href="operators.php" class="sidebar-link <?= $current_page==='operators'?'active':'' ?>">
-        <i class="bi bi-person-badge"></i> Operators & RBAC
+    <a href="operators.php" class="sidebar-link <?= $current_page==='operators'?'active':'' ?>" title="Operators & RBAC" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Operators & RBAC">
+        <i class="bi bi-person-badge"></i> <span class="link-text">Operators & RBAC</span>
     </a>
-    <a href="audit.php" class="sidebar-link <?= $current_page==='audit'?'active':'' ?>">
-        <i class="bi bi-journal-text"></i> Audit Log
+    <a href="audit.php" class="sidebar-link <?= $current_page==='audit'?'active':'' ?>" title="Audit Log" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Audit Log">
+        <i class="bi bi-journal-text"></i> <span class="link-text">Audit Log</span>
     </a>
     <?php endif; ?>
     <div class="sidebar-section">Documentation</div>
-    <a href="docs/RadiusManager_User_Guide.pdf" target="_blank" class="sidebar-link">
-        <i class="bi bi-file-earmark-pdf text-danger"></i> User Manual (PDF)
+    <a href="docs/RadiusManager_User_Guide.pdf" target="_blank" class="sidebar-link" title="User Manual (PDF)" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="User Manual (PDF)">
+        <i class="bi bi-file-earmark-pdf text-danger"></i> <span class="link-text">User Manual (PDF)</span>
     </a>
-    <a href="logout.php" class="sidebar-link text-danger">
-        <i class="bi bi-box-arrow-left"></i> Logout
+    <a href="logout.php" class="sidebar-link text-danger" title="Logout" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Logout">
+        <i class="bi bi-box-arrow-left"></i> <span class="link-text">Logout</span>
     </a>
 </nav>
 
@@ -297,7 +422,14 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
 <div id="main">
     <!-- Topbar -->
     <div id="topbar">
-        <button class="btn btn-sm btn-light d-md-none me-3" onclick="document.getElementById('sidebar').classList.toggle('show')">
+        <!-- Desktop Sidebar Collapse Toggle Button -->
+        <button id="sidebarCollapseBtn" class="btn btn-sm btn-light border me-2 d-none d-md-inline-flex align-items-center justify-content-center shadow-none" 
+                title="Minimize / Expand Sidebar" aria-label="Toggle Sidebar"
+                style="width: 34px; height: 34px; border-radius: 8px; color: #475569; transition: all .15s ease;">
+            <i class="bi bi-layout-sidebar-inset fs-6" style="transition: transform .2s ease;"></i>
+        </button>
+        <!-- Mobile Sidebar Toggle -->
+        <button class="btn btn-sm btn-light border d-md-none me-2" onclick="document.getElementById('sidebar').classList.toggle('show')" aria-label="Toggle Mobile Menu" style="width: 34px; height: 34px; border-radius: 8px;">
             <i class="bi bi-list fs-5"></i>
         </button>
         <span class="text-muted small"><i class="bi bi-circle-fill text-success me-1" style="font-size:.5rem"></i>Connected to FreeRADIUS</span>
