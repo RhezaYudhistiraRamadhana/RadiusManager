@@ -291,5 +291,22 @@ include __DIR__ . '/includes/header.php';
 .hover-shadow:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.06); }
 </style>
 
-<?php include __DIR__ . '/includes/footer.php'; ?>
+<?php
+$extra_js = '<script>
+(function() {
+    // Instant responsive feedback when clicking dashboard CTA buttons
+    document.querySelectorAll(\'a[href*="dashboard.php"]\').forEach(function(link) {
+        link.addEventListener("click", function(e) {
+            var icon = this.querySelector("i");
+            if (icon && !this.classList.contains("disabled")) {
+                icon.className = "spinner-border spinner-border-sm me-1";
+                icon.style.display = "inline-block";
+            }
+        });
+    });
+})();
+</script>';
+include __DIR__ . '/includes/footer.php';
+?>
+
 

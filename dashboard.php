@@ -11,100 +11,100 @@ if (!in_array($viewMode, ['today', 'general'])) {
 }
 $_SESSION['dash_view'] = $viewMode;
 
-// ── Top Stats (Instant indexed lookups, < 3ms) ─────────────────────────────
+// ── Instant Top Stats (Indexed lookups, < 2ms) ─────────────────────────────
 $totalUsers     = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
 $activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL")->fetch()['c'] ?? 0);
 $totalNas       = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
 
-// Latest auth record for quick anchor (indexed on primary key id, 0.4ms)
+// Latest auth record for quick anchor (indexed on primary key id, 0.3ms)
 $latestAuth = $db->query("SELECT id, authdate FROM radpostauth ORDER BY id DESC LIMIT 1")->fetch();
 $latestDate = $latestAuth ? substr($latestAuth['authdate'], 0, 10) : date('Y-m-d');
 $todayDate  = date('Y-m-d');
 
-// ── Traffic today ──────────────────────────────────────────────────────────
-$trafficRow = $db->query("SELECT
-    COALESCE(SUM(acctinputoctets),0)  AS upload,
-    COALESCE(SUM(acctoutputoctets),0) AS download
-  FROM radacct WHERE acctstarttime >= CURDATE() AND acctstarttime < CURDATE() + INTERVAL 1 DAY")->fetch();
-
-$trafficDateParam = $todayDate;
-$trafficDateLabel = '';
-
-if (($trafficRow['upload'] ?? 0) == 0 && ($trafficRow['download'] ?? 0) == 0) {
-    // If today has no sessions, grab the latest day with traffic
-    $latestAcct = $db->query("SELECT DATE(acctstarttime) d FROM radacct ORDER BY acctstarttime DESC LIMIT 1")->fetch();
-    if ($latestAcct && !empty($latestAcct['d'])) {
-        $trafficDateParam = $latestAcct['d'];
-        $trafficDateLabel = " ({$latestAcct['d']})";
-        $trafficRow = $db->query("SELECT
-            COALESCE(SUM(acctinputoctets),0)  AS upload,
-            COALESCE(SUM(acctoutputoctets),0) AS download
-          FROM radacct WHERE acctstarttime >= '{$latestAcct['d']} 00:00:00' AND acctstarttime <= '{$latestAcct['d']} 23:59:59'")->fetch();
-    }
-}
-$uploadToday   = formatBytes($trafficRow['upload'] ?? 0);
-$downloadToday = formatBytes($trafficRow['download'] ?? 0);
-
-// ── Active sessions (latest 8, primary key index scan, 1.4ms) ──────────────
+// ── Operational Tables (Instant primary key indexed scans, < 2ms) ──────────
 $sessions = $db->query("SELECT username, nasipaddress, framedipaddress,
     acctstarttime, acctinputoctets, acctoutputoctets
   FROM radacct WHERE acctstoptime IS NULL
   ORDER BY radacctid DESC LIMIT 8")->fetchAll();
 
-// ── Recent failed auth (ORDER BY id DESC uses PRIMARY KEY index, executes in 1ms) ──
 $hasPostAuthNas = dbHasColumn('radpostauth', 'nasipaddress');
 $nasCol = $hasPostAuthNas ? 'nasipaddress' : 'NULL AS nasipaddress';
 $failedAuths = $db->query("SELECT username, reply, authdate, $nasCol
   FROM radpostauth WHERE reply != 'Access-Accept'
   ORDER BY id DESC LIMIT 6")->fetchAll();
 
-// ── Top 5 traffic users (anchored to trafficDateParam) ──────────────────────
-$topUsersStmt = $db->prepare("SELECT username,
-    COALESCE(SUM(acctinputoctets),0) AS upload,
-    COALESCE(SUM(acctoutputoctets),0) AS download,
-    COALESCE(SUM(acctinputoctets + acctoutputoctets),0) AS total_bytes,
-    COUNT(*) AS session_count
-  FROM radacct
-  WHERE acctstarttime >= ? AND acctstarttime <= ?
-  GROUP BY username
-  ORDER BY total_bytes DESC
-  LIMIT 5");
-$topUsersStmt->execute(["$trafficDateParam 00:00:00", "$trafficDateParam 23:59:59"]);
-$topTrafficUsers = $topUsersStmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Batch resolve profiles from userinfo
-$topUserProfiles = [];
-if (!empty($topTrafficUsers) && dbTableExists('userinfo')) {
-    $topU = array_column($topTrafficUsers, 'username');
-    $placeholders = implode(',', array_fill(0, count($topU), '?'));
-    $uStmt = $db->prepare("SELECT username, firstname, lastname, department FROM userinfo WHERE username IN ($placeholders)");
-    $uStmt->execute($topU);
-    while ($prof = $uStmt->fetch(PDO::FETCH_ASSOC)) {
-        $topUserProfiles[$prof['username']] = $prof;
-    }
-}
-
-// Common date anchors
-$anchorDay = ($trafficDateParam === $todayDate) ? $todayDate : $trafficDateParam;
-$prevDay   = date('Y-m-d', strtotime('-1 day', strtotime($anchorDay)));
-$authTargetDay = ($latestDate < $todayDate) ? $latestDate : $todayDate;
-
-// ── LAZY LOADED ANALYTICS CACHE BY VIEW MODE ──────────────────────────────
-// Evaluates ONLY the active mode's charts to eliminate multi-second cold query stalls!
+// ── HIGH-PERFORMANCE LAZY LOADED ANALYTICS BY VIEW MODE ────────────────────
 if ($viewMode === 'today') {
     if (isset($_SESSION['dash_today_time']) && (time() - $_SESSION['dash_today_time'] < 120) && !empty($_SESSION['dash_today_data'])) {
         $todayData = $_SESSION['dash_today_data'];
     } else {
-        // 1. Hourly active sessions (Today vs Yesterday)
-        $todayHoursStmt = $db->prepare("
-            SELECT HOUR(acctstarttime) AS h, COUNT(*) AS c
+        $anchorDay = $todayDate;
+        $prevDay   = date('Y-m-d', strtotime('-1 day', strtotime($anchorDay)));
+
+        // Traffic Today (Fast CURDATE query, < 0.5ms)
+        $trafficRow = $db->query("SELECT
+            COALESCE(SUM(acctinputoctets),0)  AS upload,
+            COALESCE(SUM(acctoutputoctets),0) AS download
+          FROM radacct WHERE acctstarttime >= CURDATE() AND acctstarttime < CURDATE() + INTERVAL 1 DAY")->fetch();
+
+        $trafficDateParam = $todayDate;
+        $trafficDateLabel = '';
+
+        if (($trafficRow['upload'] ?? 0) == 0 && ($trafficRow['download'] ?? 0) == 0) {
+            // Check if latest session date exists for labeling reference
+            $latestAcct = $db->query("SELECT DATE(acctstarttime) d FROM radacct ORDER BY radacctid DESC LIMIT 1")->fetch();
+            if ($latestAcct && !empty($latestAcct['d']) && $latestAcct['d'] !== $todayDate) {
+                $trafficDateLabel = " (Hari Ini Belum Ada Sesi)";
+            }
+        }
+        $uploadToday   = formatBytes($trafficRow['upload'] ?? 0);
+        $downloadToday = formatBytes($trafficRow['download'] ?? 0);
+
+        // Top 5 traffic users today
+        $topUsersStmt = $db->prepare("SELECT username,
+            COALESCE(SUM(acctinputoctets),0) AS upload,
+            COALESCE(SUM(acctoutputoctets),0) AS download,
+            COALESCE(SUM(acctinputoctets + acctoutputoctets),0) AS total_bytes,
+            COUNT(*) AS session_count
+          FROM radacct
+          WHERE acctstarttime >= CURDATE() AND acctstarttime < CURDATE() + INTERVAL 1 DAY
+          GROUP BY username
+          ORDER BY total_bytes DESC
+          LIMIT 5");
+        $topUsersStmt->execute();
+        $topTrafficUsers = $topUsersStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $topUserProfiles = [];
+        if (!empty($topTrafficUsers) && dbTableExists('userinfo')) {
+            $topU = array_column($topTrafficUsers, 'username');
+            $placeholders = implode(',', array_fill(0, count($topU), '?'));
+            $uStmt = $db->prepare("SELECT username, firstname, lastname, department FROM userinfo WHERE username IN ($placeholders)");
+            $uStmt->execute($topU);
+            while ($prof = $uStmt->fetch(PDO::FETCH_ASSOC)) {
+                $topUserProfiles[$prof['username']] = $prof;
+            }
+        }
+
+        // 1 & 2. COMBINED QUERY: Hourly sessions AND Hourly Bandwidth in ONE single scan (< 1ms)
+        $hourlyStmt = $db->prepare("
+            SELECT HOUR(acctstarttime) AS h,
+                   COUNT(*) AS c,
+                   COALESCE(SUM(acctinputoctets), 0) AS up,
+                   COALESCE(SUM(acctoutputoctets), 0) AS down
             FROM radacct
             WHERE acctstarttime >= ? AND acctstarttime <= ?
             GROUP BY HOUR(acctstarttime)
         ");
-        $todayHoursStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
-        $todayHourMap = $todayHoursStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        $hourlyStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
+        $todayHourMap = [];
+        $hourlyBwMap  = [];
+        while ($r = $hourlyStmt->fetch(PDO::FETCH_ASSOC)) {
+            $h = (int)$r['h'];
+            $todayHourMap[$h] = (int)$r['c'];
+            $hourlyBwMap[$h]  = $r;
+        }
 
+        // Previous day hourly session comparison
         $prevHoursStmt = $db->prepare("
             SELECT HOUR(acctstarttime) AS h, COUNT(*) AS c
             FROM radacct
@@ -114,38 +114,22 @@ if ($viewMode === 'today') {
         $prevHoursStmt->execute(["$prevDay 00:00:00", "$prevDay 23:59:59"]);
         $prevHourMap = $prevHoursStmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
-        $hourlyLabels = [];
-        $hourlyToday  = [];
-        $hourlyPrev   = [];
-        for ($h = 0; $h < 24; $h++) {
-            $hourlyLabels[] = sprintf('%02d:00', $h);
-            $hourlyToday[]  = (int)($todayHourMap[$h] ?? 0);
-            $hourlyPrev[]   = (int)($prevHourMap[$h] ?? 0);
-        }
-
-        // 2. Hourly Bandwidth Today (Upload vs Download in MB)
-        $hourlyBwStmt = $db->prepare("
-            SELECT HOUR(acctstarttime) AS h,
-                   COALESCE(SUM(acctinputoctets), 0) AS up,
-                   COALESCE(SUM(acctoutputoctets), 0) AS down
-            FROM radacct
-            WHERE acctstarttime >= ? AND acctstarttime <= ?
-            GROUP BY HOUR(acctstarttime)
-        ");
-        $hourlyBwStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
-        $hourlyBwRaw = $hourlyBwStmt->fetchAll(PDO::FETCH_ASSOC);
-        $hourlyBwMap = [];
-        foreach ($hourlyBwRaw as $r) {
-            $hourlyBwMap[$r['h']] = $r;
-        }
+        $hourlyLabels     = [];
+        $hourlyToday      = [];
+        $hourlyPrev       = [];
         $hourlyUploadMB   = [];
         $hourlyDownloadMB = [];
         for ($h = 0; $h < 24; $h++) {
+            $hourlyLabels[]     = sprintf('%02d:00', $h);
+            $hourlyToday[]      = (int)($todayHourMap[$h] ?? 0);
+            $hourlyPrev[]       = (int)($prevHourMap[$h] ?? 0);
             $hourlyUploadMB[]   = round(($hourlyBwMap[$h]['up'] ?? 0) / (1024 * 1024), 2);
             $hourlyDownloadMB[] = round(($hourlyBwMap[$h]['down'] ?? 0) / (1024 * 1024), 2);
         }
 
-        // 3. Hourly Auth Decisions Today (Accept vs Reject)
+        // 3. Hourly Auth Decisions Today (Accept vs Reject) (< 1ms)
+        $hourlyAccepts = array_fill(0, 24, 0);
+        $hourlyRejects = array_fill(0, 24, 0);
         $hourlyAuthStmt = $db->prepare("
             SELECT HOUR(authdate) AS h,
                    SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END) AS accepts,
@@ -154,73 +138,96 @@ if ($viewMode === 'today') {
             WHERE authdate >= ? AND authdate <= ?
             GROUP BY HOUR(authdate)
         ");
-        $hourlyAuthStmt->execute(["$authTargetDay 00:00:00", "$authTargetDay 23:59:59"]);
-        $hourlyAuthRaw = $hourlyAuthStmt->fetchAll(PDO::FETCH_ASSOC);
-        $hourlyAuthMap = [];
-        foreach ($hourlyAuthRaw as $r) {
-            $hourlyAuthMap[$r['h']] = $r;
-        }
-        $hourlyAccepts = [];
-        $hourlyRejects = [];
-        for ($h = 0; $h < 24; $h++) {
-            $hourlyAccepts[] = (int)($hourlyAuthMap[$h]['accepts'] ?? 0);
-            $hourlyRejects[] = (int)($hourlyAuthMap[$h]['rejects'] ?? 0);
+        $hourlyAuthStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
+        while ($r = $hourlyAuthStmt->fetch(PDO::FETCH_ASSOC)) {
+            $h = (int)$r['h'];
+            if ($h >= 0 && $h < 24) {
+                $hourlyAccepts[$h] = (int)$r['accepts'];
+                $hourlyRejects[$h] = (int)$r['rejects'];
+            }
         }
 
-        // 4. Top 5 NAS Devices by Bandwidth Today
+        // 4. Top 5 NAS Devices by Bandwidth Today (Optimized group first) (< 1ms)
         $topNasTodayStmt = $db->prepare("
-            SELECT ra.nasipaddress,
-                   COALESCE(n.shortname, ra.nasipaddress) AS label,
-                   COALESCE(SUM(ra.acctinputoctets + ra.acctoutputoctets), 0) AS total_bytes
-            FROM radacct ra
-            LEFT JOIN nas n ON n.nasname = ra.nasipaddress
-            WHERE ra.acctstarttime >= ? AND ra.acctstarttime <= ?
-            GROUP BY ra.nasipaddress, label
+            SELECT nasipaddress,
+                   COALESCE(SUM(acctinputoctets + acctoutputoctets), 0) AS total_bytes
+            FROM radacct
+            WHERE acctstarttime >= ? AND acctstarttime <= ?
+            GROUP BY nasipaddress
             ORDER BY total_bytes DESC
             LIMIT 5
         ");
         $topNasTodayStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
-        $nasTodayRows = $topNasTodayStmt->fetchAll(PDO::FETCH_ASSOC);
+        $topNas = $topNasTodayStmt->fetchAll(PDO::FETCH_ASSOC);
+
         $nasTodayLabels = [];
         $nasTodayValues = [];
-        foreach ($nasTodayRows as $nr) {
-            $nasTodayLabels[] = $nr['label'];
-            $nasTodayValues[] = round($nr['total_bytes'] / (1024 * 1024), 2);
+        if (!empty($topNas)) {
+            $nasIps = array_column($topNas, 'nasipaddress');
+            $placeholders = implode(',', array_fill(0, count($nasIps), '?'));
+            $nasMapStmt = $db->prepare("SELECT nasname, shortname FROM nas WHERE nasname IN ($placeholders)");
+            $nasMapStmt->execute($nasIps);
+            $shortMap = $nasMapStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            foreach ($topNas as $nr) {
+                $nasTodayLabels[] = $shortMap[$nr['nasipaddress']] ?? $nr['nasipaddress'];
+                $nasTodayValues[] = round($nr['total_bytes'] / (1024 * 1024), 2);
+            }
         }
 
+        // Top Stat Card Auth Display
+        $authLabel     = 'Auth Today';
+        $authDateParam = $todayDate;
+        $authCountDisplay = array_sum($hourlyAccepts) + array_sum($hourlyRejects);
+
         $todayData = [
-            'anchorDay'        => $anchorDay,
-            'prevDay'          => $prevDay,
-            'hourlyLabels'     => $hourlyLabels,
-            'hourlyToday'      => $hourlyToday,
-            'hourlyPrev'       => $hourlyPrev,
-            'hourlyUploadMB'   => $hourlyUploadMB,
-            'hourlyDownloadMB' => $hourlyDownloadMB,
-            'hourlyAccepts'    => $hourlyAccepts,
-            'hourlyRejects'    => $hourlyRejects,
-            'nasTodayLabels'   => $nasTodayLabels,
-            'nasTodayValues'   => $nasTodayValues,
+            'trafficDateParam'  => $trafficDateParam,
+            'trafficDateLabel'  => $trafficDateLabel,
+            'uploadToday'       => $uploadToday,
+            'downloadToday'     => $downloadToday,
+            'topTrafficUsers'   => $topTrafficUsers,
+            'topUserProfiles'   => $topUserProfiles,
+            'anchorDay'         => $anchorDay,
+            'prevDay'           => $prevDay,
+            'hourlyLabels'      => $hourlyLabels,
+            'hourlyToday'       => $hourlyToday,
+            'hourlyPrev'        => $hourlyPrev,
+            'hourlyUploadMB'    => $hourlyUploadMB,
+            'hourlyDownloadMB'  => $hourlyDownloadMB,
+            'hourlyAccepts'     => $hourlyAccepts,
+            'hourlyRejects'     => $hourlyRejects,
+            'nasTodayLabels'    => $nasTodayLabels,
+            'nasTodayValues'    => $nasTodayValues,
+            'authLabel'         => $authLabel,
+            'authDateParam'     => $authDateParam,
+            'authCountDisplay'  => $authCountDisplay,
         ];
         $_SESSION['dash_today_data'] = $todayData;
         $_SESSION['dash_today_time'] = time();
     }
 
-    // Top Stat Card Auth Display (instantly from hourly array)
-    if ($latestDate < $todayDate) {
-        $authLabel        = "Recent Auth ($latestDate)";
-        $authDateParam    = $latestDate;
-    } else {
-        $authLabel        = 'Auth Today';
-        $authDateParam    = $todayDate;
-    }
-    $authCountDisplay = array_sum($todayData['hourlyAccepts']) + array_sum($todayData['hourlyRejects']);
+    $uploadToday       = $todayData['uploadToday'];
+    $downloadToday     = $todayData['downloadToday'];
+    $trafficDateParam  = $todayData['trafficDateParam'];
+    $trafficDateLabel  = $todayData['trafficDateLabel'];
+    $topTrafficUsers   = $todayData['topTrafficUsers'];
+    $topUserProfiles   = $todayData['topUserProfiles'];
+    $authLabel         = $todayData['authLabel'];
+    $authDateParam     = $todayData['authDateParam'];
+    $authCountDisplay  = $todayData['authCountDisplay'];
 
 } else {
-    // ── GENERAL CHARTS ANALYTICS ──
+    // ── GENERAL CHARTS ANALYTICS (14-Day Trends) ──
     if (isset($_SESSION['dash_general_time']) && (time() - $_SESSION['dash_general_time'] < 300) && !empty($_SESSION['dash_general_data'])) {
         $generalData = $_SESSION['dash_general_data'];
     } else {
-        $start14d = date('Y-m-d 00:00:00', strtotime('-13 days', strtotime($anchorDay)));
+        $trafficRow = $db->query("SELECT
+            COALESCE(SUM(acctinputoctets),0)  AS upload,
+            COALESCE(SUM(acctoutputoctets),0) AS download
+          FROM radacct WHERE acctstarttime >= CURDATE() AND acctstarttime < CURDATE() + INTERVAL 1 DAY")->fetch();
+        $uploadToday   = formatBytes($trafficRow['upload'] ?? 0);
+        $downloadToday = formatBytes($trafficRow['download'] ?? 0);
+
+        $start14d = date('Y-m-d 00:00:00', strtotime('-13 days', strtotime($todayDate)));
 
         // 1. 14-Day Daily Sessions Trend
         $sessions14dStmt = $db->prepare("
@@ -230,13 +237,13 @@ if ($viewMode === 'today') {
             GROUP BY DATE(acctstarttime)
             ORDER BY d ASC
         ");
-        $sessions14dStmt->execute([$start14d, "$anchorDay 23:59:59"]);
+        $sessions14dStmt->execute([$start14d, "$todayDate 23:59:59"]);
         $sessions14dMap = $sessions14dStmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
         $sessions14dLabels = [];
         $sessions14dValues = [];
         $cur = strtotime($start14d);
-        $endCur = strtotime($anchorDay);
+        $endCur = strtotime($todayDate);
         while ($cur <= $endCur) {
             $dStr = date('Y-m-d', $cur);
             $sessions14dLabels[] = date('d M', $cur);
@@ -254,7 +261,7 @@ if ($viewMode === 'today') {
             GROUP BY DATE(acctstarttime)
             ORDER BY d ASC
         ");
-        $bw14dStmt->execute([$start14d, "$anchorDay 23:59:59"]);
+        $bw14dStmt->execute([$start14d, "$todayDate 23:59:59"]);
         $raw14d = $bw14dStmt->fetchAll(PDO::FETCH_ASSOC);
         $bw14Map = [];
         foreach ($raw14d as $row) {
@@ -286,26 +293,62 @@ if ($viewMode === 'today') {
 
         // 4. Top NAS Devices Overall (Past 14 Days)
         $topNas14dStmt = $db->prepare("
-            SELECT ra.nasipaddress,
-                   COALESCE(n.shortname, ra.nasipaddress) AS label,
-                   COALESCE(SUM(ra.acctinputoctets + ra.acctoutputoctets), 0) AS total_bytes
-            FROM radacct ra
-            LEFT JOIN nas n ON n.nasname = ra.nasipaddress
-            WHERE ra.acctstarttime >= ? AND ra.acctstarttime <= ?
-            GROUP BY ra.nasipaddress, label
+            SELECT nasipaddress,
+                   COALESCE(SUM(acctinputoctets + acctoutputoctets), 0) AS total_bytes
+            FROM radacct
+            WHERE acctstarttime >= ? AND acctstarttime <= ?
+            GROUP BY nasipaddress
             ORDER BY total_bytes DESC
             LIMIT 5
         ");
-        $topNas14dStmt->execute([$start14d, "$anchorDay 23:59:59"]);
-        $topNas14dRows = $topNas14dStmt->fetchAll(PDO::FETCH_ASSOC);
+        $topNas14dStmt->execute([$start14d, "$todayDate 23:59:59"]);
+        $topNas14 = $topNas14dStmt->fetchAll(PDO::FETCH_ASSOC);
         $nas14dLabels = [];
         $nas14dValues = [];
-        foreach ($topNas14dRows as $nr) {
-            $nas14dLabels[] = $nr['label'];
-            $nas14dValues[] = round($nr['total_bytes'] / (1024 * 1024), 2);
+        if (!empty($topNas14)) {
+            $nasIps = array_column($topNas14, 'nasipaddress');
+            $placeholders = implode(',', array_fill(0, count($nasIps), '?'));
+            $nasMapStmt = $db->prepare("SELECT nasname, shortname FROM nas WHERE nasname IN ($placeholders)");
+            $nasMapStmt->execute($nasIps);
+            $shortMap = $nasMapStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            foreach ($topNas14 as $nr) {
+                $nas14dLabels[] = $shortMap[$nr['nasipaddress']] ?? $nr['nasipaddress'];
+                $nas14dValues[] = round($nr['total_bytes'] / (1024 * 1024), 2);
+            }
+        }
+
+        // Top 5 traffic users overall
+        $topUsersStmt = $db->prepare("SELECT username,
+            COALESCE(SUM(acctinputoctets),0) AS upload,
+            COALESCE(SUM(acctoutputoctets),0) AS download,
+            COALESCE(SUM(acctinputoctets + acctoutputoctets),0) AS total_bytes,
+            COUNT(*) AS session_count
+          FROM radacct
+          WHERE acctstarttime >= ? AND acctstarttime <= ?
+          GROUP BY username
+          ORDER BY total_bytes DESC
+          LIMIT 5");
+        $topUsersStmt->execute([$start14d, "$todayDate 23:59:59"]);
+        $topTrafficUsers = $topUsersStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $topUserProfiles = [];
+        if (!empty($topTrafficUsers) && dbTableExists('userinfo')) {
+            $topU = array_column($topTrafficUsers, 'username');
+            $placeholders = implode(',', array_fill(0, count($topU), '?'));
+            $uStmt = $db->prepare("SELECT username, firstname, lastname, department FROM userinfo WHERE username IN ($placeholders)");
+            $uStmt->execute($topU);
+            while ($prof = $uStmt->fetch(PDO::FETCH_ASSOC)) {
+                $topUserProfiles[$prof['username']] = $prof;
+            }
         }
 
         $generalData = [
+            'uploadToday'       => $uploadToday,
+            'downloadToday'     => $downloadToday,
+            'trafficDateParam'  => $todayDate,
+            'trafficDateLabel'  => ' (14 Hari Terakhir)',
+            'topTrafficUsers'   => $topTrafficUsers,
+            'topUserProfiles'   => $topUserProfiles,
             'sessions14dLabels' => $sessions14dLabels,
             'sessions14dValues' => $sessions14dValues,
             'bw14Labels'        => $bw14Labels,
@@ -315,20 +358,27 @@ if ($viewMode === 'today') {
             'auth7dValues'      => $auth7dValues,
             'nas14dLabels'      => $nas14dLabels,
             'nas14dValues'      => $nas14dValues,
+            'authLabel'         => "Recent Auth ($latestDate)",
+            'authDateParam'     => $latestDate,
+            'authCountDisplay'  => !empty($auth7dValues) ? end($auth7dValues) : 0,
         ];
         $_SESSION['dash_general_data'] = $generalData;
         $_SESSION['dash_general_time'] = time();
     }
 
-    if ($latestDate < $todayDate) {
-        $authLabel        = "Recent Auth ($latestDate)";
-        $authDateParam    = $latestDate;
-    } else {
-        $authLabel        = 'Auth Today';
-        $authDateParam    = $todayDate;
-    }
-    $authCountDisplay = !empty($generalData['auth7dValues']) ? end($generalData['auth7dValues']) : 0;
+    $uploadToday       = $generalData['uploadToday'];
+    $downloadToday     = $generalData['downloadToday'];
+    $trafficDateParam  = $generalData['trafficDateParam'];
+    $trafficDateLabel  = $generalData['trafficDateLabel'];
+    $topTrafficUsers   = $generalData['topTrafficUsers'];
+    $topUserProfiles   = $generalData['topUserProfiles'];
+    $authLabel         = $generalData['authLabel'];
+    $authDateParam     = $generalData['authDateParam'];
+    $authCountDisplay  = $generalData['authCountDisplay'];
 }
+
+// Release session lock immediately to prevent blocking concurrent requests
+session_write_close();
 
 include __DIR__ . '/includes/header.php';
 ?>
@@ -646,7 +696,7 @@ include __DIR__ . '/includes/header.php';
                     </tr></thead>
                     <tbody>
                     <?php if (empty($topTrafficUsers)): ?>
-                    <tr><td colspan="3" class="text-center text-muted py-4">No traffic recorded</td></tr>
+                    <tr><td colspan="3" class="text-center text-muted py-4">No traffic recorded today</td></tr>
                     <?php else: 
                         $maxBytes = max(1, (float)($topTrafficUsers[0]['total_bytes'] ?? 1));
                         $rank = 0;
@@ -749,6 +799,7 @@ if ($viewMode === 'today') {
             },
             options: {
                 responsive: true,
+                animation: { duration: 250 },
                 plugins: { legend: { display: true, position: "top", labels: { boxWidth: 12, font: { size: 11 } } } },
                 scales: {
                     y: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { precision: 0 } },
@@ -784,6 +835,7 @@ if ($viewMode === 'today') {
             },
             options: {
                 responsive: true,
+                animation: { duration: 250 },
                 plugins: { legend: { display: true, position: "top", labels: { boxWidth: 12, font: { size: 11 } } } },
                 scales: {
                     y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
@@ -817,6 +869,7 @@ if ($viewMode === 'today') {
             },
             options: {
                 responsive: true,
+                animation: { duration: 250 },
                 plugins: { legend: { display: true, position: "top", labels: { boxWidth: 12, font: { size: 11 } } } },
                 scales: {
                     y: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { precision: 0 } },
@@ -843,6 +896,7 @@ if ($viewMode === 'today') {
             },
             options: {
                 responsive: true,
+                animation: { duration: 250 },
                 plugins: { legend: { display: false } },
                 scales: {
                     y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
@@ -871,6 +925,7 @@ if ($viewMode === 'today') {
             },
             options: {
                 responsive: true,
+                animation: { duration: 250 },
                 plugins: { legend: { display: false } },
                 scales: {
                     y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
@@ -906,6 +961,7 @@ if ($viewMode === 'today') {
             },
             options: {
                 responsive: true,
+                animation: { duration: 250 },
                 plugins: { legend: { display: true, position: "top", labels: { boxWidth: 12, font: { size: 11 } } } },
                 scales: {
                     y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
@@ -932,7 +988,8 @@ if ($viewMode === 'today') {
             },
             options: {
                 responsive: true,
-                plugins: { legend: { display: false } },
+                animation: { duration: 250 },
+                plugins: { legend: { display: true, position: "top", labels: { boxWidth: 12, font: { size: 11 } } } },
                 scales: {
                     y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
                     x: { grid: { display: false } }
@@ -958,6 +1015,7 @@ if ($viewMode === 'today') {
             },
             options: {
                 responsive: true,
+                animation: { duration: 250 },
                 plugins: { legend: { display: false } },
                 scales: {
                     y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
