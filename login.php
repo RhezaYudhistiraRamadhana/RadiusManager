@@ -122,7 +122,7 @@ $timeout = isset($_GET['timeout']);
         </div>
         <button type="submit" id="btnSubmit" class="btn btn-login btn-primary text-white" <?= $lockout['locked'] ? 'disabled' : '' ?>>
             <span id="btnText"><i class="bi bi-box-arrow-in-right me-2"></i>Sign In</span>
-            <span id="btnSpinner" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Memproses Masuk...</span>
+            <span id="btnSpinner" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Signing In...</span>
         </button>
     </form>
     <script>

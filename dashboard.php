@@ -4,7 +4,7 @@ requireLogin();
 $page_title = 'Dashboard';
 $db = getDB();
 
-// ── View Mode: 'today' (Grafik Hari Ini) vs 'general' (Grafik Umum) ────────
+// ── View Mode: 'today' (Today's Charts) vs 'general' (General Charts) ────────
 $viewMode = $_GET['view'] ?? $_SESSION['dash_view'] ?? 'today';
 if (!in_array($viewMode, ['today', 'general'])) {
     $viewMode = 'today';
@@ -54,7 +54,7 @@ if ($viewMode === 'today') {
             // Check if latest session date exists for labeling reference
             $latestAcct = $db->query("SELECT DATE(acctstarttime) d FROM radacct ORDER BY radacctid DESC LIMIT 1")->fetch();
             if ($latestAcct && !empty($latestAcct['d']) && $latestAcct['d'] !== $todayDate) {
-                $trafficDateLabel = " (Hari Ini Belum Ada Sesi)";
+                $trafficDateLabel = " (No Sessions Today)";
             }
         }
         $uploadToday   = formatBytes($trafficRow['upload'] ?? 0);
@@ -359,7 +359,7 @@ if ($viewMode === 'today') {
             'uploadToday'       => $uploadToday,
             'downloadToday'     => $downloadToday,
             'trafficDateParam'  => $todayDate,
-            'trafficDateLabel'  => ' (14 Hari Terakhir)',
+            'trafficDateLabel'  => ' (Past 14 Days)',
             'topTrafficUsers'   => $topTrafficUsers,
             'topUserProfiles'   => $topUserProfiles,
             'sessions14dLabels' => $sessions14dLabels,
@@ -398,12 +398,12 @@ include __DIR__ . '/includes/header.php';
 
 <div class="page-header d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 mb-3">
     <div>
-        <h4 class="mb-1"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard Grafik</h4>
-        <p class="text-muted mb-0">Pemantauan visual performa sistem FreeRADIUS &amp; lalu lintas jaringan</p>
+        <h4 class="mb-1"><i class="bi bi-speedometer2 me-2 text-primary"></i>Analytics Dashboard</h4>
+        <p class="text-muted mb-0">Visual performance monitoring for FreeRADIUS system &amp; network traffic</p>
     </div>
     <div class="d-flex align-items-center gap-2">
-        <a href="welcome.php" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 shadow-sm" title="Kembali ke Landing Page">
-            <i class="bi bi-arrow-left"></i> <span>Kembali ke Beranda</span>
+        <a href="welcome.php" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 shadow-sm" title="Back to Home & Navigation Hub">
+            <i class="bi bi-arrow-left"></i> <span>Back to Home</span>
         </a>
         <span class="badge bg-light text-secondary border py-2 px-2.5"><?= date('D, d M Y H:i') ?></span>
     </div>
@@ -412,7 +412,7 @@ include __DIR__ . '/includes/header.php';
 <!-- Stat Cards -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
-        <a href="users.php" class="stat-card" title="Buka Direktori Pengguna">
+        <a href="users.php" class="stat-card" title="Open User Directory">
             <div class="stat-icon" style="background:#eff6ff">
                 <i class="bi bi-people text-primary"></i>
             </div>
@@ -423,7 +423,7 @@ include __DIR__ . '/includes/header.php';
         </a>
     </div>
     <div class="col-6 col-lg-3">
-        <a href="sessions.php" class="stat-card" title="Buka Pemantau Sesi Aktif">
+        <a href="sessions.php" class="stat-card" title="Open Active Sessions Monitor">
             <div class="stat-icon" style="background:#f0fdf4">
                 <i class="bi bi-activity text-success"></i>
             </div>
@@ -434,7 +434,7 @@ include __DIR__ . '/includes/header.php';
         </a>
     </div>
     <div class="col-6 col-lg-3">
-        <a href="nas.php" class="stat-card" title="Buka NAS Devices">
+        <a href="nas.php" class="stat-card" title="Open NAS Gateways">
             <div class="stat-icon" style="background:#fefce8">
                 <i class="bi bi-hdd-network text-warning"></i>
             </div>
@@ -445,7 +445,7 @@ include __DIR__ . '/includes/header.php';
         </a>
     </div>
     <div class="col-6 col-lg-3">
-        <a href="postauth.php?from=<?= $authDateParam ?>" class="stat-card" title="Buka Log Autentikasi">
+        <a href="postauth.php?from=<?= $authDateParam ?>" class="stat-card" title="Open Auth Log">
             <div class="stat-icon" style="background:#fdf4ff">
                 <i class="bi bi-shield-check text-purple" style="color:#9333ea"></i>
             </div>
@@ -460,7 +460,7 @@ include __DIR__ . '/includes/header.php';
 <!-- Traffic Cards -->
 <div class="row g-3 mb-4">
     <div class="col-6">
-        <a href="accounting.php?from=<?= $trafficDateParam ?>&to=<?= $trafficDateParam ?>" class="stat-card" title="Buka Catatan Accounting">
+        <a href="accounting.php?from=<?= $trafficDateParam ?>&to=<?= $trafficDateParam ?>" class="stat-card" title="Open Accounting Records">
             <div class="stat-icon" style="background:#eff6ff">
                 <i class="bi bi-arrow-up-circle text-primary"></i>
             </div>
@@ -471,7 +471,7 @@ include __DIR__ . '/includes/header.php';
         </a>
     </div>
     <div class="col-6">
-        <a href="accounting.php?from=<?= $trafficDateParam ?>&to=<?= $trafficDateParam ?>" class="stat-card" title="Buka Catatan Accounting">
+        <a href="accounting.php?from=<?= $trafficDateParam ?>&to=<?= $trafficDateParam ?>" class="stat-card" title="Open Accounting Records">
             <div class="stat-icon" style="background:#f0fdf4">
                 <i class="bi bi-arrow-down-circle text-success"></i>
             </div>
@@ -492,23 +492,23 @@ include __DIR__ . '/includes/header.php';
             </div>
             <div>
                 <h6 class="fw-bold mb-0 text-dark">
-                    <?= $viewMode === 'today' ? 'Mode: Grafik Hari Ini (Real-Time 24 Jam)' : 'Mode: Grafik Umum (Tren Historis)' ?>
+                    <?= $viewMode === 'today' ? 'Mode: Today\'s Charts (24-Hour Real-Time)' : 'Mode: General Charts (Historical Trends)' ?>
                 </h6>
                 <p class="text-muted small mb-0">
                     <?= $viewMode === 'today' 
-                        ? 'Memvisualisasikan profil sesi per jam, throughput bandwidth upload/download hari ini, dan autentikasi 24 jam.' 
-                        : 'Memvisualisasikan tren multi-hari: volume bandwidth 14 hari, histori sesi harian, dan tren autentikasi 7 hari.' ?>
+                        ? 'Visualizing hourly session profiles, today\'s upload/download throughput, and 24-hour authentications.' 
+                        : 'Visualizing multi-day trends: 14-day bandwidth volume, daily session history, and 7-day authentication trends.' ?>
                 </p>
             </div>
         </div>
-        <div class="btn-group shadow-sm" role="group" aria-label="Pilihan Grafik Dashboard">
+        <div class="btn-group shadow-sm" role="group" aria-label="Dashboard Chart View Mode">
             <a href="dashboard.php?view=today" class="btn btn-sm <?= $viewMode === 'today' ? 'btn-primary active fw-semibold' : 'btn-outline-secondary' ?> px-3 py-1.5 d-inline-flex align-items-center gap-1.5">
                 <i class="bi bi-clock-history"></i>
-                <span>Grafik Hari Ini</span>
+                <span>Today's Charts</span>
             </a>
             <a href="dashboard.php?view=general" class="btn btn-sm <?= $viewMode === 'general' ? 'btn-primary active fw-semibold' : 'btn-outline-secondary' ?> px-3 py-1.5 d-inline-flex align-items-center gap-1.5">
                 <i class="bi bi-graph-up"></i>
-                <span>Grafik Umum</span>
+                <span>General Charts</span>
             </a>
         </div>
     </div>
@@ -516,7 +516,7 @@ include __DIR__ . '/includes/header.php';
 
 <?php if ($viewMode === 'today'): ?>
 <!-- ═════════════════════════════════════════════════════════════════════════ -->
-<!-- TODAY'S CHARTS (GRAFIK HARI INI)                                         -->
+<!-- TODAY'S CHARTS                                                         -->
 <!-- ═════════════════════════════════════════════════════════════════════════ -->
 <div class="row g-3 mb-4">
     <!-- Chart 1: Hourly Sessions Profile (Today vs Yesterday) -->
@@ -524,8 +524,8 @@ include __DIR__ . '/includes/header.php';
         <div class="card h-100 shadow-sm border">
             <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
                 <div>
-                    <span class="fw-semibold small"><i class="bi bi-clock-history text-primary me-1"></i>Profil Sesi per Jam</span>
-                    <span class="text-muted small ms-1">(Hari Ini vs Kemarin)</span>
+                    <span class="fw-semibold small"><i class="bi bi-clock-history text-primary me-1"></i>Hourly Session Profile</span>
+                    <span class="text-muted small ms-1">(Today vs Yesterday)</span>
                 </div>
                 <a href="sessions.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">Sessions</a>
             </div>
@@ -540,7 +540,7 @@ include __DIR__ . '/includes/header.php';
         <div class="card h-100 shadow-sm border">
             <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
                 <div>
-                    <span class="fw-semibold small"><i class="bi bi-arrow-down-up text-success me-1"></i>Throughput Bandwidth per Jam Hari Ini</span>
+                    <span class="fw-semibold small"><i class="bi bi-arrow-down-up text-success me-1"></i>Hourly Bandwidth Throughput Today</span>
                     <span class="text-muted small ms-1">(Upload vs Download)</span>
                 </div>
                 <a href="accounting.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">Accounting</a>
@@ -557,7 +557,7 @@ include __DIR__ . '/includes/header.php';
     <div class="col-lg-6">
         <div class="card h-100 shadow-sm border">
             <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
-                <span class="fw-semibold small"><i class="bi bi-shield-check text-purple me-1" style="color:#9333ea"></i>Autentikasi Hari Ini — 24 Jam</span>
+                <span class="fw-semibold small"><i class="bi bi-shield-check text-purple me-1" style="color:#9333ea"></i>24-Hour Authentication Decisions</span>
                 <a href="postauth.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">View Log</a>
             </div>
             <div class="card-body">
@@ -570,12 +570,12 @@ include __DIR__ . '/includes/header.php';
     <div class="col-lg-6">
         <div class="card h-100 shadow-sm border">
             <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
-                <span class="fw-semibold small"><i class="bi bi-hdd-network text-info me-1"></i>Top NAS Access Points Hari Ini</span>
+                <span class="fw-semibold small"><i class="bi bi-hdd-network text-info me-1"></i>Top NAS Access Points Today</span>
                 <a href="nas.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">NAS Devices</a>
             </div>
             <div class="card-body">
                 <?php if (empty($todayData['nasTodayValues'])): ?>
-                <div class="text-center text-muted py-5 small">Belum ada lalu lintas NAS yang tercatat hari ini</div>
+                <div class="text-center text-muted py-5 small">No NAS traffic recorded today</div>
                 <?php else: ?>
                 <canvas id="todayNasChart" height="130"></canvas>
                 <?php endif; ?>
@@ -586,7 +586,7 @@ include __DIR__ . '/includes/header.php';
 
 <?php else: ?>
 <!-- ═════════════════════════════════════════════════════════════════════════ -->
-<!-- GENERAL CHARTS (GRAFIK UMUM / HISTORICAL)                                -->
+<!-- GENERAL CHARTS (HISTORICAL 14-DAY / 7-DAY)                               -->
 <!-- ═════════════════════════════════════════════════════════════════════════ -->
 <div class="row g-3 mb-4">
     <!-- Chart 1: Daily Sessions Trend (Past 14 Days) -->
@@ -594,7 +594,7 @@ include __DIR__ . '/includes/header.php';
         <div class="card h-100 shadow-sm border">
             <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
                 <div>
-                    <span class="fw-semibold small"><i class="bi bi-activity text-primary me-1"></i>Tren Sesi Harian (14 Hari Terakhir)</span>
+                    <span class="fw-semibold small"><i class="bi bi-activity text-primary me-1"></i>Daily Sessions Trend (Past 14 Days)</span>
                 </div>
                 <a href="sessions.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">Sessions</a>
             </div>
@@ -609,7 +609,7 @@ include __DIR__ . '/includes/header.php';
         <div class="card h-100 shadow-sm border">
             <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
                 <div>
-                    <span class="fw-semibold small"><i class="bi bi-graph-up-arrow text-success me-1"></i>Tren Bandwidth (14 Hari Terakhir)</span>
+                    <span class="fw-semibold small"><i class="bi bi-graph-up-arrow text-success me-1"></i>Bandwidth Trend (Past 14 Days)</span>
                     <span class="text-muted small ms-1">(Upload vs Download)</span>
                 </div>
                 <a href="accounting.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">Accounting</a>
@@ -626,7 +626,7 @@ include __DIR__ . '/includes/header.php';
     <div class="col-lg-6">
         <div class="card h-100 shadow-sm border">
             <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
-                <span class="fw-semibold small"><i class="bi bi-shield-check text-purple me-1" style="color:#9333ea"></i>Autentikasi — 7 Hari Terakhir</span>
+                <span class="fw-semibold small"><i class="bi bi-shield-check text-purple me-1" style="color:#9333ea"></i>Authentications — Past 7 Days</span>
                 <a href="postauth.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">View Log</a>
             </div>
             <div class="card-body">
@@ -639,12 +639,12 @@ include __DIR__ . '/includes/header.php';
     <div class="col-lg-6">
         <div class="card h-100 shadow-sm border">
             <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
-                <span class="fw-semibold small"><i class="bi bi-hdd-network text-info me-1"></i>Top NAS Access Points (14 Hari Terakhir)</span>
+                <span class="fw-semibold small"><i class="bi bi-hdd-network text-info me-1"></i>Top NAS Access Points (Past 14 Days)</span>
                 <a href="nas.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">NAS Devices</a>
             </div>
             <div class="card-body">
                 <?php if (empty($generalData['nas14dValues'])): ?>
-                <div class="text-center text-muted py-5 small">Belum ada data NAS 14 hari terakhir</div>
+                <div class="text-center text-muted py-5 small">No NAS data recorded in the past 14 days</div>
                 <?php else: ?>
                 <canvas id="generalNasChart" height="130"></canvas>
                 <?php endif; ?>
@@ -794,14 +794,14 @@ if ($viewMode === 'today') {
                 labels: ' . json_encode($todayData['hourlyLabels']) . ',
                 datasets: [
                     {
-                        label: "Hari Ini (' . date('d M', strtotime($todayData['anchorDay'])) . ')",
+                        label: "Today (' . date('d M', strtotime($todayData['anchorDay'])) . ')",
                         data: ' . json_encode($todayData['hourlyToday']) . ',
                         borderColor: "#2563eb",
                         backgroundColor: "rgba(37,99,235,0.08)",
                         tension: 0.35, fill: true, pointRadius: 2
                     },
                     {
-                        label: "Kemarin (' . date('d M', strtotime($todayData['prevDay'])) . ')",
+                        label: "Yesterday (' . date('d M', strtotime($todayData['prevDay'])) . ')",
                         data: ' . json_encode($todayData['hourlyPrev']) . ',
                         borderColor: "#94a3b8",
                         borderDash: [4, 4],
@@ -900,7 +900,7 @@ if ($viewMode === 'today') {
             data: {
                 labels: ' . json_encode($todayData['nasTodayLabels']) . ',
                 datasets: [{
-                    label: "Traffic Hari Ini (MB)",
+                    label: "Today\'s Traffic (MB)",
                     data: ' . json_encode($todayData['nasTodayValues']) . ',
                     backgroundColor: "rgba(6,182,212,0.3)",
                     borderColor: "rgba(6,182,212,1)",
@@ -929,7 +929,7 @@ if ($viewMode === 'today') {
             data: {
                 labels: ' . json_encode($generalData['sessions14dLabels']) . ',
                 datasets: [{
-                    label: "Total Sesi Harian",
+                    label: "Daily Total Sessions",
                     data: ' . json_encode($generalData['sessions14dValues']) . ',
                     backgroundColor: "rgba(37,99,235,0.2)",
                     borderColor: "rgba(37,99,235,1)",
@@ -1019,7 +1019,7 @@ if ($viewMode === 'today') {
             data: {
                 labels: ' . json_encode($generalData['nas14dLabels']) . ',
                 datasets: [{
-                    label: "Traffic 14 Hari (MB)",
+                    label: "14-Day Traffic (MB)",
                     data: ' . json_encode($generalData['nas14dValues']) . ',
                     backgroundColor: "rgba(6,182,212,0.3)",
                     borderColor: "rgba(6,182,212,1)",
