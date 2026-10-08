@@ -1,4 +1,14 @@
 <?php
+/**
+ * CENDANA Configuration Template
+ * 
+ * Instructions:
+ * 1. Copy this file to config.php:
+ *    cp config.sample.php config.php
+ * 2. Customize the settings below to match your environment.
+ * 3. Never commit config.php to version control.
+ */
+
 // ─── Database Configuration ───────────────────────────────────────────────
 define('DB_HOST',     'localhost');
 define('DB_NAME',     'radius');          // FreeRADIUS database name
@@ -11,8 +21,8 @@ define('APP_NAME',       'CENDANA');
 define('APP_FULL_NAME',  'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi');
 define('APP_TAGLINE',    'FreeRADIUS Management & Access Control System');
 define('APP_VERSION',    '1.9.5');
-define('APP_ADMIN',      'admin');        // Default admin username in config
-define('APP_PASS',       password_hash('admin123', PASSWORD_DEFAULT)); // Default password hash
+define('APP_ADMIN',      'admin');        // Default fallback admin username
+define('APP_PASS',       '$2y$10$SMwoxw3ADrdqCtu2SQkAtO54NbtxHfp4pGo23dHI0Xaoc30WmOYAi'); // Default bcrypt for 'admin123'
 define('ROWS_PER_PAGE',  20);             // Default pagination count
 define('EXPIRY_WARN_DAYS', 7);             // Days before expiry to trigger warning notice
 define('API_KEY',        'cendana_api_secret_key'); // REST API Bearer Authentication Key
@@ -34,17 +44,16 @@ if (APP_ENV === 'production') {
     error_reporting(E_ALL);
 }
 
-// ─── SMTP & Email Settings (Production Mail Relay) ────────────────────────
+// ─── SMTP & Email Settings ────────────────────────────────────────────────
 define('MAIL_FROM',       'noreply@your-domain.edu');
 define('MAIL_FROM_NAME',  APP_NAME . ' Security');
-define('SMTP_HOST',       ''); // e.g. smtp.office365.com, smtp.gmail.com, or leave blank for PHP mail()
+define('SMTP_HOST',       ''); // e.g. smtp.office365.com or smtp.gmail.com (leave blank for standard mail())
 define('SMTP_PORT',       587);
 define('SMTP_USER',       '');
 define('SMTP_PASS',       '');
 define('SMTP_SECURE',     'tls'); // 'tls' or 'ssl'
-define('DEV_MODE',        false); // Set to false in production to disable test OTP displays
+define('DEV_MODE',        false); // Set to true only on local test environments
 
-// ─── Load DB Connection & Mail Helpers ────────────────────────────────────
+// ─── Load Helpers & DB Connection ─────────────────────────────────────────
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/mail.php';
-

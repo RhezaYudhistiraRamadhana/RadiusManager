@@ -3,7 +3,16 @@
  * RESTful API Authentication & Response Helpers
  */
 
-require_once __DIR__ . '/../config.php';
+if (file_exists(__DIR__ . '/../config.php')) {
+    require_once __DIR__ . '/../config.php';
+} elseif (file_exists(__DIR__ . '/../config.sample.php')) {
+    require_once __DIR__ . '/../config.sample.php';
+} else {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error' => 'Configuration file missing. Please copy config.sample.php to config.php.']);
+    exit;
+}
 require_once __DIR__ . '/../includes/functions.php';
 
 header('Content-Type: application/json; charset=utf-8');

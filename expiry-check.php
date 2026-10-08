@@ -1,5 +1,11 @@
 <?php
-require_once __DIR__ . '/config.php';
+if (file_exists(__DIR__ . '/config.php')) {
+    require_once __DIR__ . '/config.php';
+} elseif (file_exists(__DIR__ . '/config.sample.php')) {
+    require_once __DIR__ . '/config.sample.php';
+} else {
+    die("Configuration file not found. Please copy config.sample.php to config.php.\n");
+}
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
 

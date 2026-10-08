@@ -17,6 +17,8 @@ tests/scratch/
 *.tmp
 
 # ── Environment & private keys ───────────────────────────────
+config.php
+!config.sample.php
 .env
 .env.*
 !.env.example
