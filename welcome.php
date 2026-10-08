@@ -10,17 +10,38 @@ requireLogin();
 $page_title = 'Beranda & Pusat Navigasi';
 $db = getDB();
 
-// Fast lightweight stats (< 1ms)
-$totalUsers     = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
-$activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL")->fetch()['c'] ?? 0);
-$totalNas       = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
-$totalVouchers  = dbTableExists('rm_vouchers') ? (int)($db->query("SELECT COUNT(*) c FROM rm_vouchers")->fetch()['c'] ?? 0) : 0;
-$totalPlans     = dbTableExists('rm_plans') ? (int)($db->query("SELECT COUNT(*) c FROM rm_plans")->fetch()['c'] ?? 0) : 0;
+// Cache welcome stats in session for 60 seconds to eliminate repeated queries
+if (isset($_SESSION['welcome_stats_time']) && (time() - $_SESSION['welcome_stats_time'] < 60) && !empty($_SESSION['welcome_stats'])) {
+    $stats = $_SESSION['welcome_stats'];
+    $totalUsers     = $stats['totalUsers'];
+    $activeSessions = $stats['activeSessions'];
+    $totalNas       = $stats['totalNas'];
+    $totalVouchers  = $stats['totalVouchers'];
+    $totalPlans     = $stats['totalPlans'];
+} else {
+    $totalUsers     = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
+    $activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL")->fetch()['c'] ?? 0);
+    $totalNas       = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
+    $totalVouchers  = dbTableExists('rm_vouchers') ? (int)($db->query("SELECT COUNT(*) c FROM rm_vouchers")->fetch()['c'] ?? 0) : 0;
+    $totalPlans     = dbTableExists('rm_plans') ? (int)($db->query("SELECT COUNT(*) c FROM rm_plans")->fetch()['c'] ?? 0) : 0;
+
+    $_SESSION['welcome_stats'] = [
+        'totalUsers'     => $totalUsers,
+        'activeSessions' => $activeSessions,
+        'totalNas'       => $totalNas,
+        'totalVouchers'  => $totalVouchers,
+        'totalPlans'     => $totalPlans,
+    ];
+    $_SESSION['welcome_stats_time'] = time();
+}
 
 // Operator details
 $adminUser = getAdminUser();
 $adminName = getAdminName();
 $adminRole = getAdminRole();
+
+// Release session lock immediately to prevent blocking concurrent requests or asset loading
+session_write_close();
 
 include __DIR__ . '/includes/header.php';
 ?>

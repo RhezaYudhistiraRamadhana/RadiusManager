@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Please enter both username and password.';
         } elseif (attemptLogin($user, $pass)) {
             clearLoginAttempts($ip);
+            session_write_close();
             header('Location: welcome.php');
             exit;
         } else {
@@ -103,7 +104,7 @@ $timeout = isset($_GET['timeout']);
     <div class="alert alert-danger py-2 small"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <form method="POST">
+    <form method="POST" id="loginForm">
         <?= csrfField() ?>
         <div class="mb-3">
             <label class="form-label small fw-semibold">Username</label>
@@ -119,10 +120,22 @@ $timeout = isset($_GET['timeout']);
                 <input type="password" name="password" class="form-control" placeholder="••••••••" required <?= $lockout['locked'] ? 'disabled' : '' ?>>
             </div>
         </div>
-        <button type="submit" class="btn btn-login btn-primary text-white" <?= $lockout['locked'] ? 'disabled' : '' ?>>
-            <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+        <button type="submit" id="btnSubmit" class="btn btn-login btn-primary text-white" <?= $lockout['locked'] ? 'disabled' : '' ?>>
+            <span id="btnText"><i class="bi bi-box-arrow-in-right me-2"></i>Sign In</span>
+            <span id="btnSpinner" class="d-none"><span class="spinner-border spinner-border-sm me-2"></span>Memproses Masuk...</span>
         </button>
     </form>
+    <script>
+    document.getElementById('loginForm')?.addEventListener('submit', function() {
+        var btn = document.getElementById('btnSubmit');
+        var btnText = document.getElementById('btnText');
+        var btnSpinner = document.getElementById('btnSpinner');
+        if (btn && btnText && btnSpinner) {
+            btnText.classList.add('d-none');
+            btnSpinner.classList.remove('d-none');
+        }
+    });
+    </script>
     <p class="text-center text-muted mt-3" style="font-size:.75rem">
         Supports config admin & FreeRADIUS operator accounts
     </p>

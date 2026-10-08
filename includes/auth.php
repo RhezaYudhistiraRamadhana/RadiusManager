@@ -52,6 +52,10 @@ function getAdminName() {
 function ensureAdminTables() {
     static $done = false;
     if ($done) return;
+    if (dbTableExists('rm_admins')) {
+        $done = true;
+        return;
+    }
     try {
         $db = getDB();
         $db->exec("CREATE TABLE IF NOT EXISTS `rm_admins` (
@@ -301,6 +305,7 @@ function logout() {
     }
     $_SESSION = [];
     session_destroy();
+    session_write_close();
     header('Location: login.php');
     exit;
 }
