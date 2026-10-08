@@ -115,62 +115,163 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Total online count (< 1ms indexed lookup)
-$onlineCount = (int)$db->query("SELECT COUNT(*) FROM radacct WHERE acctstoptime IS NULL")->fetchColumn();
+/**
+ * Retrieves accounts and connected devices that are genuinely active RIGHT NOW.
+ * - Filters out stale / ghost sessions beyond the active network window.
+ * - De-duplicates candidate sessions by device MAC address.
+ * - Discards devices whose latest session in radacct already ended or was superseded.
+ * - De-duplicates overlapping IP addresses.
+ * - Groups multiple active devices under their respective subscriber account.
+ */
+function getTrulyActiveOnlineAccounts(PDO $db, string $search = ''): array {
+    $now = time();
+    $maxStartStr = $db->query("SELECT MAX(acctstarttime) FROM radacct WHERE acctstoptime IS NULL")->fetchColumn();
+    $maxStart = $maxStartStr ? strtotime($maxStartStr) : 0;
+    // Dynamic reference: server clock for live systems; latest active record for historical snapshots
+    $refNow = ($maxStart > 0 && ($now - $maxStart) > 86400 * 7) ? $maxStart : $now;
+    $cutoffTime = date('Y-m-d H:i:s', $refNow - (48 * 3600));
 
-// Smart High-Performance Search & Pagination (< 5ms)
+    $whereClauses = ["acctstoptime IS NULL", "acctstarttime >= ?"];
+    $params = [$cutoffTime];
+
+    $search = trim($search);
+    if ($search !== '') {
+        $isIp  = (bool)preg_match('/^[0-9\.:]+$/', $search) && str_contains($search, '.');
+        $isMac = (bool)preg_match('/^[0-9a-fA-F:\-\.]{4,}$/', $search) && (str_contains($search, ':') || str_contains($search, '-'));
+
+        if ($isIp) {
+            $whereClauses[] = "framedipaddress LIKE ?";
+            $params[] = $search . '%';
+        } elseif ($isMac) {
+            $cleanSearch = str_replace([':', '-', '.'], '', $search);
+            $whereClauses[] = "(callingstationid LIKE ? OR REPLACE(REPLACE(REPLACE(callingstationid, ':', ''), '-', ''), '.', '') LIKE ?)";
+            $params[] = '%' . $search . '%';
+            $params[] = '%' . $cleanSearch . '%';
+        } else {
+            $whereClauses[] = "username LIKE ?";
+            $params[] = '%' . $search . '%';
+        }
+    }
+
+    $whereSql = "WHERE " . implode(' AND ', $whereClauses);
+    $stmt = $db->prepare("
+        SELECT radacctid, acctsessionid, username, nasipaddress, framedipaddress,
+               callingstationid, acctstarttime, acctupdatetime
+        FROM radacct
+        $whereSql
+        ORDER BY radacctid DESC
+    ");
+    $stmt->execute($params);
+    $rawSessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // 1. De-duplicate candidate open sessions per physical MAC (keep newest radacctid)
+    $candidateSessionsByMac = [];
+    foreach ($rawSessions as $sess) {
+        $rawMac = $sess['callingstationid'] ?? '';
+        $cleanMac = strtoupper(trim(str_replace([':', '-', '.'], '', $rawMac)));
+        if ($cleanMac === '') {
+            $candidateSessionsByMac[] = $sess;
+            continue;
+        }
+        if (!isset($candidateSessionsByMac[$cleanMac])) {
+            $candidateSessionsByMac[$cleanMac] = $sess;
+        }
+    }
+
+    // 2. Check each candidate MAC against radacct to verify it has not stopped in a later session
+    $cStmt = $db->prepare("SELECT radacctid, acctstoptime FROM radacct WHERE callingstationid = ? ORDER BY radacctid DESC LIMIT 1");
+    $validSessions = [];
+    $seenIps = [];
+
+    foreach ($candidateSessionsByMac as $k => $sess) {
+        if (is_string($k) && $k !== '') {
+            $cStmt->execute([$sess['callingstationid']]);
+            $latest = $cStmt->fetch(PDO::FETCH_ASSOC);
+            if ($latest) {
+                // If device's latest session stopped, or current session was superseded, it's NOT online right now!
+                if (!empty($latest['acctstoptime'])) continue;
+                if ((int)$latest['radacctid'] > (int)$sess['radacctid']) continue;
+            }
+        }
+
+        $ip = trim($sess['framedipaddress'] ?? '');
+        if ($ip !== '' && $ip !== '0.0.0.0') {
+            if (isset($seenIps[$ip])) continue;
+            $seenIps[$ip] = true;
+        }
+
+        $validSessions[] = $sess;
+    }
+
+    // 3. Group valid sessions by subscriber account (username)
+    $accounts = [];
+    foreach ($validSessions as $sess) {
+        $u = $sess['username'];
+        if (!isset($accounts[$u])) {
+            $accounts[$u] = [
+                'username'         => $u,
+                'devices'          => [],
+                'session_ids'      => [],
+                'latest_starttime' => $sess['acctstarttime'],
+                'primary_ip'       => $sess['framedipaddress'],
+                'primary_mac'      => $sess['callingstationid'],
+                'primary_nas'      => $sess['nasipaddress'],
+            ];
+        }
+
+        $uptimeSec = max(0, $refNow - strtotime($sess['acctstarttime']));
+        $sess['duration_sec'] = $uptimeSec;
+        $sess['duration_text'] = formatDuration($uptimeSec);
+
+        $accounts[$u]['devices'][] = $sess;
+        $accounts[$u]['session_ids'][] = $sess['acctsessionid'];
+
+        if (strtotime($sess['acctstarttime']) > strtotime($accounts[$u]['latest_starttime'])) {
+            $accounts[$u]['latest_starttime'] = $sess['acctstarttime'];
+            $accounts[$u]['primary_ip'] = $sess['framedipaddress'];
+            $accounts[$u]['primary_mac'] = $sess['callingstationid'];
+            $accounts[$u]['primary_nas'] = $sess['nasipaddress'];
+        }
+    }
+
+    foreach ($accounts as &$acc) {
+        $acc['device_count'] = count($acc['devices']);
+        $acc['duration_text'] = formatDuration(max(0, $refNow - strtotime($acc['latest_starttime'])));
+    }
+    unset($acc);
+
+    return [
+        'ref_now'        => $refNow,
+        'accounts'       => array_values($accounts),
+        'total_accounts' => count($accounts),
+        'total_devices'  => count($validSessions),
+    ];
+}
+
+// Fetch genuinely active accounts & search results
 $search = trim($_GET['q'] ?? '');
-$whereSql = "WHERE acctstoptime IS NULL";
-$params = [];
 
 if ($search !== '') {
-    $isIp  = (bool)preg_match('/^[0-9\.:]+$/', $search) && str_contains($search, '.');
-    $isMac = (bool)preg_match('/^[0-9a-fA-F:\-\.]{4,}$/', $search) && (str_contains($search, ':') || str_contains($search, '-'));
+    $overview = getTrulyActiveOnlineAccounts($db);
+    $totalOnlineAccounts = $overview['total_accounts'];
+    $totalOnlineDevices  = $overview['total_devices'];
 
-    if ($isIp) {
-        $whereSql .= " AND framedipaddress LIKE :q";
-        $params[':q'] = $search . '%';
-    } elseif ($isMac) {
-        $whereSql .= " AND callingstationid LIKE :q";
-        $params[':q'] = '%' . $search . '%';
-    } else {
-        // Fast prefix search with covering index idx_stop_user_start (< 1ms)
-        $whereSql .= " AND username LIKE :q";
-        $params[':q'] = $search . '%';
-    }
-
-    $countStmt = $db->prepare("SELECT COUNT(*) FROM radacct $whereSql");
-    $countStmt->execute($params);
-    $filteredTotal = (int)$countStmt->fetchColumn();
-
-    // If prefix match was 0 and it's a general username search, fall back to contains search
-    if ($filteredTotal === 0 && !$isIp && !$isMac) {
-        $params[':q'] = '%' . $search . '%';
-        $countStmt->execute($params);
-        $filteredTotal = (int)$countStmt->fetchColumn();
-    }
+    $result = getTrulyActiveOnlineAccounts($db, $search);
+    $allAccounts   = $result['accounts'];
+    $filteredTotal = count($allAccounts);
 } else {
-    $filteredTotal = $onlineCount;
+    $result = getTrulyActiveOnlineAccounts($db);
+    $allAccounts         = $result['accounts'];
+    $totalOnlineAccounts = $result['total_accounts'];
+    $totalOnlineDevices  = $result['total_devices'];
+    $filteredTotal       = count($allAccounts);
 }
 
 // Pagination
 $perPage = 30;
 $page    = max(1, (int)($_GET['page'] ?? 1));
 $pag     = paginate($filteredTotal, $page, $perPage);
-$lim     = (int)$pag['per_page'];
-$off     = (int)$pag['offset'];
-
-// Fetch only the 30 rows for the current view (< 1ms)
-$sessQuery = $db->prepare("
-    SELECT radacctid, acctsessionid, username, nasipaddress, framedipaddress,
-           callingstationid, acctstarttime, acctinputoctets, acctoutputoctets
-    FROM radacct
-    $whereSql
-    ORDER BY acctstarttime DESC
-    LIMIT $lim OFFSET $off
-");
-$sessQuery->execute($params);
-$activeSessions = $sessQuery->fetchAll(PDO::FETCH_ASSOC);
+$displayAccounts = array_slice($allAccounts, $pag['offset'], $pag['per_page']);
 
 // Recent Audit Trail for Disconnects
 $recentLogs = [];
@@ -200,7 +301,7 @@ include __DIR__ . '/includes/header.php';
     </div>
     <div class="d-flex align-items-center gap-2">
         <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 fs-6">
-            <i class="bi bi-wifi me-1"></i> <?= number_format($onlineCount) ?> Online Accounts
+            <i class="bi bi-wifi me-1"></i> <?= number_format($totalOnlineAccounts) ?> Online Accounts (<?= number_format($totalOnlineDevices) ?> Devices)
         </span>
         <a href="reauth.php?refresh=1<?= $search !== '' ? '&q=' . urlencode($search) : '' ?>" class="btn btn-outline-secondary btn-sm" title="Refresh Active Sessions">
             <i class="bi bi-arrow-clockwise"></i>
@@ -225,7 +326,7 @@ include __DIR__ . '/includes/header.php';
         <div class="card h-100 border-danger border-opacity-25 shadow-sm">
             <div class="card-header bg-danger text-white py-3 d-flex align-items-center justify-content-between">
                 <span class="fw-bold"><i class="bi bi-radioactive me-2"></i>1. Force Disconnect ALL Accounts (Global Reset)</span>
-                <span class="badge bg-white text-danger fw-bold"><?= number_format($onlineCount) ?> Online</span>
+                <span class="badge bg-white text-danger fw-bold"><?= number_format($totalOnlineAccounts) ?> Online</span>
             </div>
             <div class="card-body p-4 d-flex flex-column justify-content-between">
                 <div>
@@ -239,9 +340,9 @@ include __DIR__ . '/includes/header.php';
                 </div>
                 <div>
                     <button type="button" class="btn btn-danger w-100 py-2.5 fw-bold d-flex align-items-center justify-content-center gap-2"
-                            data-bs-toggle="modal" data-bs-target="#confirmAllModal" <?= $onlineCount === 0 ? 'disabled' : '' ?>>
+                            data-bs-toggle="modal" data-bs-target="#confirmAllModal" <?= $totalOnlineAccounts === 0 ? 'disabled' : '' ?>>
                         <i class="bi bi-power fs-5"></i>
-                        <span>Disconnect All Online Accounts (<?= number_format($onlineCount) ?>)</span>
+                        <span>Disconnect All Online Accounts (<?= number_format($totalOnlineAccounts) ?>)</span>
                     </button>
                 </div>
             </div>
@@ -267,7 +368,7 @@ include __DIR__ . '/includes/header.php';
                             <label class="form-label small fw-semibold">Subscriber Username</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-person"></i></span>
-                                <input type="text" name="username" class="form-control" placeholder="e.g. john.doe / voucher_user" required>
+                                <input type="text" name="username" id="userDisconnectName" class="form-control" placeholder="e.g. john.doe / voucher_user" required>
                                 <button type="submit" class="btn btn-primary px-3 fw-semibold">
                                     <i class="bi bi-power me-1"></i> Disconnect User Session
                                 </button>
@@ -291,7 +392,7 @@ include __DIR__ . '/includes/header.php';
         <div class="row g-2 align-items-center justify-content-between">
             <div class="col-md-5">
                 <h5 class="mb-0 fw-bold fs-6">
-                    <i class="bi bi-list-check me-2 text-success"></i>Active Online Sessions (<?= number_format($filteredTotal) ?>)
+                    <i class="bi bi-list-check me-2 text-success"></i>Active Online Sessions (<?= number_format($filteredTotal) ?> Accounts)
                 </h5>
             </div>
             <div class="col-md-7">
@@ -333,8 +434,8 @@ include __DIR__ . '/includes/header.php';
                         <tr>
                             <th width="40" class="text-center">#</th>
                             <th>Username</th>
-                            <th>IP Address (Framed IP)</th>
-                            <th>MAC Address (Calling Station)</th>
+                            <th>IP Address &amp; Devices</th>
+                            <th>MAC Address</th>
                             <th>NAS Gateway</th>
                             <th>Online Since</th>
                             <th>Session Duration</th>
@@ -342,7 +443,7 @@ include __DIR__ . '/includes/header.php';
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (empty($activeSessions)): ?>
+                        <?php if (empty($displayAccounts)): ?>
                         <tr>
                             <td colspan="8" class="text-center py-5 text-muted">
                                 <i class="bi bi-check-circle fs-1 text-success d-block mb-2"></i>
@@ -350,45 +451,113 @@ include __DIR__ . '/includes/header.php';
                             </td>
                         </tr>
                         <?php else: ?>
-                        <?php foreach ($activeSessions as $sess): ?>
+                        <?php foreach ($displayAccounts as $i => $acc): ?>
                         <?php
-                            $uptimeSec = time() - strtotime($sess['acctstarttime']);
-                            $durationText = formatDuration(max(0, $uptimeSec));
+                            $isMulti = ($acc['device_count'] > 1);
+                            $primaryDev = $acc['devices'][0];
                         ?>
                         <tr>
                             <td class="text-center">
-                                <input type="checkbox" name="session_ids[]" value="<?= htmlspecialchars($sess['acctsessionid']) ?>" class="form-check-input session-checkbox">
+                                <?php if ($isMulti): ?>
+                                    <!-- Multi-device account checkbox: checks all child session inputs -->
+                                    <input type="checkbox" class="form-check-input account-checkbox" data-account-idx="<?= $i ?>" title="Select all devices for this account">
+                                    <div class="d-none">
+                                        <?php foreach ($acc['devices'] as $d): ?>
+                                        <input type="checkbox" name="session_ids[]" value="<?= htmlspecialchars($d['acctsessionid']) ?>" class="session-checkbox account-child-<?= $i ?>">
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <input type="checkbox" name="session_ids[]" value="<?= htmlspecialchars($primaryDev['acctsessionid']) ?>" class="form-check-input session-checkbox" title="Select this session">
+                                <?php endif; ?>
                             </td>
                             <td>
-                                <a href="users.php?search=<?= urlencode($sess['username']) ?>" class="fw-bold text-decoration-none text-dark">
-                                    <?= htmlspecialchars($sess['username']) ?>
-                                </a>
+                                <div class="d-flex align-items-center gap-1.5">
+                                    <a href="users.php?search=<?= urlencode($acc['username']) ?>" class="fw-bold text-decoration-none text-dark">
+                                        <?= htmlspecialchars($acc['username']) ?>
+                                    </a>
+                                    <?php if ($isMulti): ?>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0.5" style="font-size: 0.72rem;" title="<?= $acc['device_count'] ?> devices online concurrently">
+                                            <i class="bi bi-devices me-0.5"></i><?= $acc['device_count'] ?> Devices
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                             <td>
-                                <span class="badge bg-light text-dark border font-monospace">
-                                    <?= htmlspecialchars($sess['framedipaddress'] ?: '—') ?>
-                                </span>
+                                <?php if ($isMulti): ?>
+                                    <!-- Multiple devices: Grouped Dropdown Menu -->
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-primary dropdown-toggle py-0.5 px-2 font-monospace d-inline-flex align-items-center gap-1"
+                                                type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false">
+                                            <i class="bi bi-hdd-network"></i>
+                                            <span><?= $acc['device_count'] ?> Connected Devices</span>
+                                        </button>
+                                        <div class="dropdown-menu shadow-lg p-2 border" style="min-width: 380px;">
+                                            <div class="d-flex align-items-center justify-content-between px-2 py-1 text-primary fw-bold small border-bottom mb-2">
+                                                <span><i class="bi bi-devices me-1"></i><?= htmlspecialchars($acc['username']) ?>'s Devices</span>
+                                                <span class="badge bg-primary"><?= $acc['device_count'] ?> Active</span>
+                                            </div>
+                                            <?php foreach ($acc['devices'] as $d): ?>
+                                            <div class="p-2 mb-1.5 rounded border bg-light-subtle">
+                                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                                    <span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($d['framedipaddress'] ?: '—') ?></span>
+                                                    <span class="font-monospace small text-muted"><?= htmlspecialchars(formatMac($d['callingstationid'])) ?></span>
+                                                </div>
+                                                <div class="d-flex align-items-center justify-content-between small text-secondary mb-1">
+                                                    <span><i class="bi bi-router me-1"></i>NAS: <?= htmlspecialchars($d['nasipaddress'] ?: '—') ?></span>
+                                                    <span class="text-success fw-semibold"><i class="bi bi-stopwatch me-1"></i><?= $d['duration_text'] ?></span>
+                                                </div>
+                                                <div class="d-flex align-items-center justify-content-between small text-muted pt-1 border-top">
+                                                    <span class="small">Since: <?= date('d M H:i', strtotime($d['acctstarttime'])) ?></span>
+                                                    <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size: 0.75rem;"
+                                                            title="Disconnect only this device"
+                                                            onclick="kickSingleSession('<?= htmlspecialchars(addslashes($d['acctsessionid'])) ?>', '<?= htmlspecialchars(addslashes($acc['username'])) ?>', '<?= htmlspecialchars(addslashes($d['nasipaddress'])) ?>', '<?= htmlspecialchars(addslashes($d['framedipaddress'])) ?>')">
+                                                        <i class="bi bi-power me-0.5"></i>Disconnect Device
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="badge bg-light text-dark border font-monospace">
+                                        <?= htmlspecialchars($primaryDev['framedipaddress'] ?: '—') ?>
+                                    </span>
+                                <?php endif; ?>
                             </td>
                             <td class="small font-monospace text-muted">
-                                <?= htmlspecialchars($sess['callingstationid'] ?: '—') ?>
+                                <?php if ($isMulti): ?>
+                                    <span class="text-secondary small">
+                                        <i class="bi bi-cpu me-1"></i>Multiple MACs (<?= $acc['device_count'] ?>)
+                                    </span>
+                                <?php else: ?>
+                                    <?= htmlspecialchars(formatMac($primaryDev['callingstationid'])) ?>
+                                <?php endif; ?>
                             </td>
                             <td class="small">
                                 <span class="badge bg-secondary-subtle text-secondary border">
-                                    <?= htmlspecialchars($sess['nasipaddress'] ?: '—') ?>
+                                    <?= htmlspecialchars($acc['primary_nas'] ?: '—') ?>
                                 </span>
                             </td>
                             <td class="small text-secondary">
-                                <?= date('d M H:i', strtotime($sess['acctstarttime'])) ?>
+                                <?= date('d M H:i', strtotime($acc['latest_starttime'])) ?>
                             </td>
                             <td class="small fw-semibold text-success">
-                                <i class="bi bi-stopwatch me-1"></i><?= $durationText ?>
+                                <i class="bi bi-stopwatch me-1"></i><?= $acc['duration_text'] ?>
                             </td>
                             <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-outline-danger py-0.5 px-2.5"
-                                        title="Force re-login for this session"
-                                        onclick="kickSingleSession('<?= htmlspecialchars(addslashes($sess['acctsessionid'])) ?>', '<?= htmlspecialchars(addslashes($sess['username'])) ?>', '<?= htmlspecialchars(addslashes($sess['nasipaddress'])) ?>', '<?= htmlspecialchars(addslashes($sess['framedipaddress'])) ?>')">
-                                    <i class="bi bi-power me-1"></i>Force Re-Login
-                                </button>
+                                <?php if ($isMulti): ?>
+                                    <button type="button" class="btn btn-sm btn-danger py-0.5 px-2.5"
+                                            title="Force re-login on all devices for this user"
+                                            onclick="kickUserAccount('<?= htmlspecialchars(addslashes($acc['username'])) ?>', <?= $acc['device_count'] ?>)">
+                                        <i class="bi bi-power me-1"></i>Force Re-Login All (<?= $acc['device_count'] ?>)
+                                    </button>
+                                <?php else: ?>
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0.5 px-2.5"
+                                            title="Force re-login for this session"
+                                            onclick="kickSingleSession('<?= htmlspecialchars(addslashes($primaryDev['acctsessionid'])) ?>', '<?= htmlspecialchars(addslashes($acc['username'])) ?>', '<?= htmlspecialchars(addslashes($primaryDev['nasipaddress'])) ?>', '<?= htmlspecialchars(addslashes($primaryDev['framedipaddress'])) ?>')">
+                                        <i class="bi bi-power me-1"></i>Force Re-Login
+                                    </button>
+                                <?php endif; ?>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -401,7 +570,7 @@ include __DIR__ . '/includes/header.php';
 
     <?php if ($pag['total_pages'] > 1): ?>
     <div class="card-footer bg-white border-top py-2 d-flex justify-content-between align-items-center">
-        <span class="small text-muted">Showing <?= count($activeSessions) ?> of <?= number_format($filteredTotal) ?> sessions</span>
+        <span class="small text-muted">Showing <?= count($displayAccounts) ?> of <?= number_format($filteredTotal) ?> accounts</span>
         <?= paginationLinks($pag, "reauth.php?q=" . urlencode($search)) ?>
     </div>
     <?php endif; ?>
@@ -460,7 +629,7 @@ include __DIR__ . '/includes/header.php';
                 <div class="modal-body p-4">
                     <p class="text-danger fw-bold mb-2">CRITICAL WARNING!</p>
                     <p class="small text-secondary mb-3">
-                        This operation will <strong>disconnect <?= number_format($onlineCount) ?> online users</strong> across the network immediately. Disconnect packets will be dispatched to all NAS gateways, and all users will be required to authenticate again to resume internet access.
+                        This operation will <strong>disconnect <?= number_format($totalOnlineAccounts) ?> online accounts (<?= number_format($totalOnlineDevices) ?> devices)</strong> across the network immediately. Disconnect packets will be dispatched to all NAS gateways, and all users will be required to authenticate again to resume internet access.
                     </p>
                     <div class="p-3 bg-light rounded-2 border small mb-3">
                         Type <strong>RESET</strong> below to confirm this action:
@@ -488,30 +657,50 @@ include __DIR__ . '/includes/header.php';
     <input type="hidden" name="framedip" id="kickFip">
 </form>
 
+<!-- Hidden Account Force Re-Login Form -->
+<form method="POST" id="accountKickForm" style="display:none;">
+    <?= csrfField() ?>
+    <input type="hidden" name="action" value="disconnect_user">
+    <input type="hidden" name="username" id="kickAccountUser">
+</form>
+
 <script>
-// Checkbox management for batch disconnect
+// Checkbox management for batch disconnect & multi-device grouping
 document.addEventListener('DOMContentLoaded', function() {
     const checkAll = document.getElementById('checkAll');
-    const checkboxes = document.querySelectorAll('.session-checkbox');
+    const sessionCheckboxes = document.querySelectorAll('.session-checkbox');
+    const accountCheckboxes = document.querySelectorAll('.account-checkbox');
     const batchBtn = document.getElementById('batchBtn');
     const selectedCount = document.getElementById('selectedCount');
 
     function updateSelected() {
         let count = 0;
-        checkboxes.forEach(cb => { if (cb.checked) count++; });
+        sessionCheckboxes.forEach(cb => { if (cb.checked) count++; });
         if (selectedCount) selectedCount.textContent = count;
         if (batchBtn) batchBtn.disabled = (count === 0);
     }
 
     if (checkAll) {
         checkAll.addEventListener('change', function() {
-            checkboxes.forEach(cb => { cb.checked = checkAll.checked; });
+            sessionCheckboxes.forEach(cb => { cb.checked = checkAll.checked; });
+            accountCheckboxes.forEach(cb => { cb.checked = checkAll.checked; });
             updateSelected();
         });
     }
 
-    checkboxes.forEach(cb => {
+    // Individual session checkboxes
+    sessionCheckboxes.forEach(cb => {
         cb.addEventListener('change', updateSelected);
+    });
+
+    // Multi-device account checkboxes
+    accountCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const idx = this.dataset.accountIdx;
+            const children = document.querySelectorAll('.account-child-' + idx);
+            children.forEach(child => { child.checked = cb.checked; });
+            updateSelected();
+        });
     });
 
     // Confirmation input guard for Reset All
@@ -531,6 +720,14 @@ function kickSingleSession(sid, user, nasip, fip) {
         document.getElementById('kickNas').value = nasip;
         document.getElementById('kickFip').value = fip;
         document.getElementById('singleKickForm').submit();
+    }
+}
+
+function kickUserAccount(user, count) {
+    const devMsg = count > 1 ? ` (${count} connected devices)` : '';
+    if (confirm(`Are you sure you want to force re-login for account '${user}'${devMsg}? All connected devices for this account will be disconnected immediately and must log in again.`)) {
+        document.getElementById('kickAccountUser').value = user;
+        document.getElementById('accountKickForm').submit();
     }
 }
 </script>

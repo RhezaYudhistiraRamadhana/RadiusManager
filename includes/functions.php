@@ -35,6 +35,15 @@ function formatDuration($seconds) {
     return implode(' ', $parts);
 }
 
+function formatMac(?string $mac): string {
+    if (!$mac || trim($mac) === '' || $mac === '—') return '—';
+    $clean = strtoupper(preg_replace('/[^0-9A-Fa-f]/', '', $mac));
+    if (strlen($clean) === 12) {
+        return implode(':', str_split($clean, 2));
+    }
+    return strtoupper($mac);
+}
+
 function paginate($total, $page, $perPage = 20) {
     $perPage = max(1, (int)$perPage);
     $totalPages = max(1, (int)ceil($total / $perPage));
