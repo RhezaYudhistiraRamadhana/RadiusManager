@@ -228,8 +228,8 @@ $quotaPercent = ($quotaMb > 0) ? min(100, round(($usedMb / $quotaMb) * 100)) : 0
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - <?= htmlspecialchars($displayName) ?> - <?= APP_NAME ?></title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="../assets/vendor/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="../assets/vendor/bootstrap-icons/bootstrap-icons.css">
     <style>
         body {
             background-color: #f8fafc;
@@ -583,7 +583,7 @@ $quotaPercent = ($quotaMb > 0) ? min(100, round(($usedMb / $quotaMb) * 100)) : 0
     </div>
 </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
 <script>
 let otpCooldown = 0;
 let otpTimer = null;

@@ -7,6 +7,11 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Clean up any legacy bloated session data immediately to prevent disk I/O lock
+if (isset($_SESSION['reauth_active_cache'])) {
+    unset($_SESSION['reauth_active_cache'], $_SESSION['reauth_active_time']);
+}
+
 function isLoggedIn() {
     if (empty($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
         return false;
@@ -105,7 +110,8 @@ function attemptLogin($username, $password) {
         if (dbTableExists('rm_admins')) {
             $adm = dbFetch("SELECT id, username, password, name, role FROM rm_admins WHERE username = ?", [$username]);
             if ($adm) {
-                if (password_verify($password, $adm['password']) || $password === $adm['password']) {
+                if ($password === $adm['password'] || password_verify($password, $adm['password'])) {
+                    $_SESSION = []; // Wipe any old junk/stale cache
                     session_regenerate_id(true);
                     $_SESSION['admin_logged_in'] = true;
                     $_SESSION['admin_user']      = $adm['username'];
@@ -130,15 +136,18 @@ function attemptLogin($username, $password) {
             $op = dbFetch("SELECT id, username, password, firstname, lastname, role FROM operators WHERE username = ?", [$username]);
             if ($op) {
                 $match = false;
-                if (password_verify($password, $op['password'])) {
+                if ($password === $op['password']) {
                     $match = true;
-                } elseif ($password === $op['password']) {
-                    $match = true;
+                } elseif (str_starts_with($op['password'], '$2y$') || str_starts_with($op['password'], '$2a$')) {
+                    if (password_verify($password, $op['password'])) {
+                        $match = true;
+                    }
                 } elseif (md5($password) === $op['password']) {
                     $match = true;
                 }
 
                 if ($match) {
+                    $_SESSION = []; // Wipe any old junk/stale cache
                     session_regenerate_id(true);
                     $_SESSION['admin_logged_in'] = true;
                     $_SESSION['admin_user']      = $op['username'];
@@ -161,7 +170,8 @@ function attemptLogin($username, $password) {
 
     // 3. Fallback to default config-based admin
     if (defined('APP_ADMIN') && $username === APP_ADMIN) {
-        if (password_verify($password, APP_PASS) || $password === 'admin123') {
+        if ($password === 'admin123' || password_verify($password, APP_PASS)) {
+            $_SESSION = []; // Wipe any old junk/stale cache
             session_regenerate_id(true);
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_user']      = $username;
@@ -182,6 +192,10 @@ function attemptLogin($username, $password) {
 function ensureLoginAttemptsTable(): void {
     static $done = false;
     if ($done) return;
+    if (dbTableExists('rm_login_attempts')) {
+        $done = true;
+        return;
+    }
     try {
         $db = getDB();
         $db->exec("CREATE TABLE IF NOT EXISTS `rm_login_attempts` (

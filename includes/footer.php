@@ -1,8 +1,10 @@
     </div><!-- /.content -->
 </div><!-- /#main -->
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<?php if (($current_page ?? '') === 'dashboard' || !empty($include_chartjs)): ?>
+<script src="assets/vendor/chartjs/chart.umd.min.js"></script>
+<?php endif; ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips for sidebar items (visible when collapsed)
