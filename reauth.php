@@ -18,8 +18,10 @@ if (!hasRole('superadmin')) {
 $page_title = 'Force Re-Login (Session Reset)';
 $db = getDB();
 
-$msg = '';
-$msgType = 'info';
+// Flash message retrieval
+$flash = getFlash();
+$msg = $flash['msg'] ?? '';
+$msgType = $flash['type'] ?? 'info';
 
 // Handle Disconnect Form Submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -27,26 +29,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = trim($_POST['action'] ?? '');
 
     if ($action === 'disconnect_all') {
-        // 1. Force Disconnect ALL Accounts
-        $nasList = $db->query("SELECT DISTINCT nasipaddress FROM radacct WHERE acctstoptime IS NULL")->fetchAll(PDO::FETCH_COLUMN);
+        // 1. Force Disconnect ALL Accounts (Single fast UPDATE)
         $count = terminateAllRadiusSessions('Admin-Force-Reauth');
         
-        foreach ($nasList as $nasIp) {
-            if ($nasIp) {
-                sendRadiusDisconnect($nasIp, 'all');
-            }
+        // Non-blocking CoA notification
+        $nasList = $db->query("SELECT DISTINCT nasipaddress FROM radacct WHERE acctstoptime >= DATE_SUB(NOW(), INTERVAL 5 SECOND)")->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        foreach (array_unique($nasList) as $nasIp) {
+            if ($nasIp) sendRadiusDisconnect($nasIp, 'all');
         }
         
         auditLog('FORCE_DISCONNECT_ALL', 'ALL_ACCOUNTS', "Terminated $count active session(s) to force re-login for all online devices");
-        $msg = "<strong>Success!</strong> A total of <strong>" . number_format($count) . " active session(s)</strong> have been disconnected simultaneously. All users are now required to log in again on their devices to restore internet connectivity.";
-        $msgType = 'success';
+        unset($_SESSION['reauth_active_cache'], $_SESSION['reauth_active_time']);
+        setFlash('success', "<strong>Success!</strong> A total of <strong>" . number_format($count) . " active session(s)</strong> have been disconnected simultaneously. All users are now required to log in again on their devices to restore internet connectivity.");
+        header('Location: reauth.php');
+        exit;
 
     } elseif ($action === 'disconnect_user') {
         // 2. Force Disconnect Specific User by Username
         $targetUser = trim($_POST['username'] ?? '');
         if ($targetUser === '') {
-            $msg = 'Please enter the username of the account you wish to disconnect.';
-            $msgType = 'danger';
+            setFlash('danger', 'Please enter the username of the account you wish to disconnect.');
         } else {
             $sessStmt = $db->prepare("SELECT acctsessionid, nasipaddress, framedipaddress FROM radacct WHERE username = ? AND acctstoptime IS NULL");
             $sessStmt->execute([$targetUser]);
@@ -58,14 +60,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             auditLog('FORCE_DISCONNECT_USER', $targetUser, "Terminated $count active session(s) for user $targetUser to force re-login");
+            unset($_SESSION['reauth_active_cache'], $_SESSION['reauth_active_time']);
             if ($count > 0) {
-                $msg = "<strong>Success!</strong> Account <strong>" . htmlspecialchars($targetUser) . "</strong> (" . number_format($count) . " session(s)) has been disconnected. The user must re-authenticate to re-establish internet access.";
-                $msgType = 'success';
+                setFlash('success', "<strong>Success!</strong> Account <strong>" . htmlspecialchars($targetUser) . "</strong> (" . number_format($count) . " session(s)) has been disconnected. The user must re-authenticate to re-establish internet access.");
             } else {
-                $msg = "Account <strong>" . htmlspecialchars($targetUser) . "</strong> currently has no active online sessions, but the session reset signal was recorded.";
-                $msgType = 'warning';
+                setFlash('warning', "Account <strong>" . htmlspecialchars($targetUser) . "</strong> currently has no active online sessions, but the session reset signal was recorded.");
             }
         }
+        header('Location: reauth.php');
+        exit;
 
     } elseif ($action === 'disconnect_single') {
         // 3. Force Disconnect Single Session from table
@@ -78,56 +81,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             terminateRadiusSession($sid, '', 'Admin-Force-Reauth');
             sendRadiusDisconnect($nasIp, $u, $sid, $fIp);
             auditLog('FORCE_DISCONNECT_SESSION', $u, "Terminated session $sid on NAS $nasIp ($fIp)");
-            $msg = "Online session for <strong>" . htmlspecialchars($u) . "</strong> (IP: $fIp) has been disconnected. The user's device must log in again.";
-            $msgType = 'success';
+            unset($_SESSION['reauth_active_cache'], $_SESSION['reauth_active_time']);
+            setFlash('success', "Online session for <strong>" . htmlspecialchars($u) . "</strong> (IP: $fIp) has been disconnected. The user's device must log in again.");
         }
+        $redirectUrl = 'reauth.php' . (!empty($_GET['q']) ? '?q=' . urlencode($_GET['q']) : '');
+        header('Location: ' . $redirectUrl);
+        exit;
 
     } elseif ($action === 'disconnect_selected') {
-        // 4. Force Disconnect Multi-Selected Sessions
+        // 4. Force Disconnect Multi-Selected Sessions (Batch UPDATE)
         $selectedSids = $_POST['session_ids'] ?? [];
         if (!empty($selectedSids) && is_array($selectedSids)) {
-            $count = 0;
-            foreach ($selectedSids as $sid) {
-                $sid = trim((string)$sid);
-                if ($sid !== '') {
-                    $sRow = $db->prepare("SELECT username, nasipaddress, framedipaddress FROM radacct WHERE acctsessionid = ? AND acctstoptime IS NULL LIMIT 1");
-                    $sRow->execute([$sid]);
-                    $row = $sRow->fetch(PDO::FETCH_ASSOC);
-                    if ($row) {
-                        terminateRadiusSession($sid, '', 'Admin-Force-Reauth');
-                        sendRadiusDisconnect($row['nasipaddress'] ?? '', $row['username'] ?? '', $sid, $row['framedipaddress'] ?? '');
-                        auditLog('FORCE_DISCONNECT_SESSION', $row['username'] ?? '', "Terminated session $sid via batch kick");
-                        $count++;
-                    }
+            $cleanSids = array_values(array_filter(array_map('trim', $selectedSids)));
+            if (!empty($cleanSids)) {
+                $placeholders = implode(',', array_fill(0, count($cleanSids), '?'));
+                $sStmt = $db->prepare("SELECT username, nasipaddress, framedipaddress, acctsessionid FROM radacct WHERE acctsessionid IN ($placeholders) AND acctstoptime IS NULL");
+                $sStmt->execute($cleanSids);
+                $rows = $sStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $count = terminateMultipleRadiusSessions($cleanSids, 'Admin-Force-Reauth');
+
+                foreach ($rows as $row) {
+                    sendRadiusDisconnect($row['nasipaddress'] ?? '', $row['username'] ?? '', $row['acctsessionid'] ?? '', $row['framedipaddress'] ?? '');
                 }
+
+                auditLog('FORCE_DISCONNECT_BATCH', 'MULTIPLE_USERS', "Terminated $count session(s) via batch kick");
+                unset($_SESSION['reauth_active_cache'], $_SESSION['reauth_active_time']);
+                setFlash('success', "Successfully disconnected <strong>" . number_format($count) . " selected session(s)</strong>. Affected devices must log in again.");
+            } else {
+                setFlash('warning', "No valid sessions selected.");
             }
-            $msg = "Successfully disconnected <strong>" . number_format($count) . " selected session(s)</strong>. Affected devices must log in again.";
-            $msgType = 'success';
         } else {
-            $msg = "No sessions selected.";
-            $msgType = 'warning';
+            setFlash('warning', "No sessions selected.");
         }
+        header('Location: reauth.php');
+        exit;
     }
 }
 
-// Total online count
-$onlineCount = (int)($db->query("SELECT COUNT(*) FROM radacct WHERE acctstoptime IS NULL")->fetchColumn() ?? 0);
-
-// Search & Filtering for active sessions
-$search = trim($_GET['q'] ?? '');
-$whereSql = "WHERE acctstoptime IS NULL";
-$params = [];
-
-if ($search !== '') {
-    $whereSql .= " AND (username LIKE :q1 OR framedipaddress LIKE :q2 OR callingstationid LIKE :q3)";
-    $params[':q1'] = "%$search%";
-    $params[':q2'] = "%$search%";
-    $params[':q3'] = "%$search%";
+// Invalidate cache if refresh requested
+if (isset($_GET['refresh'])) {
+    unset($_SESSION['reauth_active_cache'], $_SESSION['reauth_active_time']);
 }
 
-$countStmt = $db->prepare("SELECT COUNT(*) FROM radacct $whereSql");
-$countStmt->execute($params);
-$filteredTotal = (int)$countStmt->fetchColumn();
+// Active Sessions Cache (45-second TTL)
+$activeCache = $_SESSION['reauth_active_cache'] ?? null;
+$activeCacheTime = $_SESSION['reauth_active_time'] ?? 0;
+
+if (!is_array($activeCache) || (time() - $activeCacheTime > 45)) {
+    $activeCache = $db->query("
+        SELECT radacctid, acctsessionid, username, nasipaddress, framedipaddress,
+               callingstationid, acctstarttime, acctinputoctets, acctoutputoctets
+        FROM radacct
+        WHERE acctstoptime IS NULL
+        ORDER BY acctstarttime DESC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $_SESSION['reauth_active_cache'] = $activeCache;
+    $_SESSION['reauth_active_time'] = time();
+}
+
+// Online count
+$onlineCount = count($activeCache);
+
+// Instant In-Memory Search & Filtering (< 2ms)
+$search = trim($_GET['q'] ?? '');
+
+if ($search !== '') {
+    $filteredSessions = array_values(array_filter($activeCache, function($r) use ($search) {
+        return stripos($r['username'], $search) !== false 
+            || stripos($r['framedipaddress'], $search) !== false 
+            || stripos($r['callingstationid'], $search) !== false;
+    }));
+} else {
+    $filteredSessions = $activeCache;
+}
+
+$filteredTotal = count($filteredSessions);
 
 // Pagination
 $perPage = 30;
@@ -136,16 +166,7 @@ $pag     = paginate($filteredTotal, $page, $perPage);
 $lim     = (int)$pag['per_page'];
 $off     = (int)$pag['offset'];
 
-$sessQuery = $db->prepare("
-    SELECT radacctid, acctsessionid, username, nasipaddress, framedipaddress,
-           callingstationid, acctstarttime, acctinputoctets, acctoutputoctets
-    FROM radacct
-    $whereSql
-    ORDER BY acctstarttime DESC
-    LIMIT $lim OFFSET $off
-");
-$sessQuery->execute($params);
-$activeSessions = $sessQuery->fetchAll(PDO::FETCH_ASSOC);
+$activeSessions = array_slice($filteredSessions, $off, $lim);
 
 // Recent Audit Trail for Disconnects
 $recentLogs = [];
@@ -177,9 +198,9 @@ include __DIR__ . '/includes/header.php';
         <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 fs-6">
             <i class="bi bi-wifi me-1"></i> <?= number_format($onlineCount) ?> Online Accounts
         </span>
-        <button class="btn btn-outline-secondary btn-sm" onclick="location.reload()" title="Refresh Status">
+        <a href="reauth.php?refresh=1<?= $search !== '' ? '&q=' . urlencode($search) : '' ?>" class="btn btn-outline-secondary btn-sm" title="Refresh Active Sessions">
             <i class="bi bi-arrow-clockwise"></i>
-        </button>
+        </a>
     </div>
 </div>
 

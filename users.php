@@ -60,10 +60,15 @@ $uiCols = $hasUserinfo ? "MAX(ui.firstname) AS firstname, MAX(ui.lastname) AS la
 if (!empty($usernames)) {
     $placeholders = implode(',', array_fill(0, count($usernames), '?'));
 
-    // Check which of these 20 users are currently active in radacct (fast batch check, 2ms)
-    $onlineStmt = $db->prepare("SELECT DISTINCT username FROM radacct WHERE username IN ($placeholders) AND acctstoptime IS NULL");
+    // Query connected devices count per user (fast batch GROUP BY query, < 2ms)
+    $onlineStmt = $db->prepare("
+        SELECT username, COUNT(*) AS device_count
+        FROM radacct
+        WHERE username IN ($placeholders) AND acctstoptime IS NULL
+        GROUP BY username
+    ");
     $onlineStmt->execute($usernames);
-    $onlineSet = array_flip($onlineStmt->fetchAll(PDO::FETCH_COLUMN));
+    $deviceMap = $onlineStmt->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
 
     $stmt = $db->prepare("SELECT rc.username,
         COALESCE(
@@ -87,7 +92,9 @@ if (!empty($usernames)) {
 
     $users = [];
     foreach ($rawUsers as $u) {
-        $u['online'] = isset($onlineSet[$u['username']]) ? 1 : 0;
+        $devCount = (int)($deviceMap[$u['username']] ?? 0);
+        $u['device_count'] = $devCount;
+        $u['online'] = ($devCount > 0) ? 1 : 0;
         $users[] = $u;
     }
 } else {
@@ -226,11 +233,12 @@ include __DIR__ . '/includes/header.php';
                 <th>Password</th>
                 <th>Group</th>
                 <th>Status</th>
+                <th class="text-center">Connected Devices</th>
                 <th>Actions</th>
             </tr></thead>
             <tbody>
             <?php if (empty($users)): ?>
-            <tr><td colspan="6" class="text-center text-muted py-5">
+            <tr><td colspan="7" class="text-center text-muted py-5">
                 <i class="bi bi-inbox fs-3 d-block mb-2"></i>No users found
             </td></tr>
             <?php else: foreach ($users as $u): ?>
@@ -294,6 +302,18 @@ include __DIR__ . '/includes/header.php';
                     <span class="badge badge-online rounded-pill"><i class="bi bi-circle-fill me-1" style="font-size:.4rem"></i>Online</span>
                     <?php else: ?>
                     <span class="badge badge-offline rounded-pill">Offline</span>
+                    <?php endif; ?>
+                </td>
+                <td class="text-center">
+                    <?php if ($u['device_count'] > 0): ?>
+                    <a href="sessions.php?q=<?= urlencode($u['username']) ?>" class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill text-decoration-none py-1.5 px-2.5 d-inline-flex align-items-center gap-1.5" title="View <?= $u['device_count'] ?> active session(s) in Active Sessions">
+                        <i class="bi bi-laptop"></i>
+                        <span class="fw-bold"><?= $u['device_count'] ?></span> <?= $u['device_count'] === 1 ? 'device' : 'devices' ?>
+                    </a>
+                    <?php else: ?>
+                    <span class="badge bg-light text-muted border rounded-pill py-1.5 px-2.5 d-inline-flex align-items-center gap-1" title="No devices currently connected">
+                        <i class="bi bi-phone text-muted" style="font-size:.75rem"></i> 0 devices
+                    </span>
                     <?php endif; ?>
                 </td>
                 <td>

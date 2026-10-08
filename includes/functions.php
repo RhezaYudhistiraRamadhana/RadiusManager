@@ -201,6 +201,9 @@ function getAllSettings(): array {
 /**
  * Terminate a single active session or all sessions for a user in radacct
  */
+/**
+ * Terminate a single active session or all sessions for a user in radacct
+ */
 function terminateRadiusSession(string $sessionId, string $username = '', string $reason = 'Admin-Reset'): int {
     $db = getDB();
     if ($sessionId !== '') {
@@ -213,6 +216,22 @@ function terminateRadiusSession(string $sessionId, string $username = '', string
         return $stmt->rowCount();
     }
     return 0;
+}
+
+/**
+ * Terminate multiple active sessions in a single batch UPDATE query
+ */
+function terminateMultipleRadiusSessions(array $sessionIds, string $reason = 'Admin-Reset'): int {
+    if (empty($sessionIds)) return 0;
+    $db = getDB();
+    $cleanIds = array_values(array_filter(array_map('trim', $sessionIds)));
+    if (empty($cleanIds)) return 0;
+    
+    $placeholders = implode(',', array_fill(0, count($cleanIds), '?'));
+    $params = array_merge([$reason], $cleanIds);
+    $stmt = $db->prepare("UPDATE radacct SET acctstoptime = NOW(), acctsessiontime = GREATEST(0, TIMESTAMPDIFF(SECOND, acctstarttime, NOW())), acctterminatecause = ? WHERE acctsessionid IN ($placeholders) AND acctstoptime IS NULL");
+    $stmt->execute($params);
+    return $stmt->rowCount();
 }
 
 /**
@@ -229,10 +248,17 @@ function terminateAllRadiusSessions(string $reason = 'Admin-Force-Reauth'): int 
  * Send RADIUS Disconnect-Request (PoD / CoA RFC 3576 / RFC 5176) to NAS gateway
  */
 function sendRadiusDisconnect(string $nasIp, string $username, string $sessionId = '', string $framedIp = ''): array {
+    static $nasSecretCache = null;
     $db = getDB();
-    $nas = $db->prepare("SELECT secret FROM nas WHERE nasname = ? LIMIT 1");
-    $nas->execute([$nasIp]);
-    $secret = $nas->fetchColumn() ?: 'secret';
+
+    if ($nasSecretCache === null) {
+        try {
+            $nasSecretCache = $db->query("SELECT nasname, secret FROM nas")->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
+        } catch (\Throwable $e) {
+            $nasSecretCache = [];
+        }
+    }
+    $secret = $nasSecretCache[$nasIp] ?? 'secret';
 
     $attributes = ["User-Name=$username"];
     if ($sessionId !== '') {
@@ -256,13 +282,14 @@ function sendRadiusDisconnect(string $nasIp, string $username, string $sessionId
         }
     }
 
-    if (!$executed && function_exists('fsockopen') && $nasIp !== '' && $nasIp !== '0.0.0.0/0') {
+    // Ultra-fast non-blocking stream notification (20ms timeout maximum)
+    if (!$executed && $nasIp !== '' && $nasIp !== '0.0.0.0' && !str_contains($nasIp, '/')) {
         try {
-            $fp = @fsockopen("udp://$nasIp", 3799, $errno, $errstr, 1);
+            $fp = @stream_socket_client("udp://$nasIp:3799", $errno, $errstr, 0.02, STREAM_CLIENT_CONNECT);
             if ($fp) {
                 fclose($fp);
             }
-        } catch (Exception $e) {}
+        } catch (\Throwable $e) {}
     }
 
     return [
