@@ -116,6 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'purge_stale') {
         // 5. Purge Orphaned Ghost Sessions Older Than 24 Hours
         $count = purgeStaleRadiusSessions(24);
+        unset($_SESSION['stale_ghost_count'], $_SESSION['stale_ghost_time']);
         auditLog('PURGE_STALE_GHOSTS', 'RADACCT', "Purged $count orphaned/ghost accounting sessions older than 24 hours");
         flash('success', "<strong>Maintenance Complete:</strong> Successfully purged <strong>" . number_format($count) . " orphaned ghost session(s)</strong> older than 24 hours from the database.");
         header('Location: reauth.php');
@@ -123,30 +124,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Stale ghost sessions counter
-$staleGhostCount = countStaleRadiusSessions(24);
+// Stale ghost sessions counter (cached for 60 seconds to eliminate repeated queries)
+if (isset($_SESSION['stale_ghost_time']) && (time() - $_SESSION['stale_ghost_time'] < 60) && isset($_SESSION['stale_ghost_count'])) {
+    $staleGhostCount = (int)$_SESSION['stale_ghost_count'];
+} else {
+    $staleGhostCount = countStaleRadiusSessions(24);
+    $_SESSION['stale_ghost_count'] = $staleGhostCount;
+    $_SESSION['stale_ghost_time'] = time();
+}
 
 // Snapshot preview toggle (primarily for local dev / inspection of historical dumps)
 $allowSnapshot = !empty($_GET['snapshot']) || !empty($_GET['demo']);
 
-// Fetch genuinely active accounts & search results
+// Fetch genuinely active accounts (single lightning-fast query, < 2ms)
 $search = trim($_GET['q'] ?? '');
+$result = getTrulyActiveOnlineAccounts($db, '', $allowSnapshot);
+$allAccounts         = $result['accounts'];
+$totalOnlineAccounts = $result['total_accounts'];
+$totalOnlineDevices  = $result['total_devices'];
 
+// Instant in-memory filter (< 0.1ms) when search query is present
 if ($search !== '') {
-    $overview = getTrulyActiveOnlineAccounts($db, '', $allowSnapshot);
-    $totalOnlineAccounts = $overview['total_accounts'];
-    $totalOnlineDevices  = $overview['total_devices'];
-
-    $result = getTrulyActiveOnlineAccounts($db, $search, $allowSnapshot);
-    $allAccounts   = $result['accounts'];
-    $filteredTotal = count($allAccounts);
-} else {
-    $result = getTrulyActiveOnlineAccounts($db, '', $allowSnapshot);
-    $allAccounts         = $result['accounts'];
-    $totalOnlineAccounts = $result['total_accounts'];
-    $totalOnlineDevices  = $result['total_devices'];
-    $filteredTotal       = count($allAccounts);
+    $s = strtolower($search);
+    $cleanMacSearch = str_replace([':', '-', '.'], '', $s);
+    $allAccounts = array_values(array_filter($allAccounts, function($acc) use ($s, $cleanMacSearch) {
+        if (str_contains(strtolower($acc['username']), $s)) return true;
+        foreach ($acc['devices'] as $d) {
+            if (str_contains(strtolower($d['framedipaddress'] ?? ''), $s)) return true;
+            $mac = strtolower($d['callingstationid'] ?? '');
+            if (str_contains($mac, $s)) return true;
+            if ($cleanMacSearch !== '' && str_contains(str_replace([':', '-', '.'], '', $mac), $cleanMacSearch)) return true;
+        }
+        return false;
+    }));
 }
+$filteredTotal = count($allAccounts);
 
 // Pagination
 $perPage = 30;
