@@ -293,6 +293,8 @@ function sendRadiusDisconnect(string $nasIp, string $username, string $sessionId
 
     // Ultra-fast non-blocking stream notification (20ms timeout maximum)
     if (!$executed && $nasIp !== '' && $nasIp !== '0.0.0.0' && !str_contains($nasIp, '/')) {
+        $errno = 0;
+        $errstr = '';
         try {
             $fp = @stream_socket_client("udp://$nasIp:3799", $errno, $errstr, 0.02, STREAM_CLIENT_CONNECT);
             if ($fp) {
@@ -306,6 +308,191 @@ function sendRadiusDisconnect(string $nasIp, string $username, string $sessionId
         'executed' => $executed,
         'output'   => $output,
         'secret'   => $secret,
+    ];
+}
+
+/**
+ * Purge orphaned/stale sessions from radacct where device disconnected without Acct-Stop.
+ * Closes sessions older than $hours hours (default 24h) with accurate duration.
+ */
+function purgeStaleRadiusSessions(int $hours = 24): int {
+    $db = getDB();
+    $stmt = $db->prepare("
+        UPDATE radacct 
+        SET acctstoptime = COALESCE(acctupdatetime, acctstarttime), 
+            acctsessiontime = GREATEST(0, TIMESTAMPDIFF(SECOND, acctstarttime, COALESCE(acctupdatetime, acctstarttime))), 
+            acctterminatecause = 'Admin-Stale-Purge' 
+        WHERE acctstoptime IS NULL 
+          AND acctstarttime < NOW() - INTERVAL ? HOUR
+          AND (acctupdatetime IS NULL OR acctupdatetime < NOW() - INTERVAL ? HOUR)
+    ");
+    $stmt->execute([$hours, $hours]);
+    return $stmt->rowCount();
+}
+
+/**
+ * Count orphaned/stale sessions in radacct older than $hours hours.
+ */
+function countStaleRadiusSessions(int $hours = 24): int {
+    $db = getDB();
+    $stmt = $db->prepare("
+        SELECT COUNT(*) 
+        FROM radacct 
+        WHERE acctstoptime IS NULL 
+          AND acctstarttime < NOW() - INTERVAL ? HOUR
+          AND (acctupdatetime IS NULL OR acctupdatetime < NOW() - INTERVAL ? HOUR)
+    ");
+    $stmt->execute([$hours, $hours]);
+    return (int)$stmt->fetchColumn();
+}
+
+/**
+ * Retrieves accounts and connected devices that are genuinely active RIGHT NOW.
+ * - Filters out stale / ghost sessions beyond the active network window (last 24 hours of NOW).
+ * - Optional $allowSnapshot: when true (e.g. ?snapshot=1 on localhost test), anchors reference time to newest db record.
+ * - De-duplicates candidate sessions by device MAC address.
+ * - Discards devices whose latest session in radacct already ended or was superseded.
+ * - De-duplicates overlapping IP addresses.
+ * - Groups multiple active devices under their respective subscriber account.
+ */
+function getTrulyActiveOnlineAccounts(PDO $db, string $search = '', bool $allowSnapshot = false): array {
+    $now = time();
+    $maxStartStr = $db->query("SELECT MAX(acctstarttime) FROM radacct WHERE acctstoptime IS NULL")->fetchColumn();
+    $maxStart = $maxStartStr ? strtotime($maxStartStr) : 0;
+
+    // Anchor reference time: on live server, always real-time clock.
+    // If snapshot preview is explicitly requested, anchor to maxStart.
+    if ($allowSnapshot && $maxStart > 0) {
+        $refNow = $maxStart;
+    } else {
+        $refNow = $now;
+    }
+
+    // Active temporal cutoff: devices must have had start or interim activity within the last 24 hours
+    $cutoffTime = date('Y-m-d H:i:s', $refNow - (24 * 3600));
+
+    $whereClauses = ["acctstoptime IS NULL", "(acctstarttime >= ? OR (acctupdatetime IS NOT NULL AND acctupdatetime >= ?))"];
+    $params = [$cutoffTime, $cutoffTime];
+
+    $search = trim($search);
+    if ($search !== '') {
+        $isIp  = (bool)preg_match('/^[0-9\.:]+$/', $search) && str_contains($search, '.');
+        $isMac = (bool)preg_match('/^[0-9a-fA-F:\-\.]{4,}$/', $search) && (str_contains($search, ':') || str_contains($search, '-'));
+
+        if ($isIp) {
+            $whereClauses[] = "framedipaddress LIKE ?";
+            $params[] = $search . '%';
+        } elseif ($isMac) {
+            $cleanSearch = str_replace([':', '-', '.'], '', $search);
+            $whereClauses[] = "(callingstationid LIKE ? OR REPLACE(REPLACE(REPLACE(callingstationid, ':', ''), '-', ''), '.', '') LIKE ?)";
+            $params[] = '%' . $search . '%';
+            $params[] = '%' . $cleanSearch . '%';
+        } else {
+            $whereClauses[] = "username LIKE ?";
+            $params[] = '%' . $search . '%';
+        }
+    }
+
+    $whereSql = "WHERE " . implode(' AND ', $whereClauses);
+    $stmt = $db->prepare("
+        SELECT radacctid, acctsessionid, username, nasipaddress, framedipaddress,
+               callingstationid, acctstarttime, acctupdatetime,
+               COALESCE(acctinputoctets, 0) AS acctinputoctets,
+               COALESCE(acctoutputoctets, 0) AS acctoutputoctets
+        FROM radacct
+        $whereSql
+        ORDER BY radacctid DESC
+    ");
+    $stmt->execute($params);
+    $rawSessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // 1. De-duplicate candidate open sessions per physical MAC (keep newest radacctid)
+    $candidateSessionsByMac = [];
+    foreach ($rawSessions as $sess) {
+        $rawMac = $sess['callingstationid'] ?? '';
+        $cleanMac = strtoupper(trim(str_replace([':', '-', '.'], '', $rawMac)));
+        if ($cleanMac === '') {
+            $candidateSessionsByMac[] = $sess;
+            continue;
+        }
+        if (!isset($candidateSessionsByMac[$cleanMac])) {
+            $candidateSessionsByMac[$cleanMac] = $sess;
+        }
+    }
+
+    // 2. Check each candidate MAC against radacct to verify it has not stopped in a later session
+    $cStmt = $db->prepare("SELECT radacctid, acctstoptime FROM radacct WHERE callingstationid = ? ORDER BY radacctid DESC LIMIT 1");
+    $validSessions = [];
+    $seenIps = [];
+
+    foreach ($candidateSessionsByMac as $k => $sess) {
+        if (is_string($k) && $k !== '') {
+            $cStmt->execute([$sess['callingstationid']]);
+            $latest = $cStmt->fetch(PDO::FETCH_ASSOC);
+            if ($latest) {
+                // If device's latest session stopped, or current session was superseded, it's NOT online right now!
+                if (!empty($latest['acctstoptime'])) continue;
+                if ((int)$latest['radacctid'] > (int)$sess['radacctid']) continue;
+            }
+        }
+
+        $ip = trim($sess['framedipaddress'] ?? '');
+        if ($ip !== '' && $ip !== '0.0.0.0') {
+            if (isset($seenIps[$ip])) continue;
+            $seenIps[$ip] = true;
+        }
+
+        $validSessions[] = $sess;
+    }
+
+    // 3. Group valid sessions by subscriber account (username)
+    $accounts = [];
+    foreach ($validSessions as $sess) {
+        $u = $sess['username'];
+        if (!isset($accounts[$u])) {
+            $accounts[$u] = [
+                'username'         => $u,
+                'devices'          => [],
+                'session_ids'      => [],
+                'latest_starttime' => $sess['acctstarttime'],
+                'primary_ip'       => $sess['framedipaddress'],
+                'primary_mac'      => $sess['callingstationid'],
+                'primary_nas'      => $sess['nasipaddress'],
+                'total_input'      => 0,
+                'total_output'     => 0,
+            ];
+        }
+
+        $uptimeSec = max(0, $refNow - strtotime($sess['acctstarttime']));
+        $sess['duration_sec'] = $uptimeSec;
+        $sess['duration_text'] = formatDuration($uptimeSec);
+
+        $accounts[$u]['total_input'] += (float)($sess['acctinputoctets'] ?? 0);
+        $accounts[$u]['total_output'] += (float)($sess['acctoutputoctets'] ?? 0);
+
+        $accounts[$u]['devices'][] = $sess;
+        $accounts[$u]['session_ids'][] = $sess['acctsessionid'];
+
+        if (strtotime($sess['acctstarttime']) > strtotime($accounts[$u]['latest_starttime'])) {
+            $accounts[$u]['latest_starttime'] = $sess['acctstarttime'];
+            $accounts[$u]['primary_ip'] = $sess['framedipaddress'];
+            $accounts[$u]['primary_mac'] = $sess['callingstationid'];
+            $accounts[$u]['primary_nas'] = $sess['nasipaddress'];
+        }
+    }
+
+    foreach ($accounts as &$acc) {
+        $acc['device_count'] = count($acc['devices']);
+        $acc['duration_text'] = formatDuration(max(0, $refNow - strtotime($acc['latest_starttime'])));
+    }
+    unset($acc);
+
+    return [
+        'ref_now'        => $refNow,
+        'accounts'       => array_values($accounts),
+        'total_accounts' => count($accounts),
+        'total_devices'  => count($validSessions),
+        'is_snapshot'    => ($refNow !== $now),
     ];
 }
 

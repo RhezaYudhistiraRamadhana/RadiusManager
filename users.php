@@ -64,7 +64,9 @@ if (!empty($usernames)) {
     $onlineStmt = $db->prepare("
         SELECT username, COUNT(*) AS device_count
         FROM radacct
-        WHERE username IN ($placeholders) AND acctstoptime IS NULL
+        WHERE username IN ($placeholders) 
+          AND acctstoptime IS NULL
+          AND (acctstarttime >= NOW() - INTERVAL 24 HOUR OR (acctupdatetime IS NOT NULL AND acctupdatetime >= NOW() - INTERVAL 24 HOUR))
         GROUP BY username
     ");
     $onlineStmt->execute($usernames);

@@ -13,7 +13,7 @@ $_SESSION['dash_view'] = $viewMode;
 
 // ── Instant Top Stats (Indexed lookups, < 2ms) ─────────────────────────────
 $totalUsers     = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
-$activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL")->fetch()['c'] ?? 0);
+$activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL AND (acctstarttime >= NOW() - INTERVAL 24 HOUR OR (acctupdatetime IS NOT NULL AND acctupdatetime >= NOW() - INTERVAL 24 HOUR))")->fetch()['c'] ?? 0);
 $totalNas       = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
 
 // Latest auth record for quick anchor (indexed on primary key id, 0.3ms)
@@ -24,7 +24,8 @@ $todayDate  = date('Y-m-d');
 // ── Operational Tables (Instant primary key indexed scans, < 2ms) ──────────
 $sessions = $db->query("SELECT username, nasipaddress, framedipaddress,
     acctstarttime, acctinputoctets, acctoutputoctets
-  FROM radacct WHERE acctstoptime IS NULL
+  FROM radacct 
+  WHERE acctstoptime IS NULL AND (acctstarttime >= NOW() - INTERVAL 24 HOUR OR (acctupdatetime IS NOT NULL AND acctupdatetime >= NOW() - INTERVAL 24 HOUR))
   ORDER BY radacctid DESC LIMIT 8")->fetchAll();
 
 $hasPostAuthNas = dbHasColumn('radpostauth', 'nasipaddress');

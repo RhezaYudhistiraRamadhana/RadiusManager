@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         auditLog('FORCE_DISCONNECT_ALL', 'ALL_ACCOUNTS', "Terminated $count active session(s) to force re-login for all online devices");
-        setFlash('success', "<strong>Success!</strong> A total of <strong>" . number_format($count) . " active session(s)</strong> have been disconnected simultaneously. All users are now required to log in again on their devices to restore internet connectivity.");
+        flash('success', "<strong>Success!</strong> A total of <strong>" . number_format($count) . " active session(s)</strong> have been disconnected simultaneously. All users are now required to log in again on their devices to restore internet connectivity.");
         header('Location: reauth.php');
         exit;
 
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 2. Force Disconnect Specific User by Username
         $targetUser = trim($_POST['username'] ?? '');
         if ($targetUser === '') {
-            setFlash('danger', 'Please enter the username of the account you wish to disconnect.');
+            flash('danger', 'Please enter the username of the account you wish to disconnect.');
         } else {
             $sessStmt = $db->prepare("SELECT acctsessionid, nasipaddress, framedipaddress FROM radacct WHERE username = ? AND acctstoptime IS NULL");
             $sessStmt->execute([$targetUser]);
@@ -60,9 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             auditLog('FORCE_DISCONNECT_USER', $targetUser, "Terminated $count active session(s) for user $targetUser to force re-login");
             if ($count > 0) {
-                setFlash('success', "<strong>Success!</strong> Account <strong>" . htmlspecialchars($targetUser) . "</strong> (" . number_format($count) . " session(s)) has been disconnected. The user must re-authenticate to re-establish internet access.");
+                flash('success', "<strong>Success!</strong> Account <strong>" . htmlspecialchars($targetUser) . "</strong> (" . number_format($count) . " session(s)) has been disconnected. The user must re-authenticate to re-establish internet access.");
             } else {
-                setFlash('warning', "Account <strong>" . htmlspecialchars($targetUser) . "</strong> currently has no active online sessions, but the session reset signal was recorded.");
+                flash('warning', "Account <strong>" . htmlspecialchars($targetUser) . "</strong> currently has no active online sessions, but the session reset signal was recorded.");
             }
         }
         header('Location: reauth.php');
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             terminateRadiusSession($sid, '', 'Admin-Force-Reauth');
             sendRadiusDisconnect($nasIp, $u, $sid, $fIp);
             auditLog('FORCE_DISCONNECT_SESSION', $u, "Terminated session $sid on NAS $nasIp ($fIp)");
-            setFlash('success', "Online session for <strong>" . htmlspecialchars($u) . "</strong> (IP: $fIp) has been disconnected. The user's device must log in again.");
+            flash('success', "Online session for <strong>" . htmlspecialchars($u) . "</strong> (IP: $fIp) has been disconnected. The user's device must log in again.");
         }
         $redirectUrl = 'reauth.php' . (!empty($_GET['q']) ? '?q=' . urlencode($_GET['q']) : '');
         header('Location: ' . $redirectUrl);
@@ -103,164 +103,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 auditLog('FORCE_DISCONNECT_BATCH', 'MULTIPLE_USERS', "Terminated $count session(s) via batch kick");
-                setFlash('success', "Successfully disconnected <strong>" . number_format($count) . " selected session(s)</strong>. Affected devices must log in again.");
+                flash('success', "Successfully disconnected <strong>" . number_format($count) . " selected session(s)</strong>. Affected devices must log in again.");
             } else {
-                setFlash('warning', "No valid sessions selected.");
+                flash('warning', "No valid sessions selected.");
             }
         } else {
-            setFlash('warning', "No sessions selected.");
+            flash('warning', "No sessions selected.");
         }
+        header('Location: reauth.php');
+        exit;
+
+    } elseif ($action === 'purge_stale') {
+        // 5. Purge Orphaned Ghost Sessions Older Than 24 Hours
+        $count = purgeStaleRadiusSessions(24);
+        auditLog('PURGE_STALE_GHOSTS', 'RADACCT', "Purged $count orphaned/ghost accounting sessions older than 24 hours");
+        flash('success', "<strong>Maintenance Complete:</strong> Successfully purged <strong>" . number_format($count) . " orphaned ghost session(s)</strong> older than 24 hours from the database.");
         header('Location: reauth.php');
         exit;
     }
 }
 
-/**
- * Retrieves accounts and connected devices that are genuinely active RIGHT NOW.
- * - Filters out stale / ghost sessions beyond the active network window.
- * - De-duplicates candidate sessions by device MAC address.
- * - Discards devices whose latest session in radacct already ended or was superseded.
- * - De-duplicates overlapping IP addresses.
- * - Groups multiple active devices under their respective subscriber account.
- */
-function getTrulyActiveOnlineAccounts(PDO $db, string $search = ''): array {
-    $now = time();
-    $maxStartStr = $db->query("SELECT MAX(acctstarttime) FROM radacct WHERE acctstoptime IS NULL")->fetchColumn();
-    $maxStart = $maxStartStr ? strtotime($maxStartStr) : 0;
-    // Dynamic reference: server clock for live systems; latest active record for historical snapshots
-    $refNow = ($maxStart > 0 && ($now - $maxStart) > 86400 * 7) ? $maxStart : $now;
-    $cutoffTime = date('Y-m-d H:i:s', $refNow - (48 * 3600));
+// Stale ghost sessions counter
+$staleGhostCount = countStaleRadiusSessions(24);
 
-    $whereClauses = ["acctstoptime IS NULL", "acctstarttime >= ?"];
-    $params = [$cutoffTime];
-
-    $search = trim($search);
-    if ($search !== '') {
-        $isIp  = (bool)preg_match('/^[0-9\.:]+$/', $search) && str_contains($search, '.');
-        $isMac = (bool)preg_match('/^[0-9a-fA-F:\-\.]{4,}$/', $search) && (str_contains($search, ':') || str_contains($search, '-'));
-
-        if ($isIp) {
-            $whereClauses[] = "framedipaddress LIKE ?";
-            $params[] = $search . '%';
-        } elseif ($isMac) {
-            $cleanSearch = str_replace([':', '-', '.'], '', $search);
-            $whereClauses[] = "(callingstationid LIKE ? OR REPLACE(REPLACE(REPLACE(callingstationid, ':', ''), '-', ''), '.', '') LIKE ?)";
-            $params[] = '%' . $search . '%';
-            $params[] = '%' . $cleanSearch . '%';
-        } else {
-            $whereClauses[] = "username LIKE ?";
-            $params[] = '%' . $search . '%';
-        }
-    }
-
-    $whereSql = "WHERE " . implode(' AND ', $whereClauses);
-    $stmt = $db->prepare("
-        SELECT radacctid, acctsessionid, username, nasipaddress, framedipaddress,
-               callingstationid, acctstarttime, acctupdatetime
-        FROM radacct
-        $whereSql
-        ORDER BY radacctid DESC
-    ");
-    $stmt->execute($params);
-    $rawSessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    // 1. De-duplicate candidate open sessions per physical MAC (keep newest radacctid)
-    $candidateSessionsByMac = [];
-    foreach ($rawSessions as $sess) {
-        $rawMac = $sess['callingstationid'] ?? '';
-        $cleanMac = strtoupper(trim(str_replace([':', '-', '.'], '', $rawMac)));
-        if ($cleanMac === '') {
-            $candidateSessionsByMac[] = $sess;
-            continue;
-        }
-        if (!isset($candidateSessionsByMac[$cleanMac])) {
-            $candidateSessionsByMac[$cleanMac] = $sess;
-        }
-    }
-
-    // 2. Check each candidate MAC against radacct to verify it has not stopped in a later session
-    $cStmt = $db->prepare("SELECT radacctid, acctstoptime FROM radacct WHERE callingstationid = ? ORDER BY radacctid DESC LIMIT 1");
-    $validSessions = [];
-    $seenIps = [];
-
-    foreach ($candidateSessionsByMac as $k => $sess) {
-        if (is_string($k) && $k !== '') {
-            $cStmt->execute([$sess['callingstationid']]);
-            $latest = $cStmt->fetch(PDO::FETCH_ASSOC);
-            if ($latest) {
-                // If device's latest session stopped, or current session was superseded, it's NOT online right now!
-                if (!empty($latest['acctstoptime'])) continue;
-                if ((int)$latest['radacctid'] > (int)$sess['radacctid']) continue;
-            }
-        }
-
-        $ip = trim($sess['framedipaddress'] ?? '');
-        if ($ip !== '' && $ip !== '0.0.0.0') {
-            if (isset($seenIps[$ip])) continue;
-            $seenIps[$ip] = true;
-        }
-
-        $validSessions[] = $sess;
-    }
-
-    // 3. Group valid sessions by subscriber account (username)
-    $accounts = [];
-    foreach ($validSessions as $sess) {
-        $u = $sess['username'];
-        if (!isset($accounts[$u])) {
-            $accounts[$u] = [
-                'username'         => $u,
-                'devices'          => [],
-                'session_ids'      => [],
-                'latest_starttime' => $sess['acctstarttime'],
-                'primary_ip'       => $sess['framedipaddress'],
-                'primary_mac'      => $sess['callingstationid'],
-                'primary_nas'      => $sess['nasipaddress'],
-            ];
-        }
-
-        $uptimeSec = max(0, $refNow - strtotime($sess['acctstarttime']));
-        $sess['duration_sec'] = $uptimeSec;
-        $sess['duration_text'] = formatDuration($uptimeSec);
-
-        $accounts[$u]['devices'][] = $sess;
-        $accounts[$u]['session_ids'][] = $sess['acctsessionid'];
-
-        if (strtotime($sess['acctstarttime']) > strtotime($accounts[$u]['latest_starttime'])) {
-            $accounts[$u]['latest_starttime'] = $sess['acctstarttime'];
-            $accounts[$u]['primary_ip'] = $sess['framedipaddress'];
-            $accounts[$u]['primary_mac'] = $sess['callingstationid'];
-            $accounts[$u]['primary_nas'] = $sess['nasipaddress'];
-        }
-    }
-
-    foreach ($accounts as &$acc) {
-        $acc['device_count'] = count($acc['devices']);
-        $acc['duration_text'] = formatDuration(max(0, $refNow - strtotime($acc['latest_starttime'])));
-    }
-    unset($acc);
-
-    return [
-        'ref_now'        => $refNow,
-        'accounts'       => array_values($accounts),
-        'total_accounts' => count($accounts),
-        'total_devices'  => count($validSessions),
-    ];
-}
+// Snapshot preview toggle (primarily for local dev / inspection of historical dumps)
+$allowSnapshot = !empty($_GET['snapshot']) || !empty($_GET['demo']);
 
 // Fetch genuinely active accounts & search results
 $search = trim($_GET['q'] ?? '');
 
 if ($search !== '') {
-    $overview = getTrulyActiveOnlineAccounts($db);
+    $overview = getTrulyActiveOnlineAccounts($db, '', $allowSnapshot);
     $totalOnlineAccounts = $overview['total_accounts'];
     $totalOnlineDevices  = $overview['total_devices'];
 
-    $result = getTrulyActiveOnlineAccounts($db, $search);
+    $result = getTrulyActiveOnlineAccounts($db, $search, $allowSnapshot);
     $allAccounts   = $result['accounts'];
     $filteredTotal = count($allAccounts);
 } else {
-    $result = getTrulyActiveOnlineAccounts($db);
+    $result = getTrulyActiveOnlineAccounts($db, '', $allowSnapshot);
     $allAccounts         = $result['accounts'];
     $totalOnlineAccounts = $result['total_accounts'];
     $totalOnlineDevices  = $result['total_devices'];
@@ -316,6 +197,29 @@ include __DIR__ . '/includes/header.php';
         <div><?= $msg ?></div>
     </div>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+<?php endif; ?>
+
+<?php if ($staleGhostCount > 0): ?>
+<div class="card border-warning border-opacity-50 bg-warning bg-opacity-10 mb-4 shadow-sm">
+    <div class="card-body p-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle bg-warning text-dark p-2 fs-4 d-flex align-items-center justify-content-center flex-shrink-0" style="width:42px;height:42px;">
+                <i class="bi bi-shield-exclamation"></i>
+            </div>
+            <div>
+                <h6 class="fw-bold mb-0 text-dark">Database Maintenance: <?= number_format($staleGhostCount) ?> Orphaned Ghost Session(s) Detected</h6>
+                <div class="text-secondary small">These accounting rows have no stop time but have been inactive for over 24 hours (devices disconnected without sending <code>Acct-Stop</code>). They are excluded from live online lists, but can be cleanly closed in the database.</div>
+            </div>
+        </div>
+        <form method="POST" class="m-0 flex-shrink-0" onsubmit="return confirm('Purge and cleanly close all <?= number_format($staleGhostCount) ?> orphaned ghost sessions older than 24 hours?');">
+            <?= csrfField() ?>
+            <input type="hidden" name="action" value="purge_stale">
+            <button type="submit" class="btn btn-warning btn-sm fw-bold px-3 py-2 text-dark shadow-sm">
+                <i class="bi bi-trash3-fill me-1"></i>Purge Orphaned Sessions (<?= number_format($staleGhostCount) ?>)
+            </button>
+        </form>
+    </div>
 </div>
 <?php endif; ?>
 

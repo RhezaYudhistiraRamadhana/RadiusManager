@@ -9,7 +9,7 @@ if ($method === 'GET') {
     $nasIp    = trim($_GET['nasipaddress'] ?? '');
     $limit    = min(200, max(1, (int)($_GET['limit'] ?? 50)));
 
-    $where = ["ra.acctstoptime IS NULL"];
+    $where = ["ra.acctstoptime IS NULL", "(ra.acctstarttime >= NOW() - INTERVAL 24 HOUR OR (ra.acctupdatetime IS NOT NULL AND ra.acctupdatetime >= NOW() - INTERVAL 24 HOUR))"];
     $params = [];
 
     if ($username !== '') {

@@ -370,3 +370,10 @@ function getFlash() {
     }
     return null;
 }
+
+/**
+ * Compatibility alias for setFlash($type, $msg)
+ */
+function setFlash(string $type, string $msg): void {
+    flash($type, $msg);
+}
