@@ -5,6 +5,12 @@
  * Loads configuration, database layer, authentication helpers, and utilities.
  */
 
+// Enforce Asia/Jakarta (WIB) timezone synchronization across PHP
+if (!defined('APP_TIMEZONE')) {
+    define('APP_TIMEZONE', 'Asia/Jakarta');
+}
+date_default_timezone_set(APP_TIMEZONE);
+
 if (file_exists(__DIR__ . '/config.php')) {
     require_once __DIR__ . '/config.php';
 } elseif (file_exists(__DIR__ . '/config.sample.php')) {

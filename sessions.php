@@ -169,6 +169,17 @@ include __DIR__ . '/includes/header.php';
 </div>
 <?php endif; ?>
 
+<!-- Access Point Telemetry & Timezone Notice -->
+<div class="alert alert-light border shadow-sm py-2 px-3 small d-flex flex-wrap align-items-center justify-content-between gap-2 text-secondary mb-3">
+    <div>
+        <i class="bi bi-info-circle-fill text-primary me-1"></i>
+        <strong>Network Telemetry Notice:</strong> Access Points (Ruijie/MikroTik) report bandwidth counters and refreshed DHCP IP leases periodically via RADIUS Interim-Updates (5-minute interval). Sessions in their initial handshake show <em>Awaiting DHCP</em> or <em>Buffering</em> until the first AP telemetry packet arrives.
+    </div>
+    <div class="font-monospace small text-muted">
+        Server Timezone: <strong>Asia/Jakarta (WIB)</strong>
+    </div>
+</div>
+
 <!-- Search Card -->
 <div class="card shadow-sm border mb-4">
     <div class="card-body py-3">
@@ -214,7 +225,7 @@ include __DIR__ . '/includes/header.php';
                     <tr>
                         <th style="min-width: 140px;">Subscriber / Account</th>
                         <th>Device IP &amp; Multiple Connections</th>
-                        <th>MAC / Station ID</th>
+                        <th>MAC / Station ID &amp; SSID</th>
                         <th>NAS Gateway</th>
                         <th>Duration / Online Since</th>
                         <th>Traffic (Up / Down)</th>
@@ -264,7 +275,7 @@ include __DIR__ . '/includes/header.php';
                                         <i class="bi bi-hdd-network text-primary"></i>
                                         <span><?= $acc['device_count'] ?> Connected Devices</span>
                                     </button>
-                                    <div class="dropdown-menu shadow-lg p-3 border" style="min-width: 420px;">
+                                    <div class="dropdown-menu shadow-lg p-3 border" style="min-width: 440px;">
                                         <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
                                             <span class="fw-bold text-dark small"><i class="bi bi-devices me-1 text-primary"></i><?= htmlspecialchars($acc['username']) ?>'s Active Devices</span>
                                             <span class="badge bg-primary"><?= $acc['device_count'] ?> Online</span>
@@ -272,25 +283,43 @@ include __DIR__ . '/includes/header.php';
                                         <?php foreach ($acc['devices'] as $d): ?>
                                         <div class="p-2 mb-2 rounded border bg-light-subtle">
                                             <div class="d-flex align-items-center justify-content-between mb-1">
-                                                <span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($d['framedipaddress'] ?: '—') ?></span>
-                                                <span class="font-monospace small text-muted"><?= htmlspecialchars(formatMac($d['callingstationid'])) ?></span>
+                                                <div>
+                                                    <?php if (!empty($d['resolved_ip'])): ?>
+                                                        <span class="badge bg-light text-dark border font-monospace"><?= htmlspecialchars($d['resolved_ip']) ?></span>
+                                                        <?php if ($d['ip_source'] !== 'live'): ?>
+                                                            <span class="badge bg-info-subtle text-info border border-info-subtle small ms-1" title="Resolved from recent DHCP lease">DHCP</span>
+                                                        <?php endif; ?>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace" title="Initial 802.1X handshake; awaiting 1st 5-minute AP DHCP update"><i class="bi bi-hourglass-split me-1"></i>Awaiting DHCP</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <span class="font-monospace small text-dark fw-semibold" title="Device Hardware MAC"><?= htmlspecialchars(formatMac($d['callingstationid'])) ?></span>
                                             </div>
                                             <div class="d-flex align-items-center justify-content-between small text-secondary mb-1">
                                                 <span><i class="bi bi-router me-1"></i>NAS: <?= htmlspecialchars($d['nasipaddress'] ?: '—') ?></span>
                                                 <span class="text-success fw-semibold"><i class="bi bi-stopwatch me-1"></i><?= $d['duration_text'] ?></span>
                                             </div>
+                                            <?php if (!empty($d['ssid'])): ?>
+                                            <div class="small text-muted mb-1">
+                                                <i class="bi bi-wifi me-1 text-primary"></i>SSID: <strong><?= htmlspecialchars($d['ssid']) ?></strong>
+                                            </div>
+                                            <?php endif; ?>
                                             <div class="d-flex align-items-center justify-content-between small text-muted mb-1.5">
-                                                <span><i class="bi bi-arrow-up-down me-1"></i>↑ <?= formatBytes($d['acctinputoctets'] ?? 0) ?> | ↓ <?= formatBytes($d['acctoutputoctets'] ?? 0) ?></span>
-                                                <span class="small">Since: <?= date('d M H:i', strtotime($d['acctstarttime'])) ?></span>
+                                                <?php if (($d['acctinputoctets'] ?? 0) > 0 || ($d['acctoutputoctets'] ?? 0) > 0): ?>
+                                                    <span><i class="bi bi-arrow-up-down me-1"></i>↑ <?= formatBytes($d['acctinputoctets'] ?? 0) ?> | ↓ <?= formatBytes($d['acctoutputoctets'] ?? 0) ?></span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-light text-muted border" style="font-size:0.68rem;"><i class="bi bi-clock-history me-1"></i>Buffering (&lt; 5m)</span>
+                                                <?php endif; ?>
+                                                <span class="small">Since: <?= date('d M H:i:s', strtotime($d['acctstarttime'])) ?> WIB</span>
                                             </div>
                                             <div class="text-end pt-1 border-top">
-                                                <form method="POST" class="d-inline" onsubmit="return confirm('Disconnect this specific device (<?= htmlspecialchars(addslashes($d['framedipaddress'])) ?>)?');">
+                                                <form method="POST" class="d-inline" onsubmit="return confirm('Disconnect this specific device (<?= htmlspecialchars(addslashes($d['resolved_ip'] ?: formatMac($d['callingstationid']))) ?>)?');">
                                                     <?= csrfField() ?>
                                                     <input type="hidden" name="action" value="disconnect">
                                                     <input type="hidden" name="session_id" value="<?= htmlspecialchars($d['acctsessionid']) ?>">
                                                     <input type="hidden" name="username" value="<?= htmlspecialchars($acc['username']) ?>">
                                                     <input type="hidden" name="nasip" value="<?= htmlspecialchars($d['nasipaddress']) ?>">
-                                                    <input type="hidden" name="framedip" value="<?= htmlspecialchars($d['framedipaddress']) ?>">
+                                                    <input type="hidden" name="framedip" value="<?= htmlspecialchars($d['resolved_ip'] ?: $d['framedipaddress']) ?>">
                                                     <button type="submit" class="btn btn-outline-danger btn-sm py-0.5 px-2" style="font-size: 0.75rem;">
                                                         <i class="bi bi-power me-1"></i>Disconnect Device
                                                     </button>
@@ -311,16 +340,28 @@ include __DIR__ . '/includes/header.php';
                                     </div>
                                 </div>
                             <?php else: ?>
-                                <span class="badge bg-light text-dark border font-monospace px-2 py-1">
-                                    <i class="bi bi-broadcast me-1 text-success"></i><?= htmlspecialchars($primaryDev['framedipaddress'] ?: '—') ?>
-                                </span>
+                                <?php if (!empty($primaryDev['resolved_ip'])): ?>
+                                    <span class="badge bg-light text-dark border font-monospace px-2 py-1">
+                                        <i class="bi bi-broadcast me-1 text-success"></i><?= htmlspecialchars($primaryDev['resolved_ip']) ?>
+                                    </span>
+                                    <?php if ($primaryDev['ip_source'] !== 'live'): ?>
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle small ms-1" title="Resolved from recent DHCP lease for this device MAC">DHCP</span>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace px-2 py-1" title="Connected to 802.1X; awaiting AP 5-minute interim DHCP update">
+                                        <i class="bi bi-hourglass-split me-1"></i>Awaiting DHCP
+                                    </span>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </td>
                         <td>
                             <?php if ($isMulti): ?>
-                                <span class="text-secondary small font-monospace"><i class="bi bi-layers me-1"></i>Multiple MACs</span>
+                                <span class="text-secondary small font-monospace"><i class="bi bi-layers me-1"></i>Multiple MACs (<?= $acc['device_count'] ?>)</span>
                             <?php else: ?>
-                                <span class="font-monospace text-muted small"><?= htmlspecialchars(formatMac($primaryDev['callingstationid'])) ?></span>
+                                <span class="font-monospace text-dark small fw-semibold" title="Device Hardware MAC"><?= htmlspecialchars(formatMac($primaryDev['callingstationid'])) ?></span>
+                                <?php if (!empty($primaryDev['ssid'])): ?>
+                                <div class="text-muted small" style="font-size: 0.74rem;"><i class="bi bi-wifi me-1 text-primary"></i>SSID: <?= htmlspecialchars($primaryDev['ssid']) ?></div>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </td>
                         <td class="text-muted small">
@@ -328,11 +369,17 @@ include __DIR__ . '/includes/header.php';
                         </td>
                         <td>
                             <div class="small fw-semibold text-dark"><i class="bi bi-stopwatch me-1 text-success"></i><?= $acc['duration_text'] ?></div>
-                            <div class="text-muted small" style="font-size: 0.75rem;"><?= date('d/m/y H:i:s', strtotime($acc['latest_starttime'])) ?></div>
+                            <div class="text-muted small" style="font-size: 0.75rem;"><i class="bi bi-clock me-1"></i><?= date('d/m/y H:i:s', strtotime($acc['latest_starttime'])) ?> WIB</div>
                         </td>
                         <td class="small">
-                            <div><i class="bi bi-arrow-up text-primary me-1"></i><?= formatBytes($acc['total_input']) ?></div>
-                            <div><i class="bi bi-arrow-down text-info me-1"></i><?= formatBytes($acc['total_output']) ?></div>
+                            <?php if ($acc['total_input'] > 0 || $acc['total_output'] > 0): ?>
+                                <div><i class="bi bi-arrow-up text-primary me-1"></i><?= formatBytes($acc['total_input']) ?></div>
+                                <div><i class="bi bi-arrow-down text-info me-1"></i><?= formatBytes($acc['total_output']) ?></div>
+                            <?php else: ?>
+                                <span class="badge bg-light text-muted border small py-1 px-2" title="Access Point reports cumulative bytes on 5-minute interim update intervals">
+                                    <i class="bi bi-clock-history me-1"></i>Buffering (&lt; 5m)
+                                </span>
+                            <?php endif; ?>
                         </td>
                         <td class="text-end">
                             <?php if ($isMulti): ?>

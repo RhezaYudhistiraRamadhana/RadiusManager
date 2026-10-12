@@ -393,7 +393,7 @@ function getTrulyActiveOnlineAccounts(PDO $db, string $search = '', bool $allowS
     $whereSql = "WHERE " . implode(' AND ', $whereClauses);
     $stmt = $db->prepare("
         SELECT radacctid, acctsessionid, username, nasipaddress, framedipaddress,
-               callingstationid, acctstarttime, acctupdatetime,
+               callingstationid, calledstationid, acctstarttime, acctupdatetime,
                COALESCE(acctinputoctets, 0) AS acctinputoctets,
                COALESCE(acctoutputoctets, 0) AS acctoutputoctets
         FROM radacct
@@ -462,21 +462,89 @@ function getTrulyActiveOnlineAccounts(PDO $db, string $search = '', bool $allowS
         }
     }
 
-    // 3. Group valid sessions by subscriber account (username)
+    // 3. Batch IP Resolution for devices where Framed-IP is 0.0.0.0 or pending DHCP
+    $macsNeedingIp = [];
+    foreach ($validSessions as $sess) {
+        $rawIp = trim($sess['framedipaddress'] ?? '');
+        if ($rawIp === '' || $rawIp === '0.0.0.0') {
+            $cMac = strtoupper(trim(str_replace([':', '-', '.'], '', $sess['callingstationid'] ?? '')));
+            if ($cMac !== '') {
+                $macsNeedingIp[$cMac] = $sess['callingstationid'];
+            }
+        }
+    }
+
+    $resolvedIpByMac = [];
+    if (!empty($macsNeedingIp)) {
+        // Step A: Check radippool
+        if (dbTableExists('radippool')) {
+            $phPool = implode(',', array_fill(0, count($macsNeedingIp), '?'));
+            $poolStmt = $db->prepare("SELECT callingstationid, framedipaddress FROM radippool WHERE callingstationid IN ($phPool) AND framedipaddress != '0.0.0.0' AND framedipaddress != '' AND expiry_time > NOW()");
+            $poolStmt->execute(array_values($macsNeedingIp));
+            while ($pRow = $poolStmt->fetch(PDO::FETCH_ASSOC)) {
+                $cM = strtoupper(trim(str_replace([':', '-', '.'], '', $pRow['callingstationid'])));
+                $resolvedIpByMac[$cM] = ['ip' => $pRow['framedipaddress'], 'source' => 'radippool'];
+            }
+        }
+
+        // Step B: For remaining MACs, check recent radacct session with non-zero IP
+        $remainingMacs = array_diff_key($macsNeedingIp, $resolvedIpByMac);
+        if (!empty($remainingMacs)) {
+            $phRec = implode(',', array_fill(0, count($remainingMacs), '?'));
+            $recStmt = $db->prepare("
+                SELECT ra.callingstationid, ra.framedipaddress
+                FROM radacct ra
+                INNER JOIN (
+                    SELECT callingstationid, MAX(radacctid) AS max_id
+                    FROM radacct
+                    WHERE callingstationid IN ($phRec) AND framedipaddress != '0.0.0.0' AND framedipaddress != ''
+                    GROUP BY callingstationid
+                ) sub ON ra.radacctid = sub.max_id
+            ");
+            $recStmt->execute(array_values($remainingMacs));
+            while ($rRow = $recStmt->fetch(PDO::FETCH_ASSOC)) {
+                $cM = strtoupper(trim(str_replace([':', '-', '.'], '', $rRow['callingstationid'])));
+                $resolvedIpByMac[$cM] = ['ip' => $rRow['framedipaddress'], 'source' => 'recent_lease'];
+            }
+        }
+    }
+
+    // 4. Group valid sessions by subscriber account (username)
     $accounts = [];
     foreach ($validSessions as $sess) {
         $u = $sess['username'];
+        $rawIp = trim($sess['framedipaddress'] ?? '');
+        $cM = strtoupper(trim(str_replace([':', '-', '.'], '', $sess['callingstationid'] ?? '')));
+
+        if ($rawIp !== '' && $rawIp !== '0.0.0.0') {
+            $sess['resolved_ip'] = $rawIp;
+            $sess['ip_source']   = 'live';
+        } elseif (isset($resolvedIpByMac[$cM])) {
+            $sess['resolved_ip'] = $resolvedIpByMac[$cM]['ip'];
+            $sess['ip_source']   = $resolvedIpByMac[$cM]['source'];
+        } else {
+            $sess['resolved_ip'] = '';
+            $sess['ip_source']   = 'pending_dhcp';
+        }
+
+        // Parse SSID from calledstationid (format: AP_MAC:SSID)
+        $calledParts = explode(':', $sess['calledstationid'] ?? '', 2);
+        $sess['ap_mac'] = formatMac($calledParts[0] ?? '');
+        $sess['ssid']   = trim($calledParts[1] ?? '');
+
         if (!isset($accounts[$u])) {
             $accounts[$u] = [
-                'username'         => $u,
-                'devices'          => [],
-                'session_ids'      => [],
-                'latest_starttime' => $sess['acctstarttime'],
-                'primary_ip'       => $sess['framedipaddress'],
-                'primary_mac'      => $sess['callingstationid'],
-                'primary_nas'      => $sess['nasipaddress'],
-                'total_input'      => 0,
-                'total_output'     => 0,
+                'username'          => $u,
+                'devices'           => [],
+                'session_ids'       => [],
+                'latest_starttime'  => $sess['acctstarttime'],
+                'primary_ip'        => $sess['resolved_ip'],
+                'primary_ip_source' => $sess['ip_source'],
+                'primary_mac'       => $sess['callingstationid'],
+                'primary_nas'       => $sess['nasipaddress'],
+                'primary_ssid'      => $sess['ssid'],
+                'total_input'       => 0,
+                'total_output'      => 0,
             ];
         }
 
@@ -490,11 +558,20 @@ function getTrulyActiveOnlineAccounts(PDO $db, string $search = '', bool $allowS
         $accounts[$u]['devices'][] = $sess;
         $accounts[$u]['session_ids'][] = $sess['acctsessionid'];
 
+        if (empty($accounts[$u]['primary_ip']) && !empty($sess['resolved_ip'])) {
+            $accounts[$u]['primary_ip'] = $sess['resolved_ip'];
+            $accounts[$u]['primary_ip_source'] = $sess['ip_source'];
+        }
+
         if (strtotime($sess['acctstarttime']) > strtotime($accounts[$u]['latest_starttime'])) {
             $accounts[$u]['latest_starttime'] = $sess['acctstarttime'];
-            $accounts[$u]['primary_ip'] = $sess['framedipaddress'];
+            if (!empty($sess['resolved_ip'])) {
+                $accounts[$u]['primary_ip'] = $sess['resolved_ip'];
+                $accounts[$u]['primary_ip_source'] = $sess['ip_source'];
+            }
             $accounts[$u]['primary_mac'] = $sess['callingstationid'];
             $accounts[$u]['primary_nas'] = $sess['nasipaddress'];
+            $accounts[$u]['primary_ssid'] = $sess['ssid'];
         }
     }
 
