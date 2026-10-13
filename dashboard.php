@@ -65,7 +65,11 @@ if ($viewMode === 'today') {
     $prevDay = date('Y-m-d', strtotime('-1 day', strtotime($anchorDay)));
 
     $cacheKey = "dash_today_{$anchorDay}";
-    if (isset($_SESSION[$cacheKey . '_time']) && (time() - $_SESSION[$cacheKey . '_time'] < 120) && !empty($_SESSION[$cacheKey . '_data'])) {
+    if (isset($_GET['fresh'])) {
+        unset($_SESSION[$cacheKey . '_time'], $_SESSION[$cacheKey . '_data']);
+    }
+    $todayCacheTtl = ($anchorDay === $todayDate) ? 45 : 300;
+    if (isset($_SESSION[$cacheKey . '_time']) && (time() - $_SESSION[$cacheKey . '_time'] < $todayCacheTtl) && !empty($_SESSION[$cacheKey . '_data'])) {
         $todayData = $_SESSION[$cacheKey . '_data'];
     } else {
         // Traffic for Anchor Day (Fast index scan, < 1ms)
@@ -454,7 +458,16 @@ include __DIR__ . '/includes/header.php';
         <h4 class="mb-1"><i class="bi bi-speedometer2 me-2 text-primary"></i>Analytics Dashboard</h4>
         <p class="text-muted mb-0">Visual performance monitoring for FreeRADIUS system &amp; network traffic</p>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <?php if ($viewMode === 'today' && empty($isHistoricalDay)): ?>
+        <span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-2.5 d-inline-flex align-items-center gap-1.5 shadow-sm" title="Real-time live monitoring: charts auto-refresh every 60 seconds">
+            <span class="spinner-grow spinner-grow-sm text-success" style="width:0.45rem; height:0.45rem;" role="status"></span>
+            <span>Live (<span id="dashCountdown">60</span>s)</span>
+        </span>
+        <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 shadow-sm" onclick="location.href='dashboard.php?view=today&fresh=1'" title="Force Refresh Now">
+            <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Refresh</span>
+        </button>
+        <?php endif; ?>
         <a href="welcome.php" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 shadow-sm" title="Back to Home & Navigation Hub">
             <i class="bi bi-arrow-left"></i> <span>Back to Home</span>
         </a>
@@ -544,8 +557,13 @@ include __DIR__ . '/includes/header.php';
                 <i class="bi <?= $viewMode === 'today' ? 'bi-clock-history' : 'bi-graph-up-arrow' ?>"></i>
             </div>
             <div>
-                <h6 class="fw-bold mb-0 text-dark">
+                <h6 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2 flex-wrap">
                     <?= $viewMode === 'today' ? 'Mode: Today\'s Charts (24-Hour Real-Time)' : 'Mode: General Charts (14-Day Timeline)' ?>
+                    <?php if ($viewMode === 'today' && empty($isHistoricalDay)): ?>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle fw-normal py-0.5 px-2" style="font-size: 0.72rem;">
+                        <i class="bi bi-arrow-repeat me-1"></i>Auto-refresh: 1m
+                    </span>
+                    <?php endif; ?>
                 </h6>
                 <p class="text-muted small mb-0">
                     <?= $viewMode === 'today' 
@@ -1020,6 +1038,26 @@ if ($viewMode === 'today') {
             }
         });
     }
+    ' . (empty($isHistoricalDay) ? '
+    // 5. Real-Time Auto-Refresh Every 60 Seconds
+    let timeLeft = 60;
+    const countdownEl = document.getElementById("dashCountdown");
+    const timerInterval = setInterval(function() {
+        timeLeft--;
+        if (countdownEl) {
+            countdownEl.textContent = timeLeft;
+        }
+        if (timeLeft <= 0) {
+            const activeEl = document.activeElement;
+            const hasOpenModal = document.querySelector(".modal.show");
+            const isTyping = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT");
+            if (!hasOpenModal && !isTyping) {
+                window.location.href = "dashboard.php?view=today";
+            } else {
+                timeLeft = 15;
+            }
+        }
+    }, 1000);' : '') . '
     </script>';
 } else {
     $extra_js = '<script>
