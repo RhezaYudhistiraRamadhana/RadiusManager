@@ -66,7 +66,7 @@ if (!empty($usernames)) {
         FROM radacct
         WHERE username IN ($placeholders) 
           AND acctstoptime IS NULL
-          AND (acctstarttime >= NOW() - INTERVAL 24 HOUR OR (acctupdatetime IS NOT NULL AND acctupdatetime >= NOW() - INTERVAL 24 HOUR))
+          AND acctstarttime >= NOW() - INTERVAL 24 HOUR
         GROUP BY username
     ");
     $onlineStmt->execute($usernames);

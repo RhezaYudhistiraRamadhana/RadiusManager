@@ -10,6 +10,8 @@ if (!in_array($viewMode, ['today', 'general'])) {
     $viewMode = 'today';
 }
 $_SESSION['dash_view'] = $viewMode;
+// Release session lock immediately (< 0.1ms) to eliminate browser lock contention across all tabs
+session_write_close();
 
 // ── Instant Top Stats (Indexed lookups, < 2ms) ─────────────────────────────
 $totalUsers     = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
@@ -63,15 +65,6 @@ if ($viewMode === 'today') {
         $isHistoricalDay = false;
     }
     $prevDay = date('Y-m-d', strtotime('-1 day', strtotime($anchorDay)));
-
-    $cacheKey = "dash_today_{$anchorDay}";
-    if (isset($_GET['fresh'])) {
-        unset($_SESSION[$cacheKey . '_time'], $_SESSION[$cacheKey . '_data']);
-    }
-    $todayCacheTtl = ($anchorDay === $todayDate) ? 45 : 300;
-    if (isset($_SESSION[$cacheKey . '_time']) && (time() - $_SESSION[$cacheKey . '_time'] < $todayCacheTtl) && !empty($_SESSION[$cacheKey . '_data'])) {
-        $todayData = $_SESSION[$cacheKey . '_data'];
-    } else {
         // Traffic for Anchor Day (Fast index scan, < 1ms)
         $trafficStmt = $db->prepare("SELECT
             COALESCE(SUM(acctinputoctets),0)  AS upload,
@@ -233,9 +226,6 @@ if ($viewMode === 'today') {
             'authDateParam'     => $authDateParam,
             'authCountDisplay'  => $authCountDisplay,
         ];
-        $_SESSION[$cacheKey . '_data'] = $todayData;
-        $_SESSION[$cacheKey . '_time'] = time();
-    }
 
     $uploadToday       = $todayData['uploadToday'];
     $downloadToday     = $todayData['downloadToday'];
@@ -460,12 +450,12 @@ include __DIR__ . '/includes/header.php';
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap">
         <?php if ($viewMode === 'today' && empty($isHistoricalDay)): ?>
-        <span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-2.5 d-inline-flex align-items-center gap-1.5 shadow-sm" title="Real-time live monitoring: charts auto-refresh every 60 seconds">
+        <span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-2.5 d-inline-flex align-items-center gap-1.5 shadow-sm" title="Real-time live monitoring: charts auto-refresh asynchronously every 60 seconds (0ms page reload)">
             <span class="spinner-grow spinner-grow-sm text-success" style="width:0.45rem; height:0.45rem;" role="status"></span>
             <span>Live (<span id="dashCountdown">60</span>s)</span>
         </span>
-        <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 shadow-sm" onclick="location.href='dashboard.php?view=today&fresh=1'" title="Force Refresh Now">
-            <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Refresh</span>
+        <button class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 shadow-sm" id="btnRefreshCharts" onclick="refreshTodayCharts(true)" title="Refresh Charts Now">
+            <i class="bi bi-arrow-clockwise" id="iconRefreshCharts"></i> <span class="d-none d-md-inline">Refresh</span>
         </button>
         <?php endif; ?>
         <a href="welcome.php" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 shadow-sm" title="Back to Home & Navigation Hub">
@@ -483,7 +473,7 @@ include __DIR__ . '/includes/header.php';
                 <i class="bi bi-people text-primary"></i>
             </div>
             <div>
-                <div class="stat-value"><?= number_format($totalUsers) ?></div>
+                <div class="stat-value" id="dashUsersCount"><?= number_format($totalUsers) ?></div>
                 <div class="stat-label">Total Users <i class="bi bi-chevron-right small text-muted"></i></div>
             </div>
         </a>
@@ -494,7 +484,7 @@ include __DIR__ . '/includes/header.php';
                 <i class="bi bi-activity text-success"></i>
             </div>
             <div>
-                <div class="stat-value"><?= number_format($activeSessions) ?></div>
+                <div class="stat-value" id="dashSessionsCount"><?= number_format($activeSessions) ?></div>
                 <div class="stat-label">Active Sessions <i class="bi bi-chevron-right small text-muted"></i></div>
             </div>
         </a>
@@ -505,7 +495,7 @@ include __DIR__ . '/includes/header.php';
                 <i class="bi bi-hdd-network text-warning"></i>
             </div>
             <div>
-                <div class="stat-value"><?= number_format($totalNas) ?></div>
+                <div class="stat-value" id="dashNasCount"><?= number_format($totalNas) ?></div>
                 <div class="stat-label">NAS Devices <i class="bi bi-chevron-right small text-muted"></i></div>
             </div>
         </a>
@@ -516,7 +506,7 @@ include __DIR__ . '/includes/header.php';
                 <i class="bi bi-shield-check text-purple" style="color:#9333ea"></i>
             </div>
             <div>
-                <div class="stat-value"><?= number_format($authCountDisplay) ?></div>
+                <div class="stat-value" id="dashAuthCount"><?= number_format($authCountDisplay) ?></div>
                 <div class="stat-label"><?= htmlspecialchars($authLabel) ?> <i class="bi bi-chevron-right small text-muted"></i></div>
             </div>
         </a>
@@ -531,7 +521,7 @@ include __DIR__ . '/includes/header.php';
                 <i class="bi bi-arrow-up-circle text-primary"></i>
             </div>
             <div>
-                <div class="stat-value" style="font-size:1.2rem"><?= $uploadToday ?></div>
+                <div class="stat-value" id="dashUploadValue" style="font-size:1.2rem"><?= $uploadToday ?></div>
                 <div class="stat-label"><?= $viewMode === 'today' ? 'Upload Today' : 'Total Upload' ?><?= htmlspecialchars($trafficDateLabel) ?> <i class="bi bi-chevron-right small text-muted"></i></div>
             </div>
         </a>
@@ -542,7 +532,7 @@ include __DIR__ . '/includes/header.php';
                 <i class="bi bi-arrow-down-circle text-success"></i>
             </div>
             <div>
-                <div class="stat-value" style="font-size:1.2rem"><?= $downloadToday ?></div>
+                <div class="stat-value" id="dashDownloadValue" style="font-size:1.2rem"><?= $downloadToday ?></div>
                 <div class="stat-label"><?= $viewMode === 'today' ? 'Download Today' : 'Total Download' ?><?= htmlspecialchars($trafficDateLabel) ?> <i class="bi bi-chevron-right small text-muted"></i></div>
             </div>
         </a>
@@ -688,11 +678,10 @@ include __DIR__ . '/includes/header.php';
                 <a href="nas.php" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem">NAS Devices</a>
             </div>
             <div class="card-body">
-                <?php if (empty($todayData['nasTodayValues'])): ?>
-                <div class="text-center text-muted py-5 small">No NAS traffic recorded today</div>
-                <?php else: ?>
-                <canvas id="todayNasChart" height="130"></canvas>
-                <?php endif; ?>
+                <div id="todayNasEmpty" class="text-center text-muted py-5 small" style="<?= empty($todayData['nasTodayValues']) ? '' : 'display:none;' ?>">
+                    No NAS traffic recorded today
+                </div>
+                <canvas id="todayNasChart" height="130" style="<?= empty($todayData['nasTodayValues']) ? 'display:none;' : '' ?>"></canvas>
             </div>
         </div>
     </div>
@@ -904,11 +893,20 @@ include __DIR__ . '/includes/header.php';
 
 <?php
 if ($viewMode === 'today') {
-    $extra_js = '<script>
+    $extra_js = '<style>
+    @keyframes spinClockwise { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .spin-clockwise { animation: spinClockwise 0.75s linear infinite; display: inline-block; }
+    </style>
+    <script>
+    let chartTodayConcurrent = null;
+    let chartTodayBw = null;
+    let chartTodayAuth = null;
+    let chartTodayNas = null;
+
     // 1. Hourly Concurrent Sessions (Today vs Yesterday)
     const ctxTodayConcurrent = document.getElementById("todayConcurrentChart");
     if (ctxTodayConcurrent) {
-        new Chart(ctxTodayConcurrent, {
+        chartTodayConcurrent = new Chart(ctxTodayConcurrent, {
             type: "line",
             data: {
                 labels: ' . json_encode($todayData['hourlyLabels']) . ',
@@ -945,7 +943,7 @@ if ($viewMode === 'today') {
     // 2. Hourly Bandwidth Throughput (Upload vs Download Today)
     const ctxTodayBw = document.getElementById("todayBandwidthChart");
     if (ctxTodayBw) {
-        new Chart(ctxTodayBw, {
+        chartTodayBw = new Chart(ctxTodayBw, {
             type: "line",
             data: {
                 labels: ' . json_encode($todayData['hourlyLabels']) . ',
@@ -981,7 +979,7 @@ if ($viewMode === 'today') {
     // 3. Hourly Auth Today (Accept vs Reject)
     const ctxTodayAuth = document.getElementById("todayAuthChart");
     if (ctxTodayAuth) {
-        new Chart(ctxTodayAuth, {
+        chartTodayAuth = new Chart(ctxTodayAuth, {
             type: "bar",
             data: {
                 labels: ' . json_encode($todayData['hourlyLabels']) . ',
@@ -1014,8 +1012,8 @@ if ($viewMode === 'today') {
 
     // 4. Top NAS Devices Today
     const ctxTodayNas = document.getElementById("todayNasChart");
-    if (ctxTodayNas) {
-        new Chart(ctxTodayNas, {
+    if (ctxTodayNas && ctxTodayNas.style.display !== "none") {
+        chartTodayNas = new Chart(ctxTodayNas, {
             type: "bar",
             data: {
                 labels: ' . json_encode($todayData['nasTodayLabels']) . ',
@@ -1038,8 +1036,122 @@ if ($viewMode === 'today') {
             }
         });
     }
+
+    // 5. Asynchronous Background Auto-Refresh & Instant Manual Refresh (0ms Page Reload)
+    async function refreshTodayCharts(isManual = false) {
+        const refreshBtn = document.getElementById("btnRefreshCharts");
+        const refreshIcon = document.getElementById("iconRefreshCharts");
+        if (isManual && refreshIcon) {
+            refreshIcon.classList.add("spin-clockwise");
+            if (refreshBtn) refreshBtn.disabled = true;
+        }
+
+        try {
+            const res = await fetch("api-dashboard-today.php?date=' . urlencode($anchorDay) . '", {
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+                cache: "no-store"
+            });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            const data = await res.json();
+            if (data.success) {
+                // Update Chart 1: Hourly Session Profile
+                if (chartTodayConcurrent) {
+                    chartTodayConcurrent.data.datasets[0].data = data.hourlyToday;
+                    chartTodayConcurrent.data.datasets[1].data = data.hourlyPrev;
+                    chartTodayConcurrent.update();
+                }
+
+                // Update Chart 2: Hourly Bandwidth
+                if (chartTodayBw) {
+                    chartTodayBw.data.datasets[0].data = data.hourlyDownloadMB;
+                    chartTodayBw.data.datasets[1].data = data.hourlyUploadMB;
+                    chartTodayBw.update();
+                }
+
+                // Update Chart 3: Hourly Authentication Decisions
+                if (chartTodayAuth) {
+                    chartTodayAuth.data.datasets[0].data = data.hourlyAccepts;
+                    chartTodayAuth.data.datasets[1].data = data.hourlyRejects;
+                    chartTodayAuth.update();
+                }
+
+                // Update Chart 4: Top NAS Devices
+                const nasCanvas = document.getElementById("todayNasChart");
+                const nasEmpty = document.getElementById("todayNasEmpty");
+                if (data.nasTodayValues && data.nasTodayValues.length > 0) {
+                    if (nasEmpty) nasEmpty.style.display = "none";
+                    if (nasCanvas) {
+                        nasCanvas.style.display = "";
+                        if (!chartTodayNas) {
+                            chartTodayNas = new Chart(nasCanvas, {
+                                type: "bar",
+                                data: {
+                                    labels: data.nasTodayLabels,
+                                    datasets: [{
+                                        label: "Today\'s Traffic (MB)",
+                                        data: data.nasTodayValues,
+                                        backgroundColor: "rgba(6,182,212,0.3)",
+                                        borderColor: "rgba(6,182,212,1)",
+                                        borderWidth: 2, borderRadius: 4
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    animation: { duration: 250 },
+                                    plugins: { legend: { display: false } },
+                                    scales: {
+                                        y: { beginAtZero: true, grid: { color: "#f1f5f9" } },
+                                        x: { grid: { display: false } }
+                                    }
+                                }
+                            });
+                        } else {
+                            chartTodayNas.data.labels = data.nasTodayLabels;
+                            chartTodayNas.data.datasets[0].data = data.nasTodayValues;
+                            chartTodayNas.update();
+                        }
+                    }
+                } else if (nasCanvas && (!data.nasTodayValues || data.nasTodayValues.length === 0)) {
+                    if (chartTodayNas) {
+                        chartTodayNas.destroy();
+                        chartTodayNas = null;
+                    }
+                    nasCanvas.style.display = "none";
+                    if (nasEmpty) nasEmpty.style.display = "";
+                }
+
+                // Update Stat Cards in place
+                if (data.uploadToday) {
+                    const el = document.getElementById("dashUploadValue");
+                    if (el) el.textContent = data.uploadToday;
+                }
+                if (data.downloadToday) {
+                    const el = document.getElementById("dashDownloadValue");
+                    if (el) el.textContent = data.downloadToday;
+                }
+                if (data.activeSessions !== undefined) {
+                    const el = document.getElementById("dashSessionsCount");
+                    if (el) el.textContent = Number(data.activeSessions).toLocaleString();
+                }
+                if (data.authCountDisplay !== undefined) {
+                    const el = document.getElementById("dashAuthCount");
+                    if (el) el.textContent = Number(data.authCountDisplay).toLocaleString();
+                }
+
+                // Reset countdown timer
+                timeLeft = 60;
+                if (countdownEl) countdownEl.textContent = 60;
+            }
+        } catch (err) {
+            console.error("Auto-refresh error:", err);
+        } finally {
+            if (isManual && refreshIcon) {
+                refreshIcon.classList.remove("spin-clockwise");
+                if (refreshBtn) refreshBtn.disabled = false;
+            }
+        }
+    }
     ' . (empty($isHistoricalDay) ? '
-    // 5. Real-Time Auto-Refresh Every 60 Seconds
     let timeLeft = 60;
     const countdownEl = document.getElementById("dashCountdown");
     const timerInterval = setInterval(function() {
@@ -1052,7 +1164,7 @@ if ($viewMode === 'today') {
             const hasOpenModal = document.querySelector(".modal.show");
             const isTyping = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT");
             if (!hasOpenModal && !isTyping) {
-                window.location.href = "dashboard.php?view=today";
+                refreshTodayCharts(false);
             } else {
                 timeLeft = 15;
             }
