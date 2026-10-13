@@ -20,7 +20,7 @@ if (isset($_SESSION['welcome_stats_time']) && (time() - $_SESSION['welcome_stats
     $totalPlans     = $stats['totalPlans'];
 } else {
     $totalUsers     = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
-    $activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL AND (acctstarttime >= NOW() - INTERVAL 24 HOUR OR (acctupdatetime IS NOT NULL AND acctupdatetime >= NOW() - INTERVAL 24 HOUR))")->fetch()['c'] ?? 0);
+    $activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL AND acctstarttime >= NOW() - INTERVAL 24 HOUR")->fetch()['c'] ?? 0);
     $totalNas       = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
     $totalVouchers  = dbTableExists('rm_vouchers') ? (int)($db->query("SELECT COUNT(*) c FROM rm_vouchers")->fetch()['c'] ?? 0) : 0;
     $totalPlans     = dbTableExists('rm_plans') ? (int)($db->query("SELECT COUNT(*) c FROM rm_plans")->fetch()['c'] ?? 0) : 0;
