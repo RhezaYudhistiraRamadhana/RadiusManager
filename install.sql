@@ -63,6 +63,7 @@ CALL rm_add_index_if_missing('radacct', 'idx_stoptime', 'acctstoptime');
 CALL rm_add_index_if_missing('radacct', 'idx_nasip', 'nasipaddress');
 CALL rm_add_index_if_missing('radacct', 'idx_user_stoptime', 'username, acctstoptime');
 CALL rm_add_index_if_missing('radacct', 'idx_stop_start', 'acctstoptime, acctstarttime');
+CALL rm_add_index_if_missing('radacct', 'idx_callingstation', 'callingstationid');
 
 -- ── 2. radcheck indexes ───────────────────────────────────────
 CALL rm_add_index_if_missing('radcheck', 'idx_username', 'username(64)');

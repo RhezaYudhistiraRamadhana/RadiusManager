@@ -332,7 +332,7 @@ function purgeStaleRadiusSessions(int $hours = 24): int {
 
 /**
  * Count orphaned/stale sessions in radacct older than $hours hours.
- * Uses composite index idx_stop_start (acctstoptime, acctstarttime) for lightning speed (< 2ms).
+ * Uses composite index idx_stop_start and bounds to recent 60 days to prevent full-table scans.
  */
 function countStaleRadiusSessions(int $hours = 24): int {
     $db = getDB();
@@ -341,6 +341,7 @@ function countStaleRadiusSessions(int $hours = 24): int {
         FROM radacct 
         WHERE acctstoptime IS NULL 
           AND acctstarttime < NOW() - INTERVAL ? HOUR
+          AND acctstarttime >= NOW() - INTERVAL 60 DAY
     ");
     $stmt->execute([$hours]);
     return (int)$stmt->fetchColumn();
@@ -348,10 +349,9 @@ function countStaleRadiusSessions(int $hours = 24): int {
 
 /**
  * Retrieves accounts and connected devices that are genuinely active RIGHT NOW.
- * - Filters out stale / ghost sessions beyond the active network window using idx_stop_start.
- * - Optional $allowSnapshot: when true (e.g. ?snapshot=1 on localhost test), anchors reference time to newest db record.
+ * - Filters out stale / ghost sessions beyond the active network window.
  * - De-duplicates candidate sessions by device MAC address.
- * - Discards devices whose latest session in radacct already ended or was superseded via fast batch lookup.
+ * - High-speed verification bounded by primary key (radacctid) to prevent scanning historical rows.
  * - De-duplicates overlapping IP addresses.
  * - Groups multiple active devices under their respective subscriber account.
  */
@@ -422,26 +422,35 @@ function getTrulyActiveOnlineAccounts(PDO $db, string $search = '', bool $allowS
     $seenIps = [];
 
     if (!empty($candidateSessionsByMac)) {
-        $macList = array_values(array_filter(array_keys($candidateSessionsByMac), 'is_string'));
+        $candidateIds = array_column($candidateSessionsByMac, 'radacctid');
+        $minCandidateId = !empty($candidateIds) ? min($candidateIds) : 0;
+        $maxCandidateId = !empty($candidateIds) ? max($candidateIds) : 0;
+        $latestGlobalId = (int)($db->query("SELECT MAX(radacctid) FROM radacct")->fetchColumn() ?: 0);
+
         $latestStatusByMac = [];
-        if (!empty($macList)) {
-            $ph = implode(',', array_fill(0, count($macList), '?'));
-            $bStmt = $db->prepare("
-                SELECT ra.callingstationid, ra.radacctid, ra.acctstoptime
-                FROM radacct ra
-                INNER JOIN (
-                    SELECT callingstationid, MAX(radacctid) AS max_id
-                    FROM radacct
-                    WHERE callingstationid IN ($ph)
-                    GROUP BY callingstationid
-                ) latest ON ra.radacctid = latest.max_id
-            ");
-            $bStmt->execute($macList);
-            $rows = $bStmt->fetchAll(PDO::FETCH_ASSOC);
-            foreach ($rows as $r) {
-                $rawM = $r['callingstationid'] ?? '';
-                $cleanM = strtoupper(trim(str_replace([':', '-', '.'], '', $rawM)));
-                $latestStatusByMac[$cleanM] = $r;
+        // Only run subquery if newer rows exist in radacct after our newest candidate session
+        if ($latestGlobalId > $maxCandidateId && $minCandidateId > 0) {
+            $macList = array_values(array_filter(array_keys($candidateSessionsByMac), 'is_string'));
+            if (!empty($macList)) {
+                $ph = implode(',', array_fill(0, count($macList), '?'));
+                $paramsBound = array_merge([$minCandidateId], $macList);
+                $bStmt = $db->prepare("
+                    SELECT ra.callingstationid, ra.radacctid, ra.acctstoptime
+                    FROM radacct ra
+                    INNER JOIN (
+                        SELECT callingstationid, MAX(radacctid) AS max_id
+                        FROM radacct
+                        WHERE radacctid > ? AND callingstationid IN ($ph)
+                        GROUP BY callingstationid
+                    ) latest ON ra.radacctid = latest.max_id
+                ");
+                $bStmt->execute($paramsBound);
+                $rows = $bStmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($rows as $r) {
+                    $rawM = $r['callingstationid'] ?? '';
+                    $cleanM = strtoupper(trim(str_replace([':', '-', '.'], '', $rawM)));
+                    $latestStatusByMac[$cleanM] = $r;
+                }
             }
         }
 
@@ -487,21 +496,23 @@ function getTrulyActiveOnlineAccounts(PDO $db, string $search = '', bool $allowS
             }
         }
 
-        // Step B: For remaining MACs, check recent radacct session with non-zero IP
+        // Step B: For remaining MACs, check recent radacct session with non-zero IP (bounded by recent primary keys)
         $remainingMacs = array_diff_key($macsNeedingIp, $resolvedIpByMac);
         if (!empty($remainingMacs)) {
             $phRec = implode(',', array_fill(0, count($remainingMacs), '?'));
+            $recentBoundId = max(1, ($latestGlobalId ?? 100000) - 100000);
+            $paramsRec = array_merge([$recentBoundId], array_values($remainingMacs));
             $recStmt = $db->prepare("
                 SELECT ra.callingstationid, ra.framedipaddress
                 FROM radacct ra
                 INNER JOIN (
                     SELECT callingstationid, MAX(radacctid) AS max_id
                     FROM radacct
-                    WHERE callingstationid IN ($phRec) AND framedipaddress != '0.0.0.0' AND framedipaddress != ''
+                    WHERE radacctid >= ? AND callingstationid IN ($phRec) AND framedipaddress != '0.0.0.0' AND framedipaddress != ''
                     GROUP BY callingstationid
                 ) sub ON ra.radacctid = sub.max_id
             ");
-            $recStmt->execute(array_values($remainingMacs));
+            $recStmt->execute($paramsRec);
             while ($rRow = $recStmt->fetch(PDO::FETCH_ASSOC)) {
                 $cM = strtoupper(trim(str_replace([':', '-', '.'], '', $rRow['callingstationid'])));
                 $resolvedIpByMac[$cM] = ['ip' => $rRow['framedipaddress'], 'source' => 'recent_lease'];

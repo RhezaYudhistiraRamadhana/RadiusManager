@@ -86,15 +86,20 @@ try {
     // 4. Hourly Authentication Decisions (Accept vs Reject) (< 1ms)
     $hourlyAccepts = array_fill(0, 24, 0);
     $hourlyRejects = array_fill(0, 24, 0);
+    $latestPostAuthId = (int)($db->query("SELECT id FROM radpostauth ORDER BY id DESC LIMIT 1")->fetchColumn() ?: 0);
+    $authIdBound = max(1, $latestPostAuthId - 500000);
     $hourlyAuthStmt = $db->prepare("
         SELECT HOUR(authdate) AS h,
                SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END) AS accepts,
                SUM(CASE WHEN reply != 'Access-Accept' THEN 1 ELSE 0 END) AS rejects
         FROM radpostauth
-        WHERE authdate >= ? AND authdate <= ?
+        WHERE " . (!$isHistoricalDay && $latestPostAuthId > 0 ? "id >= ? AND " : "") . "authdate >= ? AND authdate <= ?
         GROUP BY HOUR(authdate)
     ");
-    $hourlyAuthStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
+    $hourlyAuthParams = (!$isHistoricalDay && $latestPostAuthId > 0)
+        ? [$authIdBound, "$anchorDay 00:00:00", "$anchorDay 23:59:59"]
+        : ["$anchorDay 00:00:00", "$anchorDay 23:59:59"];
+    $hourlyAuthStmt->execute($hourlyAuthParams);
     while ($r = $hourlyAuthStmt->fetch(PDO::FETCH_ASSOC)) {
         $h = (int)$r['h'];
         if ($h >= 0 && $h < 24) {
@@ -159,3 +164,4 @@ try {
         'error'   => $e->getMessage(),
     ]);
 }
+

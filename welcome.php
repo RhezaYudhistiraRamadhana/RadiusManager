@@ -10,8 +10,8 @@ requireLogin();
 $page_title = 'Home & Navigation Hub';
 $db = getDB();
 
-// Cache welcome stats in session for 60 seconds to eliminate repeated queries
-if (isset($_SESSION['welcome_stats_time']) && (time() - $_SESSION['welcome_stats_time'] < 60) && !empty($_SESSION['welcome_stats'])) {
+// Cache welcome stats in session for 120 seconds to eliminate repeated queries
+if (isset($_SESSION['welcome_stats_time']) && (time() - $_SESSION['welcome_stats_time'] < 120) && !empty($_SESSION['welcome_stats'])) {
     $stats = $_SESSION['welcome_stats'];
     $totalUsers     = $stats['totalUsers'];
     $activeSessions = $stats['activeSessions'];

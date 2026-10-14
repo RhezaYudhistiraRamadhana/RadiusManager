@@ -69,8 +69,8 @@ $flash = getFlash();
 $msg = $flash['msg'] ?? '';
 $msgType = $flash['type'] ?? 'info';
 
-// Count orphaned ghost sessions (cached for 60 seconds to eliminate repeated queries)
-if (isset($_SESSION['stale_ghost_time']) && (time() - $_SESSION['stale_ghost_time'] < 60) && isset($_SESSION['stale_ghost_count'])) {
+// Count orphaned ghost sessions (cached for 300 seconds to eliminate repeated queries)
+if (isset($_SESSION['stale_ghost_time']) && (time() - $_SESSION['stale_ghost_time'] < 300) && isset($_SESSION['stale_ghost_count'])) {
     $staleGhostCount = (int)$_SESSION['stale_ghost_count'];
 } else {
     $staleGhostCount = countStaleRadiusSessions(24);

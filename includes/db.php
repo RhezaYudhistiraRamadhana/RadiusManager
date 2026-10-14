@@ -45,28 +45,94 @@ function dbCount($sql, $params = []) {
 }
 
 /**
- * Check whether a table exists in current database
+ * Check whether a table exists in current database (cached in-memory, 0.001ms)
  */
 function dbTableExists($table) {
-    static $cache = [];
-    if (!isset($cache[$table])) {
-        $stmt = getDB()->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?");
-        $stmt->execute([$table]);
-        $cache[$table] = ((int)$stmt->fetchColumn() > 0);
+    static $tableMap = null;
+    if ($tableMap === null) {
+        try {
+            $tables = getDB()->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);
+            $tableMap = array_flip(array_map('strtolower', $tables));
+        } catch (Throwable $e) {
+            $tableMap = [];
+        }
     }
-    return $cache[$table];
+    return isset($tableMap[strtolower($table)]);
 }
 
 /**
- * Check whether a specific column exists in a table
+ * Check whether a specific column exists in a table (fast SHOW COLUMNS, cached per request)
  */
 function dbHasColumn($table, $column) {
-    static $cache = [];
-    $key = "$table.$column";
-    if (!isset($cache[$key])) {
-        $stmt = getDB()->prepare("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?");
-        $stmt->execute([$table, $column]);
-        $cache[$key] = ((int)$stmt->fetchColumn() > 0);
+    static $columnCache = [];
+    $key = strtolower("$table.$column");
+    if (!isset($columnCache[$key])) {
+        if (!dbTableExists($table)) {
+            $columnCache[$key] = false;
+            return false;
+        }
+        try {
+            $safeCol = str_replace('`', '', $column);
+            $stmt = getDB()->query("SHOW COLUMNS FROM `$table` LIKE " . getDB()->quote($safeCol));
+            $columnCache[$key] = ($stmt && $stmt->fetch() !== false);
+        } catch (Throwable $e) {
+            $columnCache[$key] = false;
+        }
     }
-    return $cache[$key];
+    return $columnCache[$key];
+}
+
+/**
+ * Self-healing performance indexer:
+ * Ensures FreeRADIUS tables (radacct, radpostauth) have essential composite indexes.
+ * Checks are throttled to run at most once per 24 hours per server environment.
+ */
+function ensurePerformanceIndexes(): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    $cacheFile = sys_get_temp_dir() . '/cendana_idx_' . md5((defined('DB_HOST') ? DB_HOST : '') . (defined('DB_NAME') ? DB_NAME : ''));
+    if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < 86400)) {
+        return;
+    }
+
+    try {
+        $db = getDB();
+        // 1. Check radacct indexes
+        if (dbTableExists('radacct')) {
+            $stmt = $db->query("SHOW INDEX FROM `radacct`");
+            $radacctIdx = [];
+            while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $radacctIdx[$r['Key_name']] = true;
+            }
+
+            if (!isset($radacctIdx['idx_callingstation'])) {
+                @$db->exec("ALTER TABLE `radacct` ADD INDEX `idx_callingstation` (`callingstationid`)");
+            }
+            if (!isset($radacctIdx['idx_stop_start'])) {
+                @$db->exec("ALTER TABLE `radacct` ADD INDEX `idx_stop_start` (`acctstoptime`, `acctstarttime`)");
+            }
+            if (!isset($radacctIdx['idx_user_stoptime'])) {
+                @$db->exec("ALTER TABLE `radacct` ADD INDEX `idx_user_stoptime` (`username`, `acctstoptime`)");
+            }
+        }
+
+        // 2. Check radpostauth indexes
+        if (dbTableExists('radpostauth')) {
+            $stmt = $db->query("SHOW INDEX FROM `radpostauth`");
+            $authIdx = [];
+            while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $authIdx[$r['Key_name']] = true;
+            }
+
+            if (!isset($authIdx['idx_authdate'])) {
+                @$db->exec("ALTER TABLE `radpostauth` ADD INDEX `idx_authdate` (`authdate`)");
+            }
+        }
+
+        @touch($cacheFile);
+    } catch (Throwable $e) {
+        @touch($cacheFile);
+    }
 }

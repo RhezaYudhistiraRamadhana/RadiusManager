@@ -10,13 +10,24 @@ if (!in_array($viewMode, ['today', 'general'])) {
     $viewMode = 'today';
 }
 $_SESSION['dash_view'] = $viewMode;
+
+// Cache metadata counts (subscribers, nas) for 120s in session
+if (isset($_SESSION['dash_meta_time']) && (time() - $_SESSION['dash_meta_time'] < 120) && isset($_SESSION['dash_total_users'])) {
+    $totalUsers = (int)$_SESSION['dash_total_users'];
+    $totalNas   = (int)$_SESSION['dash_total_nas'];
+} else {
+    $totalUsers = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
+    $totalNas   = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
+    $_SESSION['dash_total_users'] = $totalUsers;
+    $_SESSION['dash_total_nas']   = $totalNas;
+    $_SESSION['dash_meta_time']   = time();
+}
+
 // Release session lock immediately (< 0.1ms) to eliminate browser lock contention across all tabs
 session_write_close();
 
 // ── Instant Top Stats (Indexed lookups, < 2ms) ─────────────────────────────
-$totalUsers     = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
 $activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL AND acctstarttime >= NOW() - INTERVAL 24 HOUR")->fetch()['c'] ?? 0);
-$totalNas       = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
 
 // Latest auth record for quick anchor (indexed on primary key id, 0.3ms)
 $latestAuth    = $db->query("SELECT id, authdate FROM radpostauth ORDER BY id DESC LIMIT 1")->fetch();
@@ -50,7 +61,7 @@ if ($maxPostAuthId > 0) {
       FROM radpostauth 
       WHERE id >= ? AND reply != 'Access-Accept'
       ORDER BY id DESC LIMIT 6");
-    $failedStmt->execute([max(1, $maxPostAuthId - 50000)]);
+    $failedStmt->execute([max(1, $maxPostAuthId - 10000)]);
     $failedAuths = $failedStmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -154,15 +165,19 @@ if ($viewMode === 'today') {
         // 3. Hourly Auth Decisions on Anchor Day (Accept vs Reject) (< 1ms)
         $hourlyAccepts = array_fill(0, 24, 0);
         $hourlyRejects = array_fill(0, 24, 0);
+        $authIdBound = max(1, $maxPostAuthId - 500000);
         $hourlyAuthStmt = $db->prepare("
             SELECT HOUR(authdate) AS h,
                    SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END) AS accepts,
                    SUM(CASE WHEN reply != 'Access-Accept' THEN 1 ELSE 0 END) AS rejects
             FROM radpostauth
-            WHERE authdate >= ? AND authdate <= ?
+            WHERE " . (!$isHistoricalDay && $maxPostAuthId > 0 ? "id >= ? AND " : "") . "authdate >= ? AND authdate <= ?
             GROUP BY HOUR(authdate)
         ");
-        $hourlyAuthStmt->execute(["$anchorDay 00:00:00", "$anchorDay 23:59:59"]);
+        $hourlyAuthParams = (!$isHistoricalDay && $maxPostAuthId > 0)
+            ? [$authIdBound, "$anchorDay 00:00:00", "$anchorDay 23:59:59"]
+            : ["$anchorDay 00:00:00", "$anchorDay 23:59:59"];
+        $hourlyAuthStmt->execute($hourlyAuthParams);
         while ($r = $hourlyAuthStmt->fetch(PDO::FETCH_ASSOC)) {
             $h = (int)$r['h'];
             if ($h >= 0 && $h < 24) {
@@ -309,15 +324,17 @@ if ($viewMode === 'today') {
         }
 
         // 3. 14-Day Authentications (Ultra-fast Boundary ID Index scan, < 15ms)
-        $boundaryStmt = $db->prepare("SELECT id FROM radpostauth WHERE authdate >= ? ORDER BY authdate ASC LIMIT 1");
+        $lastId = (int)($latestAuth['id'] ?? 0);
+        $authIdBound14 = max(1, $lastId - 3000000);
+        $boundaryStmt = $db->prepare("SELECT id FROM radpostauth WHERE " . (!$isHistoricalSnapshot && $lastId > 0 ? "id >= ? AND " : "") . "authdate >= ? ORDER BY authdate ASC LIMIT 1");
         $boundaryIds  = [];
         for ($i = count($dates14) - 1; $i >= 0; $i--) {
             $d = $dates14[$i];
-            $boundaryStmt->execute(["$d 00:00:00"]);
+            $bParams = (!$isHistoricalSnapshot && $lastId > 0) ? [$authIdBound14, "$d 00:00:00"] : ["$d 00:00:00"];
+            $boundaryStmt->execute($bParams);
             $rowId = $boundaryStmt->fetchColumn();
             $boundaryIds[$d] = $rowId !== false ? (int)$rowId : 0;
         }
-        $lastId = (int)($latestAuth['id'] ?? 0);
 
         $auth14dLabels = [];
         $auth14dValues = [];

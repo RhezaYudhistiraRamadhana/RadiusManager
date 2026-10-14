@@ -52,15 +52,17 @@ function getAdminName() {
 }
 
 /**
- * Ensure rm_admins table exists and operators.password column fits bcrypt
+ * Ensure rm_admins table exists without blocking login attempts with heavy DDL
  */
 function ensureAdminTables() {
     static $done = false;
     if ($done) return;
+    $done = true;
+
     if (dbTableExists('rm_admins')) {
-        $done = true;
         return;
     }
+
     try {
         $db = getDB();
         $db->exec("CREATE TABLE IF NOT EXISTS `rm_admins` (
@@ -73,27 +75,8 @@ function ensureAdminTables() {
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
-
-        if (!dbHasColumn('rm_admins', 'role')) {
-            $db->exec("ALTER TABLE `rm_admins` ADD COLUMN `role` ENUM('superadmin','operator','readonly') NOT NULL DEFAULT 'superadmin'");
-        }
-
-        if (dbTableExists('operators')) {
-            // Expand password column if it is smaller than 255
-            $col = dbFetch("SHOW COLUMNS FROM `operators` LIKE 'password'");
-            if ($col && stripos($col['Type'], 'varchar(255)') === false) {
-                $db->exec("SET SESSION sql_mode = ''");
-                $db->exec("ALTER TABLE `operators` MODIFY `password` VARCHAR(255) NOT NULL");
-            }
-            if (!dbHasColumn('operators', 'role')) {
-                $db->exec("SET SESSION sql_mode = ''");
-                $db->exec("ALTER TABLE `operators` ADD COLUMN `role` ENUM('superadmin','operator','readonly') NOT NULL DEFAULT 'operator'");
-                $db->exec("UPDATE `operators` SET `role` = 'superadmin' WHERE `username` = 'administrator'");
-            }
-        }
-        $done = true;
-    } catch (Exception $e) {
-        // Continue gracefully if DB permissions prevent ALTER
+    } catch (Throwable $e) {
+        // Continue gracefully if DB permissions prevent CREATE TABLE
     }
 }
 
@@ -192,8 +175,9 @@ function attemptLogin($username, $password) {
 function ensureLoginAttemptsTable(): void {
     static $done = false;
     if ($done) return;
+    $done = true;
+
     if (dbTableExists('rm_login_attempts')) {
-        $done = true;
         return;
     }
     try {

@@ -21,3 +21,9 @@ if (file_exists(__DIR__ . '/config.php')) {
 
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
+
+// Safe self-healing indexer for FreeRADIUS tables (throttled to run at most once per 24h)
+if (isLoggedIn()) {
+    ensurePerformanceIndexes();
+}
+
