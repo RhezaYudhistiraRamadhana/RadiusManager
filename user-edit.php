@@ -382,9 +382,17 @@ include __DIR__ . '/includes/header.php';
                 <tr><td colspan="4" class="text-center text-muted py-3">No sessions found</td></tr>
                 <?php else: foreach ($sessions as $s): ?>
                 <tr>
-                    <td><?= date('d/m H:i', strtotime($s['acctstarttime'])) ?></td>
+                    <td><span title="<?= htmlspecialchars($s['acctstarttime']) ?>"><?= date('d/m H:i:s', strtotime($s['acctstarttime'])) ?></span></td>
                     <td><?= sanitize($s['nasipaddress']) ?></td>
-                    <td><?= $s['acctsessiontime'] ? formatDuration($s['acctsessiontime']) : ($s['acctstoptime'] ? '—' : '<span class="badge badge-online">Online</span>') ?></td>
+                    <td>
+                        <?php if ($s['acctsessiontime']): ?>
+                            <?= formatDuration($s['acctsessiontime']) ?>
+                        <?php elseif (empty($s['acctstoptime']) && strtotime($s['acctstarttime']) >= time() - 86400): ?>
+                            <span class="text-success"><?= formatDuration(max(0, time() - strtotime($s['acctstarttime']))) ?></span> <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" style="font-size:.65rem">live</span>
+                        <?php else: ?>
+                            —
+                        <?php endif; ?>
+                    </td>
                     <td><?= formatBytes((float)($s['acctinputoctets'] ?? 0) + (float)($s['acctoutputoctets'] ?? 0)) ?></td>
                 </tr>
                 <?php endforeach; endif; ?>

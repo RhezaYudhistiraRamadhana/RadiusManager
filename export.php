@@ -214,9 +214,13 @@ switch ($type) {
         $out = fopen('php://output', 'w');
         fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
+        $statusFilter = trim($_GET['status'] ?? '');
+        $sortBy       = trim($_GET['sort'] ?? 'start_desc');
+
         fputcsv($out, [
             'Username',
             'NAS IP Address',
+            'Calling Station ID (MAC)',
             'Framed IP Address',
             'Session Start Time',
             'Session Stop Time',
@@ -231,43 +235,80 @@ switch ($type) {
             'Termination Cause'
         ]);
 
-        $where = "WHERE acctstarttime >= :from_dt AND acctstarttime <= :to_dt";
+        $whereClauses = ["acctstarttime >= :from_dt", "acctstarttime <= :to_dt"];
         $params = [
             ':from_dt' => "$dateFrom 00:00:00",
             ':to_dt'   => "$dateTo 23:59:59"
         ];
 
-        if ($search) {
-            $where .= " AND username LIKE :q";
+        if ($search !== '') {
+            $whereClauses[] = "username LIKE :q";
             $params[':q'] = "%$search%";
         }
 
-        if ($ipSearch) {
-            $where .= " AND framedipaddress LIKE :ip";
-            $params[':ip'] = "%$ipSearch%";
+        if ($ipSearch !== '') {
+            $cleanIpSearch = str_replace([':', '-', '.'], '', $ipSearch);
+            $whereClauses[] = "(framedipaddress LIKE :ip OR callingstationid LIKE :mac OR REPLACE(REPLACE(REPLACE(callingstationid, ':', ''), '-', ''), '.', '') LIKE :clean_mac)";
+            $params[':ip']        = "%$ipSearch%";
+            $params[':mac']       = "%$ipSearch%";
+            $params[':clean_mac'] = "%$cleanIpSearch%";
+        }
+
+        if ($statusFilter === 'traffic') {
+            $whereClauses[] = "(acctinputoctets > 0 OR acctoutputoctets > 0)";
+        } elseif ($statusFilter === 'active') {
+            $whereClauses[] = "acctstoptime IS NULL AND acctstarttime >= NOW() - INTERVAL 24 HOUR";
+        } elseif ($statusFilter === 'completed') {
+            $whereClauses[] = "acctstoptime IS NOT NULL";
+        }
+
+        $where = "WHERE " . implode(' AND ', $whereClauses);
+
+        switch ($sortBy) {
+            case 'traffic_desc':
+                $orderSql = "ORDER BY (COALESCE(acctinputoctets, 0) + COALESCE(acctoutputoctets, 0)) DESC, radacctid DESC";
+                break;
+            case 'duration_desc':
+                $orderSql = "ORDER BY acctsessiontime DESC, radacctid DESC";
+                break;
+            case 'start_asc':
+                $orderSql = "ORDER BY acctstarttime ASC, radacctid ASC";
+                break;
+            case 'start_desc':
+            default:
+                $orderSql = "ORDER BY acctstarttime DESC, radacctid DESC";
+                break;
         }
 
         // Safety cap of 50,000 rows to ensure fast streaming without browser timeout
         $maxRows = 50000;
-        $stmt = $db->prepare("SELECT username, nasipaddress, framedipaddress,
+        $stmt = $db->prepare("SELECT username, nasipaddress, callingstationid, framedipaddress,
             acctstarttime, acctstoptime, acctsessiontime,
             acctinputoctets, acctoutputoctets, acctterminatecause
           FROM radacct $where
-          ORDER BY acctstarttime DESC LIMIT $maxRows");
+          $orderSql LIMIT $maxRows");
         $stmt->execute($params);
 
+        $nowSec = time();
         while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $inBytes  = (int)($r['acctinputoctets'] ?? 0);
             $outBytes = (int)($r['acctoutputoctets'] ?? 0);
             $totBytes = $inBytes + $outBytes;
             $sec      = (int)($r['acctsessiontime'] ?? 0);
+            $startTs  = !empty($r['acctstarttime']) ? strtotime($r['acctstarttime']) : 0;
+            $isActive = empty($r['acctstoptime']) && ($startTs >= $nowSec - 86400);
+
+            if ($sec <= 0 && $isActive && $startTs > 0) {
+                $sec = max(0, $nowSec - $startTs);
+            }
 
             fputcsv($out, [
                 $r['username'],
                 $r['nasipaddress'] ?? '',
+                formatMac($r['callingstationid'] ?? ''),
                 $r['framedipaddress'] ?? '',
                 $r['acctstarttime'] ?? '',
-                $r['acctstoptime'] ?? 'Active',
+                !empty($r['acctstoptime']) ? $r['acctstoptime'] : ($isActive ? 'Active' : 'Unrecorded'),
                 $sec,
                 formatDuration($sec),
                 $inBytes,
@@ -276,7 +317,7 @@ switch ($type) {
                 formatBytes($outBytes),
                 $totBytes,
                 formatBytes($totBytes),
-                $r['acctterminatecause'] ?? ''
+                $r['acctterminatecause'] ?? ($isActive ? 'Connected' : '')
             ]);
         }
 
