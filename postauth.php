@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 requireLogin();
+session_write_close();
 $page_title = 'Auth Log';
 $db = getDB();
 
@@ -16,6 +17,8 @@ if (empty($filter)) {
         $filter = 'all';
     }
 }
+
+$latestPostAuthId = (int)($db->query("SELECT id FROM radpostauth ORDER BY id DESC LIMIT 1")->fetchColumn() ?: 0);
 
 if (isset($_GET['from'])) {
     $dateFrom = trim($_GET['from']);
@@ -37,20 +40,28 @@ $offset   = ($page - 1) * $perPage;
 $hasNasIp = dbHasColumn('radpostauth', 'nasipaddress');
 $nasCol   = $hasNasIp ? 'nasipaddress' : 'NULL AS nasipaddress';
 
-// Optimized index-friendly datetime condition (avoids DATE(authdate) function call)
-$where  = "WHERE authdate >= :from_dt";
+// Primary key bounding for today to eliminate catastrophic full table scans on large databases
+$isLiveToday = ($dateFrom === date('Y-m-d'));
+$whereClauses = ["authdate >= :from_dt"];
 $params = [':from_dt' => "$dateFrom 00:00:00"];
 
+if ($isLiveToday && $latestPostAuthId > 0) {
+    $whereClauses[] = "id >= :bound_id";
+    $params[':bound_id'] = max(1, $latestPostAuthId - 500000);
+}
+
 if ($search) {
-    $where .= " AND username LIKE :q";
+    $whereClauses[] = "username LIKE :q";
     $params[':q'] = "%$search%";
 }
 if ($filter === 'accept') {
-    $where .= " AND reply = 'Access-Accept'";
+    $whereClauses[] = "reply = 'Access-Accept'";
 }
 if ($filter === 'reject') {
-    $where .= " AND reply != 'Access-Accept'";
+    $whereClauses[] = "reply != 'Access-Accept'";
 }
+
+$where = "WHERE " . implode(' AND ', $whereClauses);
 
 $totalStmt = $db->prepare("SELECT COUNT(*) FROM radpostauth $where");
 $totalStmt->execute($params);
@@ -65,12 +76,19 @@ $stmt = $db->prepare("SELECT username, pass, reply, authdate, $nasCol
 $stmt->execute($params);
 $records = $stmt->fetchAll();
 
-// Quick stats
+// Quick stats with primary key bounding
+$statsWhere = $isLiveToday && $latestPostAuthId > 0
+    ? "WHERE id >= ? AND authdate >= ?"
+    : "WHERE authdate >= ?";
+$statsParams = $isLiveToday && $latestPostAuthId > 0
+    ? [max(1, $latestPostAuthId - 500000), "$dateFrom 00:00:00"]
+    : ["$dateFrom 00:00:00"];
+
 $statsStmt = $db->prepare("SELECT
     SUM(reply = 'Access-Accept') AS accepted,
     SUM(reply != 'Access-Accept') AS rejected
-  FROM radpostauth WHERE authdate >= :from_dt");
-$statsStmt->execute([':from_dt' => "$dateFrom 00:00:00"]);
+  FROM radpostauth $statsWhere");
+$statsStmt->execute($statsParams);
 $stats = $statsStmt->fetch();
 
 include __DIR__ . '/includes/header.php';

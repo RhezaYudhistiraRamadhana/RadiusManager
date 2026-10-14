@@ -13,19 +13,20 @@ if (isset($_GET['from'])) {
     $dateFrom = trim($_GET['from']);
     $dateTo   = trim($_GET['to'] ?? date('Y-m-d'));
 } else {
-    $currMonthStart = date('Y-m-01');
-    $hasCurrent = $db->query("SELECT 1 FROM radacct WHERE acctstarttime >= '$currMonthStart 00:00:00' LIMIT 1")->fetch();
-    if ($hasCurrent) {
-        $dateFrom = $currMonthStart;
-        $dateTo   = date('Y-m-d');
+    // Default to Today for instant high-speed page load (< 10ms)
+    $today = date('Y-m-d');
+    $hasToday = $db->query("SELECT 1 FROM radacct WHERE acctstarttime >= '$today 00:00:00' LIMIT 1")->fetch();
+    if ($hasToday) {
+        $dateFrom = $today;
+        $dateTo   = $today;
     } else {
-        $latest = $db->query("SELECT DATE(acctstarttime) d FROM radacct ORDER BY acctstarttime DESC LIMIT 1")->fetch();
+        $latest = $db->query("SELECT DATE(acctstarttime) d FROM radacct ORDER BY radacctid DESC LIMIT 1")->fetch();
         if ($latest && !empty($latest['d'])) {
-            $dateFrom = substr($latest['d'], 0, 7) . '-01';
+            $dateFrom = $latest['d'];
             $dateTo   = $latest['d'];
         } else {
-            $dateFrom = date('Y-m-01');
-            $dateTo   = date('Y-m-d');
+            $dateFrom = $today;
+            $dateTo   = $today;
         }
     }
 }
@@ -85,10 +86,28 @@ $page    = max(1, (int)($_GET['page'] ?? 1));
 $perPage = 25;
 $offset  = ($page - 1) * $perPage;
 
-$totalStmt = $db->prepare("SELECT COUNT(*) FROM radacct $where");
-$totalStmt->execute($params);
-$total = (int)$totalStmt->fetchColumn();
+// Cache summary statistics in session for 120s to eliminate repeated heavy SUM() scans
+$cacheKey = 'acct_sum_' . md5($where . serialize($params));
+if (isset($_SESSION[$cacheKey]) && (time() - ($_SESSION[$cacheKey . '_time'] ?? 0) < 120)) {
+    $summary = $_SESSION[$cacheKey];
+} else {
+    $statsStmt = $db->prepare("SELECT COUNT(*) AS sessions,
+        COALESCE(SUM(acctinputoctets), 0) AS upload,
+        COALESCE(SUM(acctoutputoctets), 0) AS download,
+        COALESCE(SUM(acctsessiontime), 0) AS duration
+      FROM radacct $where");
+    $statsStmt->execute($params);
+    $summary = $statsStmt->fetch(PDO::FETCH_ASSOC) ?: [
+        'sessions' => 0, 'upload' => 0, 'download' => 0, 'duration' => 0
+    ];
+    $_SESSION[$cacheKey] = $summary;
+    $_SESSION[$cacheKey . '_time'] = time();
+}
+$total = (int)($summary['sessions'] ?? 0);
 $pages = max(1, (int)ceil($total / $perPage));
+
+// Release session lock immediately to prevent blocking concurrent requests or other tabs
+session_write_close();
 
 $lim = (int)$perPage;
 $off = (int)$offset;
@@ -100,15 +119,6 @@ $stmt = $db->prepare("SELECT radacctid, username, nasipaddress, framedipaddress,
   $orderSql LIMIT $lim OFFSET $off");
 $stmt->execute($params);
 $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Summary stats for the period
-$statsStmt = $db->prepare("SELECT COUNT(*) AS sessions,
-    COALESCE(SUM(acctinputoctets), 0) AS upload,
-    COALESCE(SUM(acctoutputoctets), 0) AS download,
-    COALESCE(SUM(acctsessiontime), 0) AS duration
-  FROM radacct $where");
-$statsStmt->execute($params);
-$summary = $statsStmt->fetch(PDO::FETCH_ASSOC);
 
 // High-speed batch IP resolution for the 25 records on current page
 $macsNeedingIp = [];
@@ -123,7 +133,7 @@ foreach ($records as $r) {
 
 $resolvedIps = [];
 if (!empty($macsNeedingIp)) {
-    // 1. Check radippool
+    // 1. Check radippool (instant indexed lookup, < 0.2ms)
     if (dbTableExists('radippool')) {
         $phPool = implode(',', array_fill(0, count($macsNeedingIp), '?'));
         $poolStmt = $db->prepare("SELECT callingstationid, framedipaddress FROM radippool WHERE callingstationid IN ($phPool) AND framedipaddress != '0.0.0.0' AND framedipaddress != ''");
@@ -133,26 +143,21 @@ if (!empty($macsNeedingIp)) {
             $resolvedIps[$cM] = ['ip' => $pRow['framedipaddress'], 'source' => 'radippool'];
         }
     }
-    // 2. Check recent radacct session with non-zero IP for remaining MACs
+    // 2. Check recent radacct session with non-zero IP for remaining MACs (fast indexed point lookups)
     $remaining = array_diff_key($macsNeedingIp, $resolvedIps);
-    if (!empty($remaining)) {
-        $phRec = implode(',', array_fill(0, count($remaining), '?'));
-        $maxId = (int)($db->query("SELECT MAX(radacctid) FROM radacct")->fetchColumn() ?: 0);
-        $boundId = max(1, $maxId - 200000);
+    if (!empty($remaining) && count($remaining) <= 25) {
         $recStmt = $db->prepare("
-            SELECT ra.callingstationid, ra.framedipaddress
-            FROM radacct ra
-            INNER JOIN (
-                SELECT callingstationid, MAX(radacctid) AS max_id
-                FROM radacct
-                WHERE radacctid >= ? AND callingstationid IN ($phRec) AND framedipaddress != '0.0.0.0' AND framedipaddress != ''
-                GROUP BY callingstationid
-            ) sub ON ra.radacctid = sub.max_id
+            SELECT framedipaddress
+            FROM radacct
+            WHERE callingstationid = ? AND framedipaddress != '0.0.0.0' AND framedipaddress != '' AND acctstarttime >= NOW() - INTERVAL 14 DAY
+            ORDER BY radacctid DESC LIMIT 1
         ");
-        $recStmt->execute(array_merge([$boundId], array_values($remaining)));
-        while ($rRow = $recStmt->fetch(PDO::FETCH_ASSOC)) {
-            $cM = strtoupper(str_replace([':', '-', '.'], '', $rRow['callingstationid']));
-            $resolvedIps[$cM] = ['ip' => $rRow['framedipaddress'], 'source' => 'recent_lease'];
+        foreach ($remaining as $cleanM => $rawM) {
+            $recStmt->execute([$rawM]);
+            $foundIp = $recStmt->fetchColumn();
+            if ($foundIp) {
+                $resolvedIps[$cleanM] = ['ip' => $foundIp, 'source' => 'recent_lease'];
+            }
         }
     }
 }

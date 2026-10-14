@@ -78,6 +78,9 @@ if (isset($_SESSION['stale_ghost_time']) && (time() - $_SESSION['stale_ghost_tim
     $_SESSION['stale_ghost_time'] = time();
 }
 
+// Release session lock immediately to prevent blocking concurrent requests or other tabs
+session_write_close();
+
 // Snapshot preview toggle (primarily for local dev inspection of historical dumps)
 $allowSnapshot = !empty($_GET['snapshot']) || !empty($_GET['demo']);
 

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 requireLogin();
+session_write_close();
 
 $db = getDB();
 $type = $_GET['type'] ?? 'users';
