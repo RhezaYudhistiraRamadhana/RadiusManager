@@ -38,8 +38,11 @@ try {
     $uploadToday   = formatBytes($trafficRow['upload'] ?? 0);
     $downloadToday = formatBytes($trafficRow['download'] ?? 0);
 
-    // 2. Active Sessions Count (Compound indexed, < 0.5ms)
-    $activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL AND acctstarttime >= NOW() - INTERVAL 24 HOUR")->fetch()['c'] ?? 0);
+    // 2. Active Sessions Count (Accurate deduplicated online accounts & devices)
+    $activeInfo     = getTrulyActiveOnlineAccounts($db);
+    $onlineAccounts = $activeInfo['total_accounts'];
+    $onlineDevices  = $activeInfo['total_devices'];
+    $activeSessions = $onlineAccounts;
 
     // 3. Combined Hourly Sessions & Hourly Bandwidth (Single indexed scan, < 1ms)
     $hourlyStmt = $db->prepare("
@@ -144,6 +147,8 @@ try {
         'uploadToday'      => $uploadToday,
         'downloadToday'    => $downloadToday,
         'activeSessions'   => $activeSessions,
+        'onlineAccounts'   => $onlineAccounts,
+        'onlineDevices'    => $onlineDevices,
         'authCountDisplay' => $authCountDisplay,
         'hourlyLabels'     => $hourlyLabels,
         'hourlyToday'      => $hourlyToday,

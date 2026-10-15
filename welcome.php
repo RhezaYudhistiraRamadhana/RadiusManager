@@ -12,22 +12,27 @@ $db = getDB();
 
 // Cache welcome stats in session for 120 seconds to eliminate repeated queries
 if (isset($_SESSION['welcome_stats_time']) && (time() - $_SESSION['welcome_stats_time'] < 120) && !empty($_SESSION['welcome_stats'])) {
-    $stats = $_SESSION['welcome_stats'];
+    $stats          = $_SESSION['welcome_stats'];
     $totalUsers     = $stats['totalUsers'];
-    $activeSessions = $stats['activeSessions'];
+    $onlineAccounts = $stats['onlineAccounts'] ?? $stats['activeSessions'] ?? 0;
+    $onlineDevices  = $stats['onlineDevices'] ?? $onlineAccounts;
     $totalNas       = $stats['totalNas'];
     $totalVouchers  = $stats['totalVouchers'];
     $totalPlans     = $stats['totalPlans'];
 } else {
     $totalUsers     = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
-    $activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL AND acctstarttime >= NOW() - INTERVAL 24 HOUR")->fetch()['c'] ?? 0);
+    $activeInfo     = getTrulyActiveOnlineAccounts($db);
+    $onlineAccounts = $activeInfo['total_accounts'];
+    $onlineDevices  = $activeInfo['total_devices'];
     $totalNas       = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
     $totalVouchers  = dbTableExists('rm_vouchers') ? (int)($db->query("SELECT COUNT(*) c FROM rm_vouchers")->fetch()['c'] ?? 0) : 0;
     $totalPlans     = dbTableExists('rm_plans') ? (int)($db->query("SELECT COUNT(*) c FROM rm_plans")->fetch()['c'] ?? 0) : 0;
 
     $_SESSION['welcome_stats'] = [
         'totalUsers'     => $totalUsers,
-        'activeSessions' => $activeSessions,
+        'activeSessions' => $onlineAccounts,
+        'onlineAccounts' => $onlineAccounts,
+        'onlineDevices'  => $onlineDevices,
         'totalNas'       => $totalNas,
         'totalVouchers'  => $totalVouchers,
         'totalPlans'     => $totalPlans,
@@ -100,8 +105,8 @@ include __DIR__ . '/includes/header.php';
                 <i class="bi bi-activity text-success"></i>
             </div>
             <div>
-                <div class="stat-value"><?= number_format($activeSessions) ?></div>
-                <div class="stat-label">Active Online Sessions <i class="bi bi-chevron-right small text-muted"></i></div>
+                <div class="stat-value"><?= number_format($onlineAccounts) ?></div>
+                <div class="stat-label">Online Accounts <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" style="font-size:.68rem;"><?= number_format($onlineDevices) ?> Devices</span> <i class="bi bi-chevron-right small text-muted"></i></div>
             </div>
         </a>
     </div>

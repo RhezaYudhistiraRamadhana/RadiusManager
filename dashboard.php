@@ -11,23 +11,30 @@ if (!in_array($viewMode, ['today', 'general'])) {
 }
 $_SESSION['dash_view'] = $viewMode;
 
-// Cache metadata counts (subscribers, nas) for 120s in session
-if (isset($_SESSION['dash_meta_time']) && (time() - $_SESSION['dash_meta_time'] < 120) && isset($_SESSION['dash_total_users'])) {
-    $totalUsers = (int)$_SESSION['dash_total_users'];
-    $totalNas   = (int)$_SESSION['dash_total_nas'];
+// Cache metadata counts (subscribers, nas, online accounts/devices) for 60s in session
+if (isset($_SESSION['dash_meta_time']) && (time() - $_SESSION['dash_meta_time'] < 60) && isset($_SESSION['dash_total_users'])) {
+    $totalUsers     = (int)$_SESSION['dash_total_users'];
+    $totalNas       = (int)$_SESSION['dash_total_nas'];
+    $onlineAccounts = (int)($_SESSION['dash_online_accounts'] ?? 0);
+    $onlineDevices  = (int)($_SESSION['dash_online_devices'] ?? 0);
 } else {
-    $totalUsers = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
-    $totalNas   = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
-    $_SESSION['dash_total_users'] = $totalUsers;
-    $_SESSION['dash_total_nas']   = $totalNas;
-    $_SESSION['dash_meta_time']   = time();
+    $totalUsers     = (int)($db->query("SELECT COUNT(DISTINCT username) c FROM radcheck")->fetch()['c'] ?? 0);
+    $totalNas       = (int)($db->query("SELECT COUNT(*) c FROM nas")->fetch()['c'] ?? 0);
+    $activeInfo     = getTrulyActiveOnlineAccounts($db);
+    $onlineAccounts = $activeInfo['total_accounts'];
+    $onlineDevices  = $activeInfo['total_devices'];
+    $_SESSION['dash_total_users']     = $totalUsers;
+    $_SESSION['dash_total_nas']       = $totalNas;
+    $_SESSION['dash_online_accounts'] = $onlineAccounts;
+    $_SESSION['dash_online_devices']  = $onlineDevices;
+    $_SESSION['dash_meta_time']       = time();
 }
 
 // Release session lock immediately (< 0.1ms) to eliminate browser lock contention across all tabs
 session_write_close();
 
-// ── Instant Top Stats (Indexed lookups, < 2ms) ─────────────────────────────
-$activeSessions = (int)($db->query("SELECT COUNT(*) c FROM radacct WHERE acctstoptime IS NULL AND acctstarttime >= NOW() - INTERVAL 24 HOUR")->fetch()['c'] ?? 0);
+// Top stats: accurate deduplicated online accounts
+$activeSessions = $onlineAccounts;
 
 // Latest auth record for quick anchor (indexed on primary key id, 0.3ms)
 $latestAuth    = $db->query("SELECT id, authdate FROM radpostauth ORDER BY id DESC LIMIT 1")->fetch();
@@ -501,8 +508,8 @@ include __DIR__ . '/includes/header.php';
                 <i class="bi bi-activity text-success"></i>
             </div>
             <div>
-                <div class="stat-value" id="dashSessionsCount"><?= number_format($activeSessions) ?></div>
-                <div class="stat-label">Active Sessions <i class="bi bi-chevron-right small text-muted"></i></div>
+                <div class="stat-value" id="dashSessionsCount"><?= number_format($onlineAccounts) ?></div>
+                <div class="stat-label">Online Accounts <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" style="font-size:.68rem;" id="dashActiveDevicesBadge"><?= number_format($onlineDevices) ?> Devices</span> <i class="bi bi-chevron-right small text-muted"></i></div>
             </div>
         </a>
     </div>
@@ -1146,9 +1153,16 @@ if ($viewMode === 'today') {
                     const el = document.getElementById("dashDownloadValue");
                     if (el) el.textContent = data.downloadToday;
                 }
-                if (data.activeSessions !== undefined) {
+                if (data.onlineAccounts !== undefined) {
+                    const el = document.getElementById("dashSessionsCount");
+                    if (el) el.textContent = Number(data.onlineAccounts).toLocaleString();
+                } else if (data.activeSessions !== undefined) {
                     const el = document.getElementById("dashSessionsCount");
                     if (el) el.textContent = Number(data.activeSessions).toLocaleString();
+                }
+                const devBadge = document.getElementById("dashActiveDevicesBadge");
+                if (devBadge && data.onlineDevices !== undefined) {
+                    devBadge.textContent = Number(data.onlineDevices).toLocaleString() + " Devices";
                 }
                 if (data.authCountDisplay !== undefined) {
                     const el = document.getElementById("dashAuthCount");

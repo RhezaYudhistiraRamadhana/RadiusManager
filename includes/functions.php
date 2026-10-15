@@ -356,6 +356,12 @@ function countStaleRadiusSessions(int $hours = 24): int {
  * - Groups multiple active devices under their respective subscriber account.
  */
 function getTrulyActiveOnlineAccounts(PDO $db, string $search = '', bool $allowSnapshot = false): array {
+    static $staticCache = [];
+    $cacheKey = $search . '_' . ($allowSnapshot ? '1' : '0');
+    if (isset($staticCache[$cacheKey])) {
+        return $staticCache[$cacheKey];
+    }
+
     $now = time();
     if ($allowSnapshot) {
         $maxStartStr = $db->query("SELECT MAX(acctstarttime) FROM radacct WHERE acctstoptime IS NULL")->fetchColumn();
@@ -592,7 +598,7 @@ function getTrulyActiveOnlineAccounts(PDO $db, string $search = '', bool $allowS
     }
     unset($acc);
 
-    return [
+    return $staticCache[$cacheKey] = [
         'ref_now'        => $refNow,
         'accounts'       => array_values($accounts),
         'total_accounts' => count($accounts),
