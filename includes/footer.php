@@ -53,6 +53,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Ensure all dropdowns inside table-responsive containers use fixed popper strategy
+    document.querySelectorAll('.table-responsive [data-bs-toggle="dropdown"]').forEach(function(btn) {
+        if (!btn.hasAttribute('data-bs-popper-config')) {
+            btn.setAttribute('data-bs-popper-config', '{"strategy":"fixed"}');
+        }
+        if (!btn.hasAttribute('data-bs-boundary')) {
+            btn.setAttribute('data-bs-boundary', 'viewport');
+        }
+    });
 });
 </script>
 <?php if (isset($extra_js)) echo $extra_js; ?>

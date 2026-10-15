@@ -225,6 +225,14 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         .table td { padding: .7rem 1rem; vertical-align: middle; font-size: .875rem; }
         .table tbody tr:hover { background: #f8fafc; }
 
+        /* Dropdowns inside table-responsive */
+        .table-responsive .dropdown-menu {
+            max-height: 480px;
+            overflow-y: auto;
+            z-index: 1060 !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        }
+
         /* Badges */
         .badge-online { background: #dcfce7; color: #166534; }
         .badge-offline { background: #fee2e2; color: #991b1b; }

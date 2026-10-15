@@ -409,9 +409,9 @@ include __DIR__ . '/includes/header.php';
                                         </a>
                                         <?php if ($isMulti): ?>
                                         <div class="mt-0.5">
-                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0.5" style="font-size: 0.70rem;">
-                                                <i class="bi bi-devices me-0.5"></i><?= $acc['device_count'] ?> Devices Online
-                                            </span>
+                                            <a href="#devModal_<?= md5($acc['username']) ?>" data-bs-toggle="modal" class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0.5 text-decoration-none d-inline-flex align-items-center gap-1" style="font-size: 0.70rem;" title="View all <?= $acc['device_count'] ?> devices in centered modal">
+                                                <i class="bi bi-devices"></i><?= $acc['device_count'] ?> Devices Online <i class="bi bi-box-arrow-up-right" style="font-size: 0.6rem;"></i>
+                                            </a>
                                         </div>
                                         <?php endif; ?>
                                     </div>
@@ -422,14 +422,24 @@ include __DIR__ . '/includes/header.php';
                                     <!-- Multiple devices: Grouped Dropdown Menu -->
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-outline-primary dropdown-toggle py-1 px-2.5 font-monospace d-inline-flex align-items-center gap-1.5 shadow-sm"
-                                                type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false">
+                                                type="button" 
+                                                data-bs-toggle="dropdown" 
+                                                data-bs-auto-close="outside" 
+                                                data-bs-boundary="viewport" 
+                                                data-bs-popper-config='{"strategy":"fixed"}' 
+                                                aria-expanded="false">
                                             <i class="bi bi-hdd-network text-primary"></i>
                                             <span><?= $acc['device_count'] ?> Connected Devices</span>
                                         </button>
-                                        <div class="dropdown-menu shadow-lg p-3 border" style="min-width: 440px;">
+                                        <div class="dropdown-menu shadow-lg p-3 border" style="min-width: 320px; width: min(480px, 92vw); max-height: 480px; overflow-y: auto; z-index: 1060;">
                                             <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
                                                 <span class="fw-bold text-dark small"><i class="bi bi-devices me-1 text-primary"></i><?= htmlspecialchars($acc['username']) ?>'s Active Devices</span>
-                                                <span class="badge bg-primary"><?= $acc['device_count'] ?> Online</span>
+                                                <div class="d-flex align-items-center gap-1.5">
+                                                    <span class="badge bg-primary"><?= $acc['device_count'] ?> Online</span>
+                                                    <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 rounded" style="font-size:0.72rem;" title="Expand to Centered Modal View" data-bs-toggle="modal" data-bs-target="#devModal_<?= md5($acc['username']) ?>">
+                                                        <i class="bi bi-arrows-fullscreen"></i>
+                                                    </button>
+                                                </div>
                                             </div>
                                             <?php foreach ($acc['devices'] as $d): ?>
                                             <div class="p-2 mb-2 rounded border bg-light-subtle">
@@ -547,6 +557,81 @@ include __DIR__ . '/includes/header.php';
     </div>
     <?php endif; ?>
 </div>
+
+<!-- Multi-Device Modals for Clean View & Bulk Management -->
+<?php foreach ($displayAccounts as $acc): if (!empty($acc['device_count']) && $acc['device_count'] > 1): ?>
+<div class="modal fade" id="devModal_<?= md5($acc['username']) ?>" tabindex="-1" aria-labelledby="devModalLabel_<?= md5($acc['username']) ?>" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0" style="border-radius: 12px;">
+            <div class="modal-header bg-light py-3 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="rounded-circle bg-primary-subtle text-primary p-2 d-inline-flex align-items-center justify-content-center" style="width:38px;height:38px;">
+                        <i class="bi bi-devices fs-5"></i>
+                    </span>
+                    <div>
+                        <h6 class="modal-title fw-bold mb-0 text-dark" id="devModalLabel_<?= md5($acc['username']) ?>">
+                            Connected Devices: <?= htmlspecialchars($acc['username']) ?>
+                        </h6>
+                        <span class="text-muted small"><?= $acc['device_count'] ?> active hardware device(s) currently authenticated</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3 bg-light-subtle">
+                <div class="row g-2">
+                    <?php foreach ($acc['devices'] as $d): ?>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded-3 border bg-white shadow-sm h-100 d-flex flex-column justify-content-between">
+                            <div>
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <?php if (!empty($d['resolved_ip'])): ?>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">
+                                            <i class="bi bi-broadcast me-1"></i><?= htmlspecialchars($d['resolved_ip']) ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace px-2 py-1">
+                                            <i class="bi bi-hourglass-split me-1"></i>Awaiting DHCP
+                                        </span>
+                                    <?php endif; ?>
+                                    <span class="font-monospace small text-dark fw-bold"><?= htmlspecialchars(formatMac($d['callingstationid'])) ?></span>
+                                </div>
+                                <div class="small text-secondary mb-1">
+                                    <i class="bi bi-router me-1 text-primary"></i>NAS: <strong><?= htmlspecialchars($d['nasipaddress'] ?: '—') ?></strong>
+                                </div>
+                                <?php if (!empty($d['ssid'])): ?>
+                                <div class="small text-secondary mb-1">
+                                    <i class="bi bi-wifi me-1 text-primary"></i>SSID: <strong><?= htmlspecialchars($d['ssid']) ?></strong>
+                                </div>
+                                <?php endif; ?>
+                                <div class="small text-muted mb-2">
+                                    <i class="bi bi-stopwatch me-1 text-success"></i>Online: <?= $d['duration_text'] ?>
+                                    <span class="mx-1">•</span>
+                                    <i class="bi bi-arrow-up-down me-1"></i>↑ <?= formatBytes($d['acctinputoctets'] ?? 0) ?> | ↓ <?= formatBytes($d['acctoutputoctets'] ?? 0) ?>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-top text-end">
+                                <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2.5"
+                                        title="Disconnect only this device"
+                                        onclick="kickSingleSession('<?= htmlspecialchars(addslashes($d['acctsessionid'])) ?>', '<?= htmlspecialchars(addslashes($acc['username'])) ?>', '<?= htmlspecialchars(addslashes($d['nasipaddress'])) ?>', '<?= htmlspecialchars(addslashes($d['resolved_ip'] ?: $d['framedipaddress'])) ?>', '<?= htmlspecialchars(addslashes($d['callingstationid'])) ?>')">
+                                    <i class="bi bi-power me-1"></i>Disconnect Device
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2.5 justify-content-between">
+                <button type="button" class="btn btn-danger btn-sm fw-semibold"
+                        onclick="kickUserAccount('<?= htmlspecialchars(addslashes($acc['username'])) ?>', <?= $acc['device_count'] ?>)">
+                    <i class="bi bi-power me-1"></i>Force Re-Login All <?= $acc['device_count'] ?> Devices
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; endforeach; ?>
 
 <!-- Recent Force Disconnect Audit Trail -->
 <?php if (!empty($recentLogs)): ?>
