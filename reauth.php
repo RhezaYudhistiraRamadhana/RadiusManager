@@ -49,18 +49,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($targetUser === '') {
             flash('danger', 'Please enter the username of the account you wish to disconnect.');
         } else {
-            $sessStmt = $db->prepare("SELECT acctsessionid, nasipaddress, framedipaddress FROM radacct WHERE username = ? AND acctstoptime IS NULL");
+            $sessStmt = $db->prepare("SELECT acctsessionid, nasipaddress, framedipaddress, callingstationid FROM radacct WHERE username = ? AND acctstoptime IS NULL");
             $sessStmt->execute([$targetUser]);
             $activeList = $sessStmt->fetchAll(PDO::FETCH_ASSOC);
             $count = terminateRadiusSession('', $targetUser, 'Admin-Force-Reauth');
 
             foreach ($activeList as $row) {
-                sendRadiusDisconnect($row['nasipaddress'] ?? '', $targetUser, $row['acctsessionid'] ?? '', $row['framedipaddress'] ?? '');
+                sendRadiusDisconnect($row['nasipaddress'] ?? '', $targetUser, $row['acctsessionid'] ?? '', $row['framedipaddress'] ?? '', $row['callingstationid'] ?? '');
             }
 
             auditLog('FORCE_DISCONNECT_USER', $targetUser, "Terminated $count active session(s) for user $targetUser to force re-login");
             if ($count > 0) {
-                flash('success', "<strong>Success!</strong> Account <strong>" . htmlspecialchars($targetUser) . "</strong> (" . number_format($count) . " session(s)) has been disconnected. The user must re-authenticate to re-establish internet access.");
+                flash('success', "<strong>Success!</strong> Account <strong>" . htmlspecialchars($targetUser) . "</strong> (" . number_format($count) . " session(s)) has been disconnected and sent RFC 3576 Disconnect signal.<div class='small text-muted mt-1'><i class='bi bi-info-circle me-1'></i><strong>Note on 802.1X Campus WiFi:</strong> Devices with saved credentials will auto-reconnect within seconds unless the account is disabled in <a href='users.php?search=" . urlencode($targetUser) . "' class='alert-link'>Subscriber Directory</a>.</div>");
             } else {
                 flash('warning', "Account <strong>" . htmlspecialchars($targetUser) . "</strong> currently has no active online sessions, but the session reset signal was recorded.");
             }
@@ -74,12 +74,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $u     = trim($_POST['username'] ?? '');
         $nasIp = trim($_POST['nasip'] ?? '');
         $fIp   = trim($_POST['framedip'] ?? '');
+        $mac   = trim($_POST['mac'] ?? '');
 
         if ($sid !== '') {
             terminateRadiusSession($sid, '', 'Admin-Force-Reauth');
-            sendRadiusDisconnect($nasIp, $u, $sid, $fIp);
-            auditLog('FORCE_DISCONNECT_SESSION', $u, "Terminated session $sid on NAS $nasIp ($fIp)");
-            flash('success', "Online session for <strong>" . htmlspecialchars($u) . "</strong> (IP: $fIp) has been disconnected. The user's device must log in again.");
+            sendRadiusDisconnect($nasIp, $u, $sid, $fIp, $mac);
+            auditLog('FORCE_DISCONNECT_SESSION', $u, "Terminated session $sid on NAS $nasIp ($fIp, MAC: $mac)");
+            flash('success', "Online session for <strong>" . htmlspecialchars($u) . "</strong> (IP: $fIp) has been disconnected and sent RFC 3576 Disconnect signal.<div class='small text-muted mt-1'><i class='bi bi-info-circle me-1'></i><strong>Note on 802.1X Campus WiFi:</strong> Devices with saved credentials will auto-reconnect within seconds unless the account is disabled in <a href='users.php?search=" . urlencode($u) . "' class='alert-link'>Subscriber Directory</a>.</div>");
         }
         $redirectUrl = 'reauth.php' . (!empty($_GET['q']) ? '?q=' . urlencode($_GET['q']) : '');
         header('Location: ' . $redirectUrl);
@@ -92,14 +93,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cleanSids = array_values(array_filter(array_map('trim', $selectedSids)));
             if (!empty($cleanSids)) {
                 $placeholders = implode(',', array_fill(0, count($cleanSids), '?'));
-                $sStmt = $db->prepare("SELECT username, nasipaddress, framedipaddress, acctsessionid FROM radacct WHERE acctsessionid IN ($placeholders) AND acctstoptime IS NULL");
+                $sStmt = $db->prepare("SELECT username, nasipaddress, framedipaddress, callingstationid, acctsessionid FROM radacct WHERE acctsessionid IN ($placeholders) AND acctstoptime IS NULL");
                 $sStmt->execute($cleanSids);
                 $rows = $sStmt->fetchAll(PDO::FETCH_ASSOC);
 
                 $count = terminateMultipleRadiusSessions($cleanSids, 'Admin-Force-Reauth');
 
                 foreach ($rows as $row) {
-                    sendRadiusDisconnect($row['nasipaddress'] ?? '', $row['username'] ?? '', $row['acctsessionid'] ?? '', $row['framedipaddress'] ?? '');
+                    sendRadiusDisconnect($row['nasipaddress'] ?? '', $row['username'] ?? '', $row['acctsessionid'] ?? '', $row['framedipaddress'] ?? '', $row['callingstationid'] ?? '');
                 }
 
                 auditLog('FORCE_DISCONNECT_BATCH', 'MULTIPLE_USERS', "Terminated $count session(s) via batch kick");
@@ -465,7 +466,7 @@ include __DIR__ . '/includes/header.php';
                                                 <div class="text-end pt-1 border-top">
                                                     <button type="button" class="btn btn-outline-danger btn-sm py-0.5 px-2" style="font-size: 0.75rem;"
                                                             title="Disconnect only this device"
-                                                            onclick="kickSingleSession('<?= htmlspecialchars(addslashes($d['acctsessionid'])) ?>', '<?= htmlspecialchars(addslashes($acc['username'])) ?>', '<?= htmlspecialchars(addslashes($d['nasipaddress'])) ?>', '<?= htmlspecialchars(addslashes($d['resolved_ip'] ?: $d['framedipaddress'])) ?>')">
+                                                            onclick="kickSingleSession('<?= htmlspecialchars(addslashes($d['acctsessionid'])) ?>', '<?= htmlspecialchars(addslashes($acc['username'])) ?>', '<?= htmlspecialchars(addslashes($d['nasipaddress'])) ?>', '<?= htmlspecialchars(addslashes($d['resolved_ip'] ?: $d['framedipaddress'])) ?>', '<?= htmlspecialchars(addslashes($d['callingstationid'])) ?>')">
                                                         <i class="bi bi-power me-0.5"></i>Disconnect Device
                                                     </button>
                                                 </div>
@@ -525,7 +526,7 @@ include __DIR__ . '/includes/header.php';
                                 <?php else: ?>
                                     <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2.5 shadow-sm"
                                             title="Force re-login for this session"
-                                            onclick="kickSingleSession('<?= htmlspecialchars(addslashes($primaryDev['acctsessionid'])) ?>', '<?= htmlspecialchars(addslashes($acc['username'])) ?>', '<?= htmlspecialchars(addslashes($primaryDev['nasipaddress'])) ?>', '<?= htmlspecialchars(addslashes($primaryDev['resolved_ip'] ?: $primaryDev['framedipaddress'])) ?>')">
+                                            onclick="kickSingleSession('<?= htmlspecialchars(addslashes($primaryDev['acctsessionid'])) ?>', '<?= htmlspecialchars(addslashes($acc['username'])) ?>', '<?= htmlspecialchars(addslashes($primaryDev['nasipaddress'])) ?>', '<?= htmlspecialchars(addslashes($primaryDev['resolved_ip'] ?: $primaryDev['framedipaddress'])) ?>', '<?= htmlspecialchars(addslashes($primaryDev['callingstationid'])) ?>')">
                                         <i class="bi bi-power me-1"></i>Force Re-Login
                                     </button>
                                 <?php endif; ?>
@@ -626,6 +627,7 @@ include __DIR__ . '/includes/header.php';
     <input type="hidden" name="username" id="kickUser">
     <input type="hidden" name="nasip" id="kickNas">
     <input type="hidden" name="framedip" id="kickFip">
+    <input type="hidden" name="mac" id="kickMac">
 </form>
 
 <!-- Hidden Account Force Re-Login Form -->
@@ -684,12 +686,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function kickSingleSession(sid, user, nasip, fip) {
+function kickSingleSession(sid, user, nasip, fip, mac = '') {
     if (confirm(`Are you sure you want to disconnect session for user '${user}' (${fip}) to force re-login?`)) {
         document.getElementById('kickSid').value = sid;
         document.getElementById('kickUser').value = user;
         document.getElementById('kickNas').value = nasip;
         document.getElementById('kickFip').value = fip;
+        document.getElementById('kickMac').value = mac;
         document.getElementById('singleKickForm').submit();
     }
 }

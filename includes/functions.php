@@ -254,34 +254,143 @@ function terminateAllRadiusSessions(string $reason = 'Admin-Force-Reauth'): int 
 }
 
 /**
- * Send RADIUS Disconnect-Request (PoD / CoA RFC 3576 / RFC 5176) to NAS gateway
+ * Send RADIUS Disconnect-Request (PoD / CoA RFC 3576 / RFC 5176) to NAS gateway.
+ * Generates and transmits a standard RFC 3576 UDP packet directly in pure PHP (no external binaries required),
+ * targets both AP and AC core controller (e.g. Ruijie/Cisco), resolves real secrets from nas table,
+ * and formats Calling-Station-Id (MAC address) for wireless clients.
  */
-function sendRadiusDisconnect(string $nasIp, string $username, string $sessionId = '', string $framedIp = ''): array {
-    static $nasSecretCache = null;
+function sendRadiusDisconnect(string $nasIp, string $username, string $sessionId = '', string $framedIp = '', string $macAddress = ''): array {
+    static $nasCache = null;
     $db = getDB();
 
-    if ($nasSecretCache === null) {
+    if ($nasCache === null) {
         try {
-            $nasSecretCache = $db->query("SELECT nasname, secret FROM nas")->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
+            $nasCache = $db->query("SELECT nasname, secret, type FROM nas")->fetchAll(PDO::FETCH_ASSOC) ?: [];
         } catch (\Throwable $e) {
-            $nasSecretCache = [];
+            $nasCache = [];
         }
     }
-    $secret = $nasSecretCache[$nasIp] ?? 'secret';
 
-    $attributes = ["User-Name=$username"];
+    // 1. Resolve shared secret & core controllers (Ruijie AC / Cisco WLC / MikroTik)
+    $secret = '';
+    $controllers = [];
+    foreach ($nasCache as $n) {
+        if ($n['nasname'] === $nasIp) {
+            $secret = $n['secret'];
+        }
+        if (!empty($n['type']) && in_array(strtolower($n['type']), ['ruijie', 'cisco', 'mikrotik'])) {
+            $controllers[] = $n['nasname'];
+        }
+    }
+    if ($secret === '') {
+        foreach ($nasCache as $n) {
+            if ($n['nasname'] === '0.0.0.0/0' || str_starts_with($n['nasname'], '0.0.0.0')) {
+                $secret = $n['secret'];
+                break;
+            }
+        }
+    }
+    if ($secret === '' && !empty($nasCache[0]['secret'])) {
+        $secret = $nasCache[0]['secret'];
+    }
+    if ($secret === '') {
+        $secret = 'secret';
+    }
+
+    // Target IPs: the session NAS IP, plus any Core AC controllers
+    $targetIps = array_unique(array_filter(array_merge([$nasIp], $controllers)));
+    $targetIps = array_values(array_filter($targetIps, function($ip) {
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
+    }));
+
+    // 2. Prepare RADIUS Attributes (RFC 2865 / 3576 / 5176)
+    $cleanMac = strtoupper(str_replace([':', '-', '.'], '', $macAddress));
+    $colonMac = (strlen($cleanMac) === 12) ? implode(':', str_split($cleanMac, 2)) : $macAddress;
+
+    $rfcAttrs = [];
+    $cliAttrs = [];
+
+    if ($username !== '' && $username !== 'all') {
+        $rfcAttrs[1] = $username;
+        $cliAttrs[]  = "User-Name=$username";
+    }
     if ($sessionId !== '') {
-        $attributes[] = "Acct-Session-Id=$sessionId";
+        $rfcAttrs[44] = $sessionId;
+        $cliAttrs[]   = "Acct-Session-Id=$sessionId";
     }
-    if ($framedIp !== '') {
-        $attributes[] = "Framed-IP-Address=$framedIp";
+    if ($framedIp !== '' && filter_var($framedIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        $rfcAttrs[8] = $framedIp;
+        $cliAttrs[]  = "Framed-IP-Address=$framedIp";
     }
-    $attrString = implode(',', $attributes);
+    if ($colonMac !== '') {
+        $rfcAttrs[31] = $colonMac;
+        $cliAttrs[]   = "Calling-Station-Id=$colonMac";
+    }
+    if ($nasIp !== '' && filter_var($nasIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        $rfcAttrs[4] = $nasIp;
+        $cliAttrs[]  = "NAS-IP-Address=$nasIp";
+    }
 
-    $cmd = "echo \"$attrString\" | radclient -x " . escapeshellarg("$nasIp:3799") . " disconnect " . escapeshellarg($secret) . " 2>&1";
+    // 3. Build RFC 3576 Disconnect-Request Packet in Pure PHP
+    $attrPayload = '';
+    foreach ($rfcAttrs as $type => $value) {
+        if ($value === null || $value === '') continue;
+        if ($type === 4 || $type === 8) {
+            $binIp = @inet_pton($value);
+            if ($binIp !== false && strlen($binIp) === 4) {
+                $attrPayload .= chr($type) . chr(6) . $binIp;
+            }
+        } else {
+            $strVal = (string)$value;
+            $len = strlen($strVal) + 2;
+            if ($len <= 255) {
+                $attrPayload .= chr($type) . chr($len) . $strVal;
+            }
+        }
+    }
+    $length = 20 + strlen($attrPayload);
+    $ident  = mt_rand(1, 255);
+    $headerWithoutAuth = chr(40) . chr($ident) . pack('n', $length) . str_repeat("\0", 16);
+    $authenticator = md5($headerWithoutAuth . $attrPayload . $secret, true);
+    $packet = chr(40) . chr($ident) . pack('n', $length) . $authenticator . $attrPayload;
 
-    $output = '';
+    $sentTargets = [];
+    // Transmit pure PHP UDP packet directly to standard ports 3799 and 1700
+    foreach ($targetIps as $destIp) {
+        foreach ([3799, 1700] as $port) {
+            $sent = false;
+            try {
+                if (function_exists('socket_create')) {
+                    $sock = @socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
+                    if ($sock) {
+                        @socket_set_option($sock, SOL_SOCKET, SO_SNDTIMEO, ['sec' => 0, 'usec' => 50000]);
+                        @socket_sendto($sock, $packet, strlen($packet), 0, $destIp, $port);
+                        @socket_close($sock);
+                        $sent = true;
+                    }
+                }
+                if (!$sent) {
+                    $errno = 0; $errstr = '';
+                    $fp = @stream_socket_client("udp://$destIp:$port", $errno, $errstr, 0.05, STREAM_CLIENT_CONNECT);
+                    if ($fp) {
+                        $written = @fwrite($fp, $packet);
+                        @fclose($fp);
+                        $sent = ($written > 0);
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            if ($sent) {
+                $sentTargets[] = "$destIp:$port";
+            }
+        }
+    }
+
+    // 4. Also trigger radclient if available in Linux host environment
     $executed = false;
+    $output = '';
+    $attrString = implode(',', $cliAttrs);
+    $cmd = "echo \"$attrString\" | radclient -x " . escapeshellarg("$nasIp:3799") . " disconnect " . escapeshellarg($secret) . " 2>&1";
 
     if (function_exists('shell_exec') && stripos(PHP_OS, 'WIN') === false) {
         $radclientCheck = trim((string)@shell_exec('which radclient 2>/dev/null'));
@@ -291,23 +400,14 @@ function sendRadiusDisconnect(string $nasIp, string $username, string $sessionId
         }
     }
 
-    // Ultra-fast non-blocking stream notification (20ms timeout maximum)
-    if (!$executed && $nasIp !== '' && $nasIp !== '0.0.0.0' && !str_contains($nasIp, '/')) {
-        $errno = 0;
-        $errstr = '';
-        try {
-            $fp = @stream_socket_client("udp://$nasIp:3799", $errno, $errstr, 0.02, STREAM_CLIENT_CONNECT);
-            if ($fp) {
-                fclose($fp);
-            }
-        } catch (\Throwable $e) {}
-    }
-
     return [
-        'command'  => $cmd,
-        'executed' => $executed,
-        'output'   => $output,
-        'secret'   => $secret,
+        'command'      => $cmd,
+        'executed'     => $executed || !empty($sentTargets),
+        'sent_targets' => $sentTargets,
+        'output'       => $output,
+        'secret_found' => ($secret !== 'secret'),
+        'target_ips'   => $targetIps,
+        'attributes'   => $cliAttrs,
     ];
 }
 

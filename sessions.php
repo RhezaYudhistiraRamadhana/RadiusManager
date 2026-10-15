@@ -22,12 +22,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $user  = sanitize($_POST['username'] ?? '');
         $nasip = sanitize($_POST['nasip'] ?? '');
         $fip   = sanitize($_POST['framedip'] ?? '');
+        $mac   = sanitize($_POST['mac'] ?? '');
 
         if ($sid !== '') {
             terminateRadiusSession($sid, '', 'Admin-Disconnect');
-            sendRadiusDisconnect($nasip, $user, $sid, $fip);
-            auditLog('DISCONNECT_SESSION', $user, "Terminated active session $sid on NAS $nasip (IP: $fip)");
-            flash('success', "Session for user <strong>" . htmlspecialchars($user) . "</strong> (IP: " . htmlspecialchars($fip) . ") has been disconnected.");
+            sendRadiusDisconnect($nasip, $user, $sid, $fip, $mac);
+            auditLog('DISCONNECT_SESSION', $user, "Terminated active session $sid on NAS $nasip (IP: $fip, MAC: $mac)");
+            flash('success', "Session for user <strong>" . htmlspecialchars($user) . "</strong> (IP: " . htmlspecialchars($fip) . ") has been disconnected.<div class='small text-muted mt-1'><i class='bi bi-info-circle me-1'></i><strong>Note on 802.1X Campus WiFi:</strong> If the user's phone/laptop has saved credentials and remains active, it will auto-reconnect within seconds unless the account is disabled in <a href='users.php?search=" . urlencode($user) . "' class='alert-link'>Subscriber Directory</a>.</div>");
         }
         $redirectUrl = 'sessions.php' . (!empty($_GET['q']) ? '?q=' . urlencode($_GET['q']) : '');
         header('Location: ' . $redirectUrl);
@@ -37,17 +38,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         // Disconnect all sessions for an account
         $user = sanitize($_POST['username'] ?? '');
         if ($user !== '') {
-            $sessStmt = $db->prepare("SELECT acctsessionid, nasipaddress, framedipaddress FROM radacct WHERE username = ? AND acctstoptime IS NULL");
+            $sessStmt = $db->prepare("SELECT acctsessionid, nasipaddress, framedipaddress, callingstationid FROM radacct WHERE username = ? AND acctstoptime IS NULL");
             $sessStmt->execute([$user]);
             $activeList = $sessStmt->fetchAll(PDO::FETCH_ASSOC);
             $count = terminateRadiusSession('', $user, 'Admin-Disconnect');
 
             foreach ($activeList as $row) {
-                sendRadiusDisconnect($row['nasipaddress'] ?? '', $user, $row['acctsessionid'] ?? '', $row['framedipaddress'] ?? '');
+                sendRadiusDisconnect($row['nasipaddress'] ?? '', $user, $row['acctsessionid'] ?? '', $row['framedipaddress'] ?? '', $row['callingstationid'] ?? '');
             }
 
             auditLog('DISCONNECT_USER_ALL', $user, "Terminated all $count active session(s) for user $user");
-            flash('success', "All <strong>" . number_format($count) . " session(s)</strong> for user <strong>" . htmlspecialchars($user) . "</strong> have been disconnected.");
+            flash('success', "All <strong>" . number_format($count) . " session(s)</strong> for user <strong>" . htmlspecialchars($user) . "</strong> have been disconnected.<div class='small text-muted mt-1'><i class='bi bi-info-circle me-1'></i><strong>Note on 802.1X Campus WiFi:</strong> Devices with saved credentials will auto-reconnect automatically unless the account is disabled in <a href='users.php?search=" . urlencode($user) . "' class='alert-link'>Subscriber Directory</a>.</div>");
         }
         header('Location: sessions.php');
         exit;
@@ -323,6 +324,7 @@ include __DIR__ . '/includes/header.php';
                                                     <input type="hidden" name="username" value="<?= htmlspecialchars($acc['username']) ?>">
                                                     <input type="hidden" name="nasip" value="<?= htmlspecialchars($d['nasipaddress']) ?>">
                                                     <input type="hidden" name="framedip" value="<?= htmlspecialchars($d['resolved_ip'] ?: $d['framedipaddress']) ?>">
+                                                    <input type="hidden" name="mac" value="<?= htmlspecialchars($d['callingstationid']) ?>">
                                                     <button type="submit" class="btn btn-outline-danger btn-sm py-0.5 px-2" style="font-size: 0.75rem;">
                                                         <i class="bi bi-power me-1"></i>Disconnect Device
                                                     </button>
@@ -402,6 +404,7 @@ include __DIR__ . '/includes/header.php';
                                     <input type="hidden" name="username" value="<?= htmlspecialchars($acc['username']) ?>">
                                     <input type="hidden" name="nasip" value="<?= htmlspecialchars($primaryDev['nasipaddress']) ?>">
                                     <input type="hidden" name="framedip" value="<?= htmlspecialchars($primaryDev['framedipaddress']) ?>">
+                                    <input type="hidden" name="mac" value="<?= htmlspecialchars($primaryDev['callingstationid']) ?>">
                                     <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2.5 shadow-sm">
                                         <i class="bi bi-power me-1"></i>Kick
                                     </button>
