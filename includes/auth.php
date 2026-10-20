@@ -37,6 +37,9 @@ function requireLogin() {
         exit;
     }
     $_SESSION['last_activity'] = time();
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
 }
 
 function getAdminUser() {
@@ -100,6 +103,7 @@ function attemptLogin($username, $password) {
                     $_SESSION['admin_user']      = $adm['username'];
                     $_SESSION['admin_name']      = $adm['name'] ?: $adm['username'];
                     $_SESSION['admin_source']    = 'rm_admins';
+                    $_SESSION['csrf_token']      = bin2hex(random_bytes(32));
                     $_SESSION['admin_id']        = (int)$adm['id'];
                     $_SESSION['admin_role']      = $adm['role'] ?? 'superadmin';
                     $_SESSION['last_activity']   = time();
@@ -137,6 +141,7 @@ function attemptLogin($username, $password) {
                     $fullName = trim(($op['firstname'] ?? '') . ' ' . ($op['lastname'] ?? ''));
                     $_SESSION['admin_name']      = $fullName ?: $op['username'];
                     $_SESSION['admin_source']    = 'operators';
+                    $_SESSION['csrf_token']      = bin2hex(random_bytes(32));
                     $_SESSION['admin_id']        = (int)$op['id'];
                     $_SESSION['admin_role']      = $op['role'] ?? ($op['username'] === 'administrator' ? 'superadmin' : 'operator');
                     $_SESSION['last_activity']   = time();
@@ -160,6 +165,7 @@ function attemptLogin($username, $password) {
             $_SESSION['admin_user']      = $username;
             $_SESSION['admin_name']      = 'Administrator';
             $_SESSION['admin_source']    = 'config';
+            $_SESSION['csrf_token']      = bin2hex(random_bytes(32));
             $_SESSION['admin_role']      = 'superadmin';
             $_SESSION['last_activity']   = time();
             return true;
@@ -309,6 +315,9 @@ function logout() {
 }
 
 function csrfToken() {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }

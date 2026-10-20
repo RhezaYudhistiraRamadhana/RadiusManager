@@ -236,8 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Release session lock immediately to prevent tab blocking
-session_write_close();
+// Active session preserved for CSRF token & form actions
 
 // ── GET PARAMETERS & ACTIVE TAB ──────────────────────────────────────────────
 $tab         = $_GET['tab'] ?? 'accounts';
@@ -1663,3 +1662,4 @@ function inspectUserDevices(username) {
 </script>';
 
 include __DIR__ . '/includes/footer.php';
+
