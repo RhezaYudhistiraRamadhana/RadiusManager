@@ -485,7 +485,7 @@ include __DIR__ . '/includes/header.php';
         <a href="welcome.php" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 shadow-sm" title="Back to Home & Navigation Hub">
             <i class="bi bi-arrow-left"></i> <span>Back to Home</span>
         </a>
-        <span class="badge bg-light text-secondary border py-2 px-2.5"><?= date('D, d M Y H:i') ?></span>
+        <span class="badge bg-light text-secondary border py-2 px-2.5" id="dashHeaderDateBadge"><?= date('D, d M Y H:i') ?></span>
     </div>
 </div>
 
@@ -926,6 +926,9 @@ if ($viewMode === 'today') {
     let chartTodayBw = null;
     let chartTodayAuth = null;
     let chartTodayNas = null;
+    let currentActiveDate = ' . json_encode($anchorDay) . ';
+    const isHistoricalView = ' . (!empty($isHistoricalDay) ? 'true' : 'false') . ';
+    let pendingRolloverReload = false;
 
     // 1. Hourly Concurrent Sessions (Today vs Yesterday)
     const ctxTodayConcurrent = document.getElementById("todayConcurrentChart");
@@ -1071,15 +1074,32 @@ if ($viewMode === 'today') {
         }
 
         try {
-            const res = await fetch("api-dashboard-today.php?date=' . urlencode($anchorDay) . '", {
+            const apiUrl = isHistoricalView
+                ? ("api-dashboard-today.php?date=" + encodeURIComponent(currentActiveDate))
+                : "api-dashboard-today.php";
+            const res = await fetch(apiUrl, {
                 headers: { "X-Requested-With": "XMLHttpRequest" },
                 cache: "no-store"
             });
             if (!res.ok) throw new Error("HTTP " + res.status);
             const data = await res.json();
             if (data.success) {
+                // Day Rollover Detection (e.g. wallboard or NOC screen running 24/7)
+                const dateChanged = (!isHistoricalView && data.anchorDay && currentActiveDate && data.anchorDay !== currentActiveDate);
+                if (data.anchorDay) {
+                    currentActiveDate = data.anchorDay;
+                }
+
+                // Update Header Date Badge if provided
+                if (data.dateBadge) {
+                    const headerBadge = document.getElementById("dashHeaderDateBadge");
+                    if (headerBadge) headerBadge.textContent = data.dateBadge;
+                }
+
                 // Update Chart 1: Hourly Session Profile
                 if (chartTodayConcurrent) {
+                    if (data.todayLabel) chartTodayConcurrent.data.datasets[0].label = "Today (" + data.todayLabel + ")";
+                    if (data.prevLabel) chartTodayConcurrent.data.datasets[1].label = "Yesterday (" + data.prevLabel + ")";
                     chartTodayConcurrent.data.datasets[0].data = data.hourlyToday;
                     chartTodayConcurrent.data.datasets[1].data = data.hourlyPrev;
                     chartTodayConcurrent.update();
@@ -1169,6 +1189,20 @@ if ($viewMode === 'today') {
                     if (el) el.textContent = Number(data.authCountDisplay).toLocaleString();
                 }
 
+                // If date changed across midnight, cleanly reload page when user is idle
+                // so operational tables (recent sessions, failed auth, top users) sync to the new day
+                if (dateChanged) {
+                    const activeEl = document.activeElement;
+                    const hasOpenModal = document.querySelector(".modal.show");
+                    const isTyping = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT");
+                    if (!hasOpenModal && !isTyping) {
+                        window.location.replace("dashboard.php?view=today");
+                        return;
+                    } else {
+                        pendingRolloverReload = true;
+                    }
+                }
+
                 // Reset countdown timer
                 timeLeft = 60;
                 if (countdownEl) countdownEl.textContent = 60;
@@ -1186,14 +1220,21 @@ if ($viewMode === 'today') {
     let timeLeft = 60;
     const countdownEl = document.getElementById("dashCountdown");
     const timerInterval = setInterval(function() {
+        const activeEl = document.activeElement;
+        const hasOpenModal = document.querySelector(".modal.show");
+        const isTyping = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT");
+
+        // If a day rollover reload was deferred because user was typing/modal was open, reload once idle
+        if (pendingRolloverReload && !hasOpenModal && !isTyping) {
+            window.location.replace("dashboard.php?view=today");
+            return;
+        }
+
         timeLeft--;
         if (countdownEl) {
             countdownEl.textContent = timeLeft;
         }
         if (timeLeft <= 0) {
-            const activeEl = document.activeElement;
-            const hasOpenModal = document.querySelector(".modal.show");
-            const isTyping = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "SELECT");
             if (!hasOpenModal && !isTyping) {
                 refreshTodayCharts(false);
             } else {
