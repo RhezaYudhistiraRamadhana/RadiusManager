@@ -314,6 +314,7 @@ include __DIR__ . '/includes/header.php';
                         <label class="form-label fw-semibold small">Max Simultaneous Logins</label>
                         <input type="number" name="simul_count" class="form-control"
                                min="0" value="<?= (int)($attrMap['Simultaneous-Use'] ?? 0) ?>">
+                        <div class="form-text">Limit concurrent devices on network (0 = unlimited). <a href="rules.php" target="_blank">Manage device rules &raquo;</a></div>
                     </div>
                 </div>
                 <div class="row">

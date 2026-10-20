@@ -171,8 +171,9 @@ include __DIR__ . '/includes/header.php';
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-semibold small">Max Simultaneous Logins</label>
                         <input type="number" name="simul_count" class="form-control"
-                               min="0" value="<?= (int)($_POST['simul_count'] ?? 0) ?>"
+                               min="0" value="<?= (int)($_POST['simul_count'] ?? (int)getSetting('default_device_limit', 0)) ?>"
                                placeholder="0 = unlimited">
+                        <div class="form-text">Limit concurrent devices on network (0 = unlimited). <a href="rules.php" target="_blank">Manage device rules &raquo;</a></div>
                     </div>
                 </div>
                 <div class="row">

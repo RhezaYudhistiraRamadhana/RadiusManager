@@ -495,6 +495,9 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     <a href="groups.php" class="sidebar-link <?= $current_page==='groups'?'active':'' ?>" title="Groups" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Groups">
         <i class="bi bi-collection"></i> <span class="link-text">Groups</span>
     </a>
+    <a href="rules.php" class="sidebar-link <?= $current_page==='rules'?'active':'' ?>" title="Rules" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Rules">
+        <i class="bi bi-shield-lock"></i> <span class="link-text">Rules</span>
+    </a>
     <a href="plans.php" class="sidebar-link <?= in_array($current_page, ['plans','plan-add','plan-edit'])?'active':'' ?>" title="Rate Plans" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Rate Plans">
         <i class="bi bi-speedometer"></i> <span class="link-text">Rate Plans</span>
     </a>

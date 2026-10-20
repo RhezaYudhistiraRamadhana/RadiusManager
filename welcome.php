@@ -158,6 +158,7 @@ include __DIR__ . '/includes/header.php';
                     </p>
                     <div class="d-flex gap-2">
                         <a href="users.php" class="btn btn-sm btn-outline-primary py-1 px-2.5">User List</a>
+                        <a href="rules.php" class="btn btn-sm btn-outline-secondary py-1 px-2.5" title="Manage Simultaneous-Use and Device Limits"><i class="bi bi-shield-lock me-1"></i>Device Rules</a>
                         <a href="user-add.php" class="btn btn-sm btn-primary py-1 px-2.5"><i class="bi bi-plus-lg me-1"></i>+ Add User</a>
                     </div>
                 </div>

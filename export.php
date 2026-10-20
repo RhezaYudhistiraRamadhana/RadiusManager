@@ -179,6 +179,160 @@ switch ($type) {
     // ══════════════════════════════════════════════════════════════════════
     // 2. EXPORT ACCOUNTING HISTORY
     // ══════════════════════════════════════════════════════════════════════
+    case 'rules':
+        $search      = trim($_GET['q'] ?? '');
+        $groupFilter = trim($_GET['group'] ?? '');
+        $ruleFilter  = trim($_GET['rule'] ?? 'all');
+        $stateFilter = trim($_GET['state'] ?? 'all');
+        $hasUserinfo = dbTableExists('userinfo');
+        $userInfoJoin = $hasUserinfo ? "LEFT JOIN userinfo ui ON ui.username = rc.username" : "";
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="radius_device_rules_' . $nowStr . '.csv"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $out = fopen('php://output', 'w');
+        // UTF-8 BOM for Excel
+        fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+        fputcsv($out, [
+            'Username',
+            'Full Name',
+            'Department',
+            'Email',
+            'Group',
+            'Device Limit Rule',
+            'Rule Source',
+            'Active Connected Devices',
+            'Capacity Status'
+        ]);
+
+        $groupSimulMap = $db->query("SELECT groupname, CAST(value AS UNSIGNED) AS simul FROM radgroupcheck WHERE attribute = 'Simultaneous-Use'")->fetchAll(PDO::FETCH_KEY_PAIR) ?: [];
+        $globalDefaultLimit = (int)getSetting('default_device_limit', 0);
+
+        // Subquery joins
+        $whereClauses = [];
+        $params       = [];
+
+        if ($search !== '') {
+            $q = "%$search%";
+            if ($hasUserinfo) {
+                $whereClauses[] = "(rc.username LIKE ? OR ui.firstname LIKE ? OR ui.lastname LIKE ? OR ui.department LIKE ? OR ui.email LIKE ? OR rug.groupname LIKE ?)";
+                $params = array_merge($params, [$q, $q, $q, $q, $q, $q]);
+            } else {
+                $whereClauses[] = "(rc.username LIKE ? OR rug.groupname LIKE ?)";
+                $params = array_merge($params, [$q, $q]);
+            }
+        }
+        if ($groupFilter !== '') {
+            $whereClauses[] = "rug.groupname = ?";
+            $params[] = $groupFilter;
+        }
+
+        if ($ruleFilter === '1') {
+            $whereClauses[] = "COALESCE(rcu.user_simul, rgc.group_simul, 0) = 1";
+        } elseif ($ruleFilter === '2') {
+            $whereClauses[] = "COALESCE(rcu.user_simul, rgc.group_simul, 0) = 2";
+        } elseif ($ruleFilter === 'multi') {
+            $whereClauses[] = "COALESCE(rcu.user_simul, rgc.group_simul, 0) > 1";
+        } elseif ($ruleFilter === 'unlimited') {
+            $whereClauses[] = "COALESCE(rcu.user_simul, rgc.group_simul, 0) = 0";
+        } elseif ($ruleFilter === 'override') {
+            $whereClauses[] = "rcu.user_simul IS NOT NULL";
+        } elseif ($ruleFilter === 'inherited') {
+            $whereClauses[] = "rcu.user_simul IS NULL AND rgc.group_simul IS NOT NULL";
+        }
+
+        if ($stateFilter === 'online') {
+            $whereClauses[] = "ra.active_count > 0";
+        } elseif ($stateFilter === 'maxed') {
+            $whereClauses[] = "ra.active_count >= COALESCE(rcu.user_simul, rgc.group_simul, 0) AND COALESCE(rcu.user_simul, rgc.group_simul, 0) > 0";
+        } elseif ($stateFilter === 'exceeded') {
+            $whereClauses[] = "ra.active_count > COALESCE(rcu.user_simul, rgc.group_simul, 0) AND COALESCE(rcu.user_simul, rgc.group_simul, 0) > 0";
+        } elseif ($stateFilter === 'offline') {
+            $whereClauses[] = "(ra.active_count IS NULL OR ra.active_count = 0)";
+        }
+
+        $whereSql = !empty($whereClauses) ? ("WHERE " . implode(' AND ', $whereClauses)) : "";
+
+        $exportSql = "
+            SELECT rc.username,
+                   MAX(CASE WHEN rc.attribute='Simultaneous-Use' THEN CAST(rc.value AS UNSIGNED) END) AS user_simul,
+                   GROUP_CONCAT(DISTINCT rug.groupname ORDER BY rug.priority SEPARATOR ', ') AS groupname,
+                   " . ($hasUserinfo ? "MAX(ui.firstname) AS firstname, MAX(ui.lastname) AS lastname, MAX(ui.department) AS department, MAX(ui.email) AS email," : "") . "
+                   COALESCE(MAX(ra.active_count), 0) AS active_devices
+            FROM radcheck rc
+            $userInfoJoin
+            LEFT JOIN radusergroup rug ON rug.username = rc.username
+            LEFT JOIN (SELECT username, CAST(value AS UNSIGNED) AS user_simul FROM radcheck WHERE attribute = 'Simultaneous-Use') rcu ON rcu.username = rc.username
+            LEFT JOIN (SELECT groupname, CAST(value AS UNSIGNED) AS group_simul FROM radgroupcheck WHERE attribute = 'Simultaneous-Use') rgc ON rgc.groupname = rug.groupname
+            LEFT JOIN (SELECT username, COUNT(*) AS active_count FROM radacct WHERE acctstoptime IS NULL AND acctstarttime >= NOW() - INTERVAL 24 HOUR GROUP BY username) ra ON ra.username = rc.username
+            $whereSql
+            GROUP BY rc.username
+            ORDER BY rc.username ASC
+        ";
+
+        $stmt = $db->prepare($exportSql);
+        $stmt->execute($params);
+
+        while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $userSimul = isset($r['user_simul']) ? (int)$r['user_simul'] : null;
+            $groupStr  = $r['groupname'] ?? '';
+            $firstGroup = '';
+            if ($groupStr !== '') {
+                $parts = explode(',', $groupStr);
+                $firstGroup = trim($parts[0]);
+            }
+            $groupSimul = ($firstGroup !== '' && isset($groupSimulMap[$firstGroup])) ? (int)$groupSimulMap[$firstGroup] : null;
+
+            if ($userSimul !== null) {
+                $effectiveLimit = $userSimul;
+                $sourceLabel    = 'Account Override';
+            } elseif ($groupSimul !== null) {
+                $effectiveLimit = $groupSimul;
+                $sourceLabel    = "Group ($firstGroup)";
+            } elseif ($globalDefaultLimit > 0) {
+                $effectiveLimit = $globalDefaultLimit;
+                $sourceLabel    = 'Global Default';
+            } else {
+                $effectiveLimit = 0;
+                $sourceLabel    = 'Unlimited';
+            }
+
+            $activeCount = (int)($r['active_devices'] ?? 0);
+            if ($effectiveLimit > 0) {
+                if ($activeCount > $effectiveLimit) {
+                    $capStatus = 'Over Limit';
+                } elseif ($activeCount === $effectiveLimit) {
+                    $capStatus = 'At Max Limit';
+                } else {
+                    $capStatus = 'Available';
+                }
+                $limitLabel = $effectiveLimit . ' Device(s)';
+            } else {
+                $capStatus = ($activeCount > 0) ? 'Online' : 'Offline';
+                $limitLabel = 'Unlimited';
+            }
+
+            $fullName = trim(($r['firstname'] ?? '') . ' ' . ($r['lastname'] ?? ''));
+
+            fputcsv($out, [
+                $r['username'],
+                $fullName,
+                $r['department'] ?? '',
+                $r['email'] ?? '',
+                $groupStr,
+                $limitLabel,
+                $sourceLabel,
+                $activeCount,
+                $capStatus,
+            ]);
+        }
+
+        fclose($out);
+        exit;
+
     case 'accounting':
         $search   = trim($_GET['q'] ?? '');
         $ipSearch = trim($_GET['ip'] ?? '');
