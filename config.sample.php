@@ -20,7 +20,7 @@ define('DB_PORT',     '3306');
 define('APP_NAME',       'CENDANA');
 define('APP_FULL_NAME',  'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi');
 define('APP_TAGLINE',    'FreeRADIUS Management & Access Control System');
-define('APP_VERSION',    '1.9.5');
+define('APP_VERSION',    '1.9.6');
 define('APP_ADMIN',      'admin');        // Default fallback admin username
 define('APP_PASS',       '$2y$10$SMwoxw3ADrdqCtu2SQkAtO54NbtxHfp4pGo23dHI0Xaoc30WmOYAi'); // Default bcrypt for 'admin123'
 define('ROWS_PER_PAGE',  20);             // Default pagination count

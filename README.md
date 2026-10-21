@@ -2,7 +2,7 @@
 ### Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi
 *(Formerly RadiusManager)*
 
-[![Version](https://img.shields.io/badge/version-1.9.5-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.9.6-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4.svg)](https://www.php.net/)
 [![FreeRADIUS](https://img.shields.io/badge/FreeRADIUS-2.x%20%7C%203.x-orange.svg)](https://freeradius.org/)
 [![Database](https://img.shields.io/badge/MySQL%20%2F%20MariaDB-Optimized-4479A1.svg)](https://www.mysql.com/)
@@ -35,12 +35,18 @@
   - [3. Hotspot & Voucher System (`vouchers.php`)](#3-hotspot--voucher-system-vouchersphp)
   - [4. Subscriber Self-Service Portal (`portal/`)](#4-subscriber-self-service-portal-portal)
   - [5. Group Policies & Bandwidth Control (`groups.php`, `plans.php`)](#5-group-policies--bandwidth-control-groupsphp-plansphp)
-  - [6. NAS Network Hardware & Ruijie AP Integration (`nas.php`)](#6-nas-network-hardware--ruijie-ap-integration-nasphp)
-  - [7. Real-Time Sessions & Disconnect (`sessions.php`)](#7-real-time-sessions--disconnect-sessionsphp)
-  - [8. Accounting & Executive Reporting (`accounting.php`, `reports.php`)](#8-accounting--executive-reporting-accountingphp-reportsphp)
-  - [9. Full daloRADIUS Configuration Parity (`settings.php`)](#9-full-daloradius-configuration-parity-settingsphp)
-  - [10. RESTful JSON API Engine (`api/`)](#10-restful-json-api-engine-api)
-  - [11. Backup & Disaster Recovery (`export.php`)](#11-backup--disaster-recovery-exportphp)
+  - [6. Device & Session Access Rules (`rules.php`)](#6-device--session-access-rules-rulesphp)
+  - [7. NAS Network Hardware & Ruijie AP Integration (`nas.php`)](#7-nas-network-hardware--ruijie-ap-integration-nasphp)
+  - [8. Real-Time Sessions & RFC 3576 Disconnect (`sessions.php`, `reauth.php`)](#8-real-time-sessions--rfc-3576-disconnect-sessionsphp-reauthphp)
+  - [9. Accounting & Executive Reporting (`accounting.php`, `reports.php`)](#9-accounting--executive-reporting-accountingphp-reportsphp)
+  - [10. Full daloRADIUS Configuration Parity (`settings.php`)](#10-full-daloradius-configuration-parity-settingsphp)
+  - [11. RESTful JSON API Engine (`api/`)](#11-restful-json-api-engine-api)
+  - [12. Backup & Disaster Recovery (`export.php`)](#12-backup--disaster-recovery-exportphp)
+
+
+
+
+
 - [Database Schema Reference](#database-schema-reference)
 - [Security Features](#security-features)
 - [Documentation & User Manual](#documentation--user-manual)
@@ -103,6 +109,8 @@ radius-manager/
 ├── CHANGELOG.md                   — Comprehensive version and release history
 ├── config.php                     — Core database credentials and system constants
 ├── config.sample.php              — Clean configuration template
+├── api-dashboard-today.php      — Real-time telemetry JSON API with midnight day-rollover
+├── api-nas-status.php           — Asynchronous NAS ping/UDP probe background endpoint
 ├── dashboard.php                  — KPI stat cards, concurrent session graphs, traffic charts
 ├── expiry-check.php               — Subscriber expiry warning dashboard + CLI cron job
 ├── export.php                     — Streaming exports (users, accounting, postauth, audit, nas, config, schema)
@@ -121,7 +129,9 @@ radius-manager/
 ├── plans.php                      — Speed profiles and quota plan catalog
 ├── postauth.php                   — Authentication attempt logs & success rate analytics
 ├── README.md                      — Project documentation
+├── reauth.php                   — Force re-login, session reset, and RFC 3576 pure PHP UDP disconnect client
 ├── reports.php                    — Executive PDF/print reports & CSV exports
+├── rules.php                      — Concurrent device limits & access policy engine (Simultaneous-Use)
 ├── sessions.php                   — Real-time active sessions with CoA disconnect helper
 ├── settings.php                   — Full daloRADIUS configuration suite & diagnostics
 ├── user-add.php / user-edit.php   — Subscriber creation, limits & userinfo editor
@@ -129,7 +139,8 @@ radius-manager/
 ├── user-import.php                — CSV bulk user import wizard
 ├── user-toggle.php                — Instant user enable/disable switch
 ├── users.php                      — Complete subscriber directory with live status
-└── vouchers.php                   — Hotspot voucher inventory & batch generation
+├── vouchers.php                   — Hotspot voucher inventory & batch generation
+└── welcome.php                    — Central navigation hub & core system module dashboard
 ```
 
 ---
@@ -278,20 +289,36 @@ Supports dual authentication sources:
 - Bandwidth management via MikroTik rate limits (`Mikrotik-Rate-Limit := 10M/10M`), ChilliSpot octets, and WISPr bandwidth reply attributes.
 - Simplicity-driven Rate Plan catalog (`plans.php`) allowing speed profiles to be assigned in one click.
 
-### 6. NAS Network Hardware & Ruijie AP Integration (`nas.php`)
+### 6. Device & Session Access Rules (`rules.php`)
+- **Simultaneous Device Limits (`Simultaneous-Use`)**: Configure and enforce how many devices can connect concurrently to an account (e.g. 1 Device Strict, 2 Devices, 3 Devices, or Custom limits 1–999).
+- **Group Policies & Inheritance (`radgroupcheck`)**: Set baseline concurrent device limits per group (Students, Staff, VIP). Accounts without individual overrides automatically inherit group policy. Includes 1-click **"Enforce on All Members"** action.
+- **Global Default Policy (`rm_settings`)**: Configure a system-wide fallback limit with 1-click application across existing accounts without rules.
+- **Real-Time Capacity Indicators**: Visual usage pills (`0 Connected`, `1 / 1 Device (Full)`, `1 / 2 Devices`, `Over Limit!`).
+- **Interactive Device Inspection**: Background AJAX modal displaying IP, MAC, NAS AP, duration, and bandwidth, with per-device disconnect controls.
+- **Rule Simulator & Diagnostics (`tab=tester`)**: Live policy evaluation tracer simulating whether FreeRADIUS would return `Access-Accept` or `Access-Reject`.
+- **Bulk Operations & CSV Export**: Apply rules to multiple selected accounts at once and stream full rules reports with UTF-8 BOM Excel compatibility.
+
+> [!IMPORTANT]
+> **FreeRADIUS Server Configuration for Simultaneous-Use**:
+> 1. Ensure `sql` is enabled in the `session { ... }` block of `/etc/freeradius/3.0/sites-enabled/default` (and `inner-tunnel`).
+> 2. Set `checkrad = /bin/true` in `/etc/freeradius/3.0/radiusd.conf` so FreeRADIUS validates sessions directly via `radacct` without requiring NAS SNMP response.
+> 3. Verify NAS devices stream Accounting packets (port 1813) so `radacct` accurately mirrors active sessions.
+
+### 7. NAS Network Hardware & Ruijie AP Integration (`nas.php`)
 - Network Access Server registry with real-time socket reachability probe.
 - First-class support for **Ruijie Networks Wireless Access Points** and central controller (`172.16.0.70`).
 - Pre-configured dictionary attributes for Ruijie APs, Cisco, MikroTik, Ubiquiti, and Ruckus.
 
-### 7. Real-Time Sessions & Disconnect (`sessions.php`)
+### 8. Real-Time Sessions & RFC 3576 Disconnect (`sessions.php`, `reauth.php`)
 - Live monitor of active sessions (`acctstoptime IS NULL`) auto-refreshing every 30 seconds.
-- Integrated Change of Authorization (CoA) disconnect helper generating exact `radclient` commands.
+- Native pure-PHP RFC 3576 UDP Disconnect-Request client (`sendRadiusDisconnect()`, `terminateRadiusSession()`) with MD5 Request-Authenticator for instant NAS de-authentication.
+- Force re-login and session termination handler (`reauth.php`) with fallback manual `radclient` command generator.
 
-### 8. Accounting & Executive Reporting (`accounting.php`, `reports.php`)
+### 9. Accounting & Executive Reporting (`accounting.php`, `reports.php`)
 - Search millions of past sessions with date-range filters and index-optimized pagination.
 - Executive printable management reports with visual charts, traffic summaries, and CSV exports.
 
-### 9. Full daloRADIUS Configuration Parity (`settings.php`)
+### 10. Full daloRADIUS Configuration Parity (`settings.php`)
 Modernized daloRADIUS configuration suite organized into dual-level navigation:
 - **Global Settings (Left Sub-Navigation)**:
   1. `User Settings`: Cleartext password storage policy, allowed random charset, min/max password length, default group, and expiry period.
@@ -308,13 +335,13 @@ Modernized daloRADIUS configuration suite organized into dual-level navigation:
   - `Backup`: One-click Database Schema DDL download, Configuration Snapshot export, and entity CSVs.
   - `My Account`: Operator password change and personal profile editor.
 
-### 10. RESTful JSON API Engine (`api/`)
+### 11. RESTful JSON API Engine (`api/`)
 - Authenticate via `Authorization: Bearer <API_KEY>` or `X-API-Key`.
 - `/api/users.php`: Full CRUD operations on subscribers.
 - `/api/sessions.php`: List active sessions and trigger disconnects.
 - `/api/accounting.php`: Fetch historical session accounting data.
 
-### 11. Backup & Disaster Recovery (`export.php`)
+### 12. Backup & Disaster Recovery (`export.php`)
 - Streaming CSV exports for Users, Accounting, Authentication Logs, Audit Trails, and NAS Hardware.
 - Instant **Database Schema DDL (.sql)** generation covering all FreeRADIUS and custom tables.
 - **Configuration Snapshot (.json)** exporting all persistent settings with passwords masked.

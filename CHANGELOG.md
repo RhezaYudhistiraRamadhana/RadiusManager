@@ -5,6 +5,45 @@ All notable changes to the **RadiusManager** project are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.6] - 2026-10-21
+
+### Added
+- **Device & Session Access Rules Engine (`rules.php`)**:
+  - **Concurrent Device Limits (`Simultaneous-Use`)**: Complete management interface allowing network administrators to configure and enforce how many devices can simultaneously connect to a single registered subscriber account.
+  - **Predefined & Custom Device Limits**: Quick 1-click actions for 1 Device (Strict), 2 Devices, 3 Devices, Custom limits (1–999 devices), and Unlimited (removes `Simultaneous-Use` check attribute).
+  - **Group Device Policy Integration (`radgroupcheck`)**: Configure shared concurrent device limits per user group (e.g., *Students = 1*, *Staff = 3*, *VIP = 5*). Accounts without individual overrides automatically inherit the group's policy. Includes an **"Enforce on All Members"** action to synchronize all member accounts to the group rule.
+  - **Global Default Device Policy (`rm_settings`)**: System-wide fallback limit (`default_device_limit`) with 1-click option to apply the default limit across all existing accounts currently without rules.
+  - **Real-Time Capacity Indicators**: Live badges on each subscriber showing active usage vs limit (`0 Connected`, `1 / 1 Device (Full)`, `1 / 2 Devices`, or `Over Limit!`).
+  - **Interactive Connected Devices Inspection Modal**: Background AJAX endpoint (`rules.php?ajax=user_devices`) providing real-time device sessions (IP address, MAC / Calling Station ID, NAS Gateway, session duration, and upload/download bandwidth) with individual **"Disconnect Device"** controls.
+  - **Rule Simulator & Diagnostics (`tab=tester`)**: Live policy evaluation tracer simulating FreeRADIUS `Access-Accept` or `Access-Reject` decisions based on account rules, group policies, and active sessions in `radacct`.
+  - **Bulk Rule Management**: Multi-select toolbar to batch-apply device limits, reset to group policies, or remove limits across dozens or hundreds of accounts simultaneously.
+  - **Rules CSV Export (`export.php?type=rules`)**: Full export of subscriber device limits, rule sources, and live connected device counts with UTF-8 BOM Excel compatibility.
+  - **UI & Form Integrations**: Integrated into sidebar under RADIUS, featured on Welcome Center, and linked in `user-add.php` and `user-edit.php`.
+- **Pure PHP RFC 3576 UDP Disconnect-Request Client (`includes/functions.php`, `reauth.php`, `sessions.php`)**:
+  - Implemented zero-dependency RFC 3576 Disconnect-Request (Packet of Disconnect / CoA) in pure PHP socket UDP (`sendRadiusDisconnect()`, `terminateRadiusSession()`).
+  - Added Core AC and NAS Gateway IP resolution, shared secret extraction, and MD5 Request Authenticator calculation with support for Ruijie, MikroTik, and Cisco hardware.
+  - Added support for `Acct-Session-Id`, `Framed-IP-Address`, and `Calling-Station-Id` (MAC) attributes in disconnect packets.
+
+### Fixed & Improved
+- **CSRF Token Persistence Hardening (`includes/auth.php`, `rules.php`)**:
+  - Resolved issue where closing the session prematurely prevented CSRF tokens generated in forms from persisting to disk, causing `"Invalid or expired CSRF token"` errors on form submission.
+  - Eagerly initializes and persists `$_SESSION['csrf_token']` in `requireLogin()` and `attemptLogin()`.
+- **Midnight Day-Rollover Live Telemetry (`dashboard.php`, `api-dashboard-today.php`)**:
+  - Resolved issue where dashboard charts on continuous 24/7 NOC wallboard screens remained stuck on the previous day's telemetry after midnight.
+  - Auto-refresh endpoint now queries the dynamic current date rather than locking to the page load timestamp.
+  - Client detects midnight day-rollover in real time, updates all 4 charts in place with the new day's 00:00 profile, updates header date badges, and performs an idle page refresh for operational tables (recent sessions, top users, failed logins).
+- **Production Server Scale & Latency Optimization**:
+  - Eliminated severe production server delays across Login, Dashboard, Accounting, Auth Log, Sessions, and Users on databases with 24M–48M+ records.
+  - Applied primary key windowing on `radpostauth` (`id >= max_id - 500,000`) and SARGable range scans on `radacct`.
+  - Released session locks immediately (`session_write_close`) on read-heavy polling endpoints to eliminate cross-tab browser contention.
+  - Added 60-second session caching for global subscriber and NAS counts.
+- **Table-Responsive Multi-Device Dropdown Clipping (`sessions.php`, `users.php`)**:
+  - Resolved dropdown menus clipping inside `.table-responsive` overflow containers using fixed popper strategy, auto-closing on outside clicks, and dedicated modals.
+- **Online Accounts & Devices Count Synchronization (`welcome.php`, `dashboard.php`, `sessions.php`)**:
+  - Harmonized active online calculations across the application using `getTrulyActiveOnlineAccounts($db)`, eliminating discrepancies between unique online accounts and total connected devices.
+
+---
+
 ## [1.9.5] - 2026-10-07
 
 ### Added

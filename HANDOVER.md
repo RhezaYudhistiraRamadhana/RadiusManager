@@ -1,9 +1,9 @@
 # CENDANA (Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi) — Project Handover Document v3
 
-**Version:** 1.9.5 → 2.x  
+**Version:** 1.9.6 → 2.x  
 **Project Code:** CENDANA (formerly RadiusManager)  
-**Date:** 7 October 2026  
-**Status:** Active Development — Phase 3 (CENDANA Rebranding Complete, Configurable Export System Complete, daloRADIUS Parity Complete)
+**Date:** 21 October 2026  
+**Status:** Active Production — Phase 3 (v1.9.6 Released: Device & Session Access Rules Engine, Pure-PHP RFC 3576 Disconnect-Request Client, Live Midnight Rollover Telemetry, CSRF Hardening)
 
 ---
 
@@ -49,17 +49,20 @@ Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.
 | 1.9.3 | 2026-10-06 | Gemini | Rate plan subscriber navigation link fix, Group filter dropdown, stateful pagination |
 | 1.9.4 | 2026-10-06 | Gemini | Configurable CSV Export modal with field selection, scope filtering, delimiter choice, and multi-dataset downloads |
 | 1.9.5 | 2026-10-07 | Gemini | Official rebranding to CENDANA (Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi) |
+| 1.9.6 | 2026-10-21 | Antigravity | Device & Session Rules (Simultaneous-Use), Pure PHP RFC 3576 Disconnect, Midnight day-rollover, CSRF persistence hardening |
 
 Full details in `CHANGELOG.md`.
 
 ---
 
-## Current File Structure (v1.9.2)
+## Current File Structure (v1.9.6)
 
 ```
 radius-manager/
 ├── config.php                      — DB credentials, app constants, API_KEY, SMTP settings
 ├── config.sample.php               — Clean configuration template
+├── api-dashboard-today.php          — Real-time telemetry JSON API with midnight day-rollover
+├── api-nas-status.php               — Asynchronous NAS ping/UDP probe background endpoint
 ├── auth.php                        — Bootstrap loader (imports all includes)
 ├── install.sh                      — Auto-installer for Ubuntu/Debian
 ├── install.sql                     — Idempotent performance indexes (MySQL 5.7/8.0/MariaDB)
@@ -98,6 +101,8 @@ radius-manager/
 ├── settings.php                    — Full daloRADIUS configuration menu parity (User, DB, Lang, Log, UI, Msg, Recur, Mail, Maint, Ops, Backup) + persistent rm_settings
 ├── export.php                      — Streaming exports (users, accounting, auth log, audit, nas) + Schema DDL (.sql) + Config Snapshot (.json)
 ├── expiry-check.php                — Expiry warning dashboard + CLI cron mode
+├── reauth.php                      — Force re-login, session reset, and RFC 3576 pure PHP UDP disconnect client
+├── rules.php                       — Concurrent device limits & access policy engine (Simultaneous-Use)
 ├── reports.php                     — Executive reports, print stylesheet, CSV export
 ├── audit.php                       — Admin activity log
 ├── operators.php                   — Operator management + RBAC
@@ -124,7 +129,8 @@ radius-manager/
 ├── accounting.php                  — Session history, date/user/IP filter, traffic summary
 ├── sessions.php                    — Active sessions (50/page), CoA kick, IP search, auto-refresh
 ├── postauth.php                    — Auth log, accept/reject filter, success rate
-└── ippool.php                      — IP pool management, manual IP release
+├── ippool.php                      — IP pool management, manual IP release
+└── welcome.php                     — Central navigation hub & core system module dashboard
 ```
 
 ---
@@ -260,7 +266,37 @@ WHERE username LIKE :q1 OR framedipaddress LIKE :q2
 
 ---
 
-## Authentication & RBAC (v1.9.0)
+### 11. Device & Session Access Rules (`rules.php`) Architecture
+
+RadiusManager v1.9.6 manages concurrent device limits through standard FreeRADIUS SQL check attributes:
+- **Attribute**: `Simultaneous-Use`
+- **Operator**: `:=`
+- **Scope Hierarchy**:
+  1. **User Check (`radcheck`)**: Takes absolute precedence. If configured, FreeRADIUS enforces this integer limit.
+  2. **Group Check (`radgroupcheck`)**: Inherited by all members of the group who do not have an explicit `radcheck` override.
+  3. **Global Default (`rm_settings` key `rules_default_simultaneous_use`)**: System-wide baseline fallback.
+- **FreeRADIUS Server Configuration Prerequisites**:
+  1. `/etc/freeradius/3.0/sites-enabled/default`: Uncomment `sql` in `session { ... }` block (`session { sql }`).
+  2. `/etc/freeradius/3.0/radiusd.conf`: Set `checkrad = /bin/true` so FreeRADIUS validates sessions directly via `radacct` without requiring NAS SNMP response.
+  3. NAS Port 1813: Ensure APs / Controllers actively stream Accounting-Start, Interim-Update, and Accounting-Stop packets.
+
+### 12. RFC 3576 Pure-PHP UDP Disconnect Architecture (`includes/functions.php`, `reauth.php`)
+
+RadiusManager includes a native pure-PHP UDP socket implementation of RFC 3576 Disconnect-Request (Packet of Disconnect / PoD) that operates without requiring the CLI `radclient` binary:
+- **Functions**: `sendRadiusDisconnect($nasIp, $secret, $username, $framedIp, $acctSessionId, $port = 3799, $timeout = 2)` and `terminateRadiusSession($radacctid, $db, $method = 'both')`.
+- **Packet Structure**:
+  - `Code`: 40 (Disconnect-Request / PoD)
+  - `Identifier`: Random 1-byte packet ID (0–255)
+  - `Length`: 2-byte total length
+  - `Request-Authenticator`: 16-byte zero initialization during payload construction, then calculated as `MD5(Code + Identifier + Length + 16-zero-bytes + Attributes + SharedSecret)`.
+  - `RADIUS Attributes`: User-Name (Type 1), Framed-IP-Address (Type 8), Acct-Session-Id (Type 44).
+- **Execution Strategy (`reauth.php`)**:
+  - Transmits UDP Disconnect-Request directly to NAS on UDP port 3799.
+  - Updates `radacct` table (`acctstoptime = NOW()`, `acctterminatecause = 'Admin-Reset'`) to immediately clear the session in the database so the user is not blocked by `Simultaneous-Use`.
+
+---
+
+## Authentication & RBAC (v1.9.6)
 
 **Login sources (checked in order):**
 1. Config admin — `APP_ADMIN` / `APP_PASS` in `config.php`
@@ -288,7 +324,7 @@ $_SESSION['admin_role']       // 'superadmin' | 'operator' | 'readonly'
 
 ---
 
-## What Is Already Done ✅ (v1.9.0 Complete)
+## What Is Already Done ✅ (v1.9.6 Complete)
 
 | Feature | Page(s) | Version |
 |---|---|---|
@@ -328,6 +364,13 @@ $_SESSION['admin_role']       // 'superadmin' | 'operator' | 'readonly'
 | Session Fixation Protection (`session_regenerate_id`) | `includes/auth.php`, `portal/auth.php` | 1.9.1 |
 | HTTPS / SSL Installer Automation (Let's Encrypt/Certbot) | `install.sh` | 1.9.1 |
 | Production Error Logging & Logs `.htaccess` Security | `config.php`, `storage/logs/` | 1.9.1 |
+| Configurable CSV Export (field selection, delimiters) | `export.php`, `includes/export-modal.php` | 1.9.4 |
+| CENDANA Rebranding & Central Navigation Hub | `welcome.php`, `includes/header.php` | 1.9.5 |
+| Asynchronous NAS Reachability Probe Endpoint | `api-nas-status.php`, `nas.php` | 1.9.5 |
+| Device & Session Access Rules Engine (`Simultaneous-Use`) | `rules.php`, `radcheck`, `radgroupcheck` | 1.9.6 |
+| Pure PHP RFC 3576 Disconnect Client & Force Reauth | `reauth.php`, `includes/functions.php` | 1.9.6 |
+| Midnight Day-Rollover Live Telemetry API | `dashboard.php`, `api-dashboard-today.php` | 1.9.6 |
+| CSRF Token Session Persistence Hardening | `includes/auth.php`, `rules.php` | 1.9.6 |
 
 ---
 
