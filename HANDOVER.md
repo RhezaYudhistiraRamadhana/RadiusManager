@@ -3,7 +3,7 @@
 **Version:** 1.9.7 → 2.x  
 **Project Code:** CENDANA (formerly RadiusManager)  
 **Date:** 23 October 2026  
-**Status:** Active Production — Phase 3 (v1.9.7 Released: Polman Bandung JATI UI Theme Synchronization, Contrast Calibration, Unified Profile & Informasi Header, Soft Pastel Metrics Grid)
+**Status:** Active Production — Phase 3 (v1.9.7 Released: Polman Bandung JATI UI Theme Synchronization, Contrast Calibration, White Floating Cards, Native AAA Components Preserved)
 
 ---
 
@@ -50,7 +50,7 @@ Originally built by **Claude (v1.0.0)**, significantly improved by **Gemini (v1.
 | 1.9.4 | 2026-10-06 | Gemini | Configurable CSV Export modal with field selection, scope filtering, delimiter choice, and multi-dataset downloads |
 | 1.9.5 | 2026-10-07 | Gemini | Official rebranding to CENDANA (Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi) |
 | 1.9.6 | 2026-10-21 | Antigravity | Device & Session Rules (Simultaneous-Use), Pure PHP RFC 3576 Disconnect, Midnight day-rollover, CSRF persistence hardening |
-| 1.9.7 | 2026-10-23 | Antigravity | Polman Bandung JATI UI Theme Synchronization, Contrast Calibration, Unified Profile Card & Informasi Notice, Pastel Tiles |
+| 1.9.7 | 2026-10-23 | Antigravity | Polman Bandung JATI UI Theme Synchronization, Contrast Calibration, White Floating Cards, Native AAA Components Preserved |
 
 Full details in `CHANGELOG.md`.
 
