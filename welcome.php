@@ -56,8 +56,9 @@ include __DIR__ . '/includes/header.php';
     <div class="card-body p-4">
         <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
             <div>
-                <div class="d-inline-flex align-items-center gap-2 px-2.5 py-1 rounded-pill mb-2" style="background: rgba(16, 185, 129, 0.18); border: 1px solid rgba(16, 185, 129, 0.35); color: #6ee7b7; font-size: .78rem; font-weight: 600;">
-                    <i class="bi bi-shield-check text-success"></i> FreeRADIUS Connected &bull; AAA Service Active
+                <div class="d-inline-flex align-items-center gap-2 rounded-pill mb-2" style="background: rgba(16, 185, 129, 0.18); border: 1px solid rgba(16, 185, 129, 0.35); color: #6ee7b7; font-size: .78rem; font-weight: 600; padding: 0.32rem 0.95rem; line-height: 1.2;">
+                    <i class="bi bi-shield-check text-success" style="font-size: .85rem;"></i>
+                    <span>FreeRADIUS Connected &bull; AAA Service Active</span>
                 </div>
                 <h3 class="fw-bold mb-1" style="letter-spacing: -0.02em; color: #ffffff !important;">
                     Welcome, <?= htmlspecialchars($adminName) ?>!
