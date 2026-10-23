@@ -5,6 +5,33 @@ All notable changes to the **RadiusManager** project are documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.7] - 2026-10-23
+
+### Added & Improved
+- **Polman Bandung JATI UI Theme Synchronization & Contrast Calibration**:
+  - **Background Canvas Calibration (`--body-bg: #e9e9e9`)**: Calibrated global application canvas background to exact neutral gray (`#E9E9E9`) pixel-sampled directly from the official Polman Bandung JATI portal (`kepegawaian.polman-bandung.ac.id`), providing sharp visual definition and contrast against content cards.
+  - **Floating Card Architecture (`.card`, `.stat-card`)**: Standardized pure white cards (`#FFFFFF`) with 14px border radius (`--card-radius: 14px`), subtle border (`#DCE1E7`), and balanced elevation shadow (`0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03)`).
+  - **JATI Soft Pastel Tiles & Metrics Grid**: Calibrated 3x3 operational metric palette in `includes/header.php` and `welcome.php`:
+    - Hadir: `#F2FBF5` (border `#C6F0D3`, text `#166534`)
+    - Terlambat: `#FFFAF0` (border `#FDE68A`, text `#B45309`)
+    - Tidak Hadir: `#FFF5F5` (border `#FECACA`, text `#B91C1C`)
+    - Dinas: `#F0FDF4` (border `#A7F3D0`, text `#0F766E`)
+    - Sakit: `#FFF5F7` (border `#FBCFE8`, text `#9D174D`)
+    - Cuti: `#F0F7FF` (border `#BFDBFE`, text `#1D4ED8`)
+    - Izin: `#FAF5FF` (border `#E9D8FD`, text `#6B21A8`)
+    - Mangkir: `#F8FAFC` (border `#E2E8F0`, text `#334155`)
+    - Bolos: `#FFF7ED` (border `#FED7AA`, text `#C2410C`)
+  - **JATI Summary Chips**:
+    - TUM: `#E6FFFA` (border `#99F6E4`, text `#0D9488`)
+    - Kinerja Kehadiran: `#EDE7F6` (border `#DDD6FE`, text `#5B21B6`)
+    - Potongan Kinerja: `#FFF5F5` (border `#FECACA`, text `#DC2626`)
+  - **Welcome Center Single-Card Profile & Notice (`welcome.php`)**:
+    - Restructured top welcome area into a single unified card featuring profile avatar, administrative credentials, presence status pills (`✓ Hadir`, `Pola Kerja: Pola 1`), and right-hand tinted `Informasi` notice box separated by an internal vertical divider.
+    - Added live ticking digital clock for *Jam Masuk* (`#digitalClockLive`) and operational attendance metrics.
+    - Harmonized *Modul Operasional & Manajemen Jaringan* into clean white JATI cards.
+
+---
+
 ## [1.9.6] - 2026-10-21
 
 ### Added

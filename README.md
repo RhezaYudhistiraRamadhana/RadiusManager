@@ -2,7 +2,7 @@
 ### Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi
 *(Formerly RadiusManager)*
 
-[![Version](https://img.shields.io/badge/version-1.9.6-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.9.7-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4.svg)](https://www.php.net/)
 [![FreeRADIUS](https://img.shields.io/badge/FreeRADIUS-2.x%20%7C%203.x-orange.svg)](https://freeradius.org/)
 [![Database](https://img.shields.io/badge/MySQL%20%2F%20MariaDB-Optimized-4479A1.svg)](https://www.mysql.com/)
