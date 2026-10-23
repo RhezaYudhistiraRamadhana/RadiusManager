@@ -340,10 +340,13 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
 
         /* Cards & Tables */
         .card { 
-            border: 1px solid #dce1e7 !important; 
-            border-radius: var(--card-radius) !important; 
+            border: 1px solid #dce1e7; 
+            border-radius: var(--card-radius); 
+            background: #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+        }
+        .card.bg-white {
             background: #ffffff !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
         }
         .card-header:not(.bg-danger):not(.bg-warning):not(.bg-primary):not(.bg-success):not(.bg-dark) {
             background: #ffffff !important;

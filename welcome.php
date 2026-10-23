@@ -52,32 +52,32 @@ include __DIR__ . '/includes/header.php';
 ?>
 
 <!-- Clean & Simple Welcome Banner (JATI-Themed Elevation) -->
-<div class="card mb-4 border-0 shadow-sm" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #064e3b 100%); color: #fff; border-radius: var(--card-radius, 14px);">
+<div class="card mb-4 border-0 shadow-sm" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #064e3b 100%) !important; color: #ffffff !important; border: none !important; border-radius: var(--card-radius, 14px);">
     <div class="card-body p-4">
         <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
             <div>
                 <div class="d-inline-flex align-items-center gap-2 px-2.5 py-1 rounded-pill mb-2" style="background: rgba(16, 185, 129, 0.18); border: 1px solid rgba(16, 185, 129, 0.35); color: #6ee7b7; font-size: .78rem; font-weight: 600;">
                     <i class="bi bi-shield-check text-success"></i> FreeRADIUS Connected &bull; AAA Service Active
                 </div>
-                <h3 class="fw-bold mb-1 text-white" style="letter-spacing: -0.02em;">
+                <h3 class="fw-bold mb-1" style="letter-spacing: -0.02em; color: #ffffff !important;">
                     Welcome, <?= htmlspecialchars($adminName) ?>!
                 </h3>
-                <p class="text-secondary small mb-0" style="color: #cbd5e1 !important; font-size: .88rem;">
-                    Central control and directory administration for <strong><?= APP_NAME ?></strong> (<em><?= APP_FULL_NAME ?></em>).
+                <p class="small mb-0" style="color: #cbd5e1 !important; font-size: .88rem;">
+                    Central control and directory administration for <strong style="color: #ffffff;"><?= APP_NAME ?></strong> (<em style="color: #e2e8f0;"><?= APP_FULL_NAME ?></em>).
                 </p>
             </div>
 
             <!-- Sleek Dashboard CTA Action Buttons -->
             <div class="d-flex flex-wrap align-items-center gap-2">
-                <a href="dashboard.php?view=today" class="btn btn-outline-light btn-sm px-3 py-2 d-inline-flex align-items-center gap-2 shadow-sm" style="border-radius: 8px; border-color: rgba(255,255,255,0.25);" title="View today's hourly session profile and data traffic">
+                <a href="dashboard.php?view=today" class="btn btn-outline-light btn-sm px-3 py-2 d-inline-flex align-items-center gap-2 shadow-sm" style="border-radius: 8px; border-color: rgba(255,255,255,0.3); color: #ffffff;" title="View today's hourly session profile and data traffic">
                     <i class="bi bi-clock-history text-success"></i>
                     <span>Today's Charts</span>
                 </a>
-                <a href="dashboard.php?view=general" class="btn btn-outline-light btn-sm px-3 py-2 d-inline-flex align-items-center gap-2 shadow-sm" style="border-radius: 8px; border-color: rgba(255,255,255,0.25);" title="View multi-day historical trends and bandwidth volume">
+                <a href="dashboard.php?view=general" class="btn btn-outline-light btn-sm px-3 py-2 d-inline-flex align-items-center gap-2 shadow-sm" style="border-radius: 8px; border-color: rgba(255,255,255,0.3); color: #ffffff;" title="View multi-day historical trends and bandwidth volume">
                     <i class="bi bi-graph-up text-info"></i>
                     <span>General Charts</span>
                 </a>
-                <a href="dashboard.php" class="btn btn-primary btn-sm px-3 py-2 d-inline-flex align-items-center gap-2 shadow-sm" style="border-radius: 8px; font-weight: 600; background-color: #0b4ea2; border-color: #0b4ea2;">
+                <a href="dashboard.php" class="btn btn-primary btn-sm px-3 py-2 d-inline-flex align-items-center gap-2 shadow-sm text-white" style="border-radius: 8px; font-weight: 600; background-color: #0b4ea2; border-color: #0b4ea2;">
                     <i class="bi bi-speedometer2"></i>
                     <span>Open Dashboard</span>
                 </a>
