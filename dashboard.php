@@ -558,7 +558,7 @@ include __DIR__ . '/includes/header.php';
 </div>
 
 <!-- View Mode Selector (Today vs General Charts) -->
-<div class="card mb-4 border shadow-sm" style="background: #ffffff; border-radius: 12px;">
+<div class="card mb-4 border shadow-sm">
     <div class="card-body py-3 px-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-3">
             <div class="p-2.5 rounded-3 <?= $viewMode === 'today' ? 'bg-primary-subtle text-primary' : 'bg-success-subtle text-success' ?>" style="font-size: 1.25rem;">

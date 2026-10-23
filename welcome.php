@@ -84,61 +84,65 @@ include __DIR__ . '/includes/header.php';
     </div>
 </div>
 
-<!-- JATI Style Operator Greeting & System Notice Row -->
-<div class="row g-3 mb-4">
-    <!-- Operator Status Card (Left) -->
-    <div class="col-lg-8">
-        <div class="card h-100 p-3 p-md-4">
-            <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    <!-- Profile Avatar Capsule -->
-                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm flex-shrink-0" 
-                         style="width: 58px; height: 58px; background: linear-gradient(135deg, #0b4ea2 0%, #1e40af 100%); font-size: 1.35rem; border: 2px solid #e0edff;">
-                        <?= strtoupper(substr($adminName, 0, 1)) ?>
-                    </div>
-                    <div>
-                        <h5 class="fw-bold mb-1 text-dark" style="letter-spacing: -0.01em; font-size: 1.15rem;">
-                            <?= htmlspecialchars($adminName) ?>
-                        </h5>
-                        <div class="text-muted small fw-medium mb-1">
-                            UPA Teknologi Informasi dan Komunikasi &bull; Polman Bandung
+<!-- JATI Unified Profile & Informasi Header Card -->
+<div class="card mb-4 shadow-sm border">
+    <div class="card-body p-3 p-md-4">
+        <div class="row align-items-center g-3">
+            <!-- Left Side: Profile & Status -->
+            <div class="col-lg-8">
+                <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 pe-lg-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm flex-shrink-0" 
+                             style="width: 58px; height: 58px; background: linear-gradient(135deg, #0b4ea2 0%, #1e40af 100%); font-size: 1.35rem; border: 2px solid #e0edff;">
+                            <?= strtoupper(substr($adminName, 0, 1)) ?>
                         </div>
-                        <div class="text-secondary small" style="font-size: .75rem;">
-                            Akun: <span class="fw-bold text-dark"><?= htmlspecialchars($adminUser) ?></span> &bull; Hak Akses: <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-1.5 py-0.5"><?= ucfirst($adminRole) ?></span>
+                        <div>
+                            <h5 class="fw-bold mb-1 text-dark" style="letter-spacing: -0.01em; font-size: 1.15rem;">
+                                <?= htmlspecialchars($adminName) ?>
+                            </h5>
+                            <div class="text-muted small fw-medium mb-1">
+                                UPA Teknologi Informasi dan Komunikasi &bull; Polman Bandung
+                            </div>
+                            <div class="text-secondary small" style="font-size: .75rem;">
+                                NIP. 200211182025061001 &bull; Akun: <span class="fw-bold text-dark"><?= htmlspecialchars($adminUser) ?></span> &bull; <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-1.5 py-0.5"><?= ucfirst($adminRole) ?></span>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- JATI Status Pills -->
-                <div class="d-flex flex-sm-column align-items-sm-end gap-1.5">
-                    <span class="badge bg-success py-1.5 px-3 rounded-pill text-white shadow-xs d-inline-flex align-items-center gap-1.5" style="font-size: .78rem; font-weight: 600; background-color: #16a34a !important;">
-                        <i class="bi bi-check-circle-fill"></i> Hadir / Aktif
-                    </span>
-                    <span class="badge py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size: .72rem; font-weight: 500;">
-                        <i class="bi bi-shield-check"></i> FreeRADIUS AAA Online
-                    </span>
-                    <span class="text-muted d-none d-sm-block mt-1" style="font-size: .74rem;">
-                        Terima kasih, sistem beroperasi normal.
-                    </span>
+                    <!-- Status Kehadiran Hari Ini (JATI Style Pills) -->
+                    <div class="d-flex flex-sm-column align-items-sm-end gap-1.5 flex-shrink-0">
+                        <span class="text-muted small fw-semibold d-none d-sm-block" style="font-size: .72rem;">Status Kehadiran Hari Ini</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success py-1.5 px-3 rounded-pill text-white shadow-xs d-inline-flex align-items-center gap-1.5" style="font-size: .78rem; font-weight: 600; background-color: #16a34a !important;">
+                                <i class="bi bi-check-circle-fill"></i> Hadir
+                            </span>
+                            <span class="badge py-1.5 px-2.5 rounded-pill d-inline-flex align-items-center gap-1" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size: .74rem; font-weight: 500;">
+                                <i class="bi bi-card-text"></i> Pola Kerja: Pola 1
+                            </span>
+                        </div>
+                        <span class="text-muted d-none d-sm-block mt-0.5" style="font-size: .72rem;">
+                            Terima kasih, anda telah hadir hari ini.
+                        </span>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Informasi Alert Box (Right) -->
-    <div class="col-lg-4">
-        <div class="card h-100 p-3" style="background: #eff6ff; border: 1px solid #bfdbfe;">
-            <div class="d-flex align-items-start gap-2.5">
-                <div class="text-primary fs-3 flex-shrink-0" style="color: #0b4ea2 !important;">
-                    <i class="bi bi-info-circle-fill"></i>
-                </div>
-                <div>
-                    <h6 class="fw-bold mb-1 text-primary" style="color: #0b4ea2 !important; font-size: .92rem;">
-                        Informasi Layanan Network
-                    </h6>
-                    <p class="text-dark small mb-0" style="font-size: .8rem; line-height: 1.45;">
-                        Pastikan seluruh gateway NAS (Ruijie AP / MikroTik) mengirimkan paket accounting (UDP 1813) agar kalkulasi durasi dan limit device berjalan real-time.
-                    </p>
+            <!-- Right Side: Informasi Notice Box (JATI Style Tinted Box) -->
+            <div class="col-lg-4 border-start-lg ps-lg-4">
+                <div class="p-3 rounded-3 h-100 d-flex flex-column justify-content-center" style="background: #f8fafd; border: 1px solid #e2e8f0;">
+                    <div class="d-flex align-items-start gap-2.5">
+                        <div class="text-primary fs-3 flex-shrink-0" style="color: #0b4ea2 !important; line-height: 1;">
+                            <i class="bi bi-info-circle-fill"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-1 text-primary" style="color: #0b4ea2 !important; font-size: .88rem;">
+                                Informasi
+                            </h6>
+                            <p class="text-secondary small mb-0" style="font-size: .78rem; line-height: 1.45;">
+                                Pastikan data kehadiran Anda sudah benar. Jika ada kesalahan, silakan hubungi Bagian Perencanaan Keuangan dan Umum Ext. 121.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -147,199 +151,231 @@ include __DIR__ . '/includes/header.php';
 
 <!-- JATI 2-Column Operational Grid: Clock/Health (Left) & Soft Pastel Metric Grid (Right) -->
 <div class="row g-3 mb-4">
-    <!-- Jam Operasional & Status Server (Left) -->
+    <!-- Jam Kehadiran Hari Ini (Left) -->
     <div class="col-lg-5">
-        <div class="card h-100 p-4 d-flex flex-column justify-content-between">
+        <div class="card h-100 p-3 p-md-4 d-flex flex-column justify-content-between">
             <div>
                 <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-                    <span class="fw-bold text-dark small text-uppercase tracking-wider">
-                        <i class="bi bi-clock-history me-1.5 text-primary"></i> Waktu Server &amp; Status AAA
-                    </span>
-                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill" style="font-size: .7rem;">
-                        <i class="bi bi-circle-fill text-success" style="font-size:.38rem;"></i> Sinkron
+                    <span class="fw-bold text-dark small">
+                        <i class="bi bi-clock me-1.5 text-primary"></i> Jam Kehadiran Hari Ini
                     </span>
                 </div>
 
-                <div class="row g-2 text-center my-3">
+                <div class="row g-3 text-center my-2">
+                    <!-- Jam Masuk -->
                     <div class="col-6">
-                        <div class="p-3 rounded-3" style="background: #f0fdf4; border: 1px solid #dcfce7;">
-                            <div class="text-muted small fw-medium mb-1">Jam Server (WIB)</div>
-                            <div class="fw-bold" style="font-size: 1.85rem; color: #16a34a; font-family: monospace;" id="digitalClockLive">
+                        <div class="p-3 rounded-3 h-100 d-flex flex-column justify-content-between" style="background: #f2fcf6; border: 1px solid #c6f0d3;">
+                            <div class="text-muted small fw-medium mb-1" style="font-size: .78rem;">Jam Masuk</div>
+                            <div class="fw-bold my-1" style="font-size: 1.85rem; color: #16a34a; font-family: monospace;" id="digitalClockLive">
                                 <?= date('H:i:s') ?>
                             </div>
-                            <div class="text-secondary small mt-1" style="font-size: .72rem;">Asia/Jakarta</div>
+                            <div>
+                                <div class="text-dark small fw-bold" style="font-size: .76rem;">Mesin Absen Pos 2</div>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill mt-1" style="font-size: .68rem;">Tepat Waktu</span>
+                            </div>
+                            <div class="text-muted small mt-2" style="font-size: .68rem; border-top: 1px dashed #d1fae5; padding-top: 4px;">
+                                Batas masuk: 07:30:00
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Jam Pulang -->
                     <div class="col-6">
-                        <div class="p-3 rounded-3" style="background: #eff6ff; border: 1px solid #dbeafe;">
-                            <div class="text-muted small fw-medium mb-1">Batas Sesi Normal</div>
-                            <div class="fw-bold" style="font-size: 1.85rem; color: #0b4ea2; font-family: monospace;">
-                                24 Jam
+                        <div class="p-3 rounded-3 h-100 d-flex flex-column justify-content-between" style="background: #f8faff; border: 1px solid #dce4f0;">
+                            <div class="text-muted small fw-medium mb-1" style="font-size: .78rem;">Jam Pulang</div>
+                            <div class="fw-bold my-1" style="font-size: 1.85rem; color: #64748b; font-family: monospace;">
+                                -
                             </div>
-                            <div class="text-secondary small mt-1" style="font-size: .72rem;">RFC 2865 Session</div>
+                            <div>
+                                <div class="text-muted small" style="font-size: .76rem;">-</div>
+                                <span class="badge bg-light text-secondary border px-2 py-0.5 rounded-pill mt-1" style="font-size: .68rem;">Belum Pulang</span>
+                            </div>
+                            <div class="text-muted small mt-2" style="font-size: .68rem; border-top: 1px dashed #e2e8f0; padding-top: 4px;">
+                                Batas pulang: 16:00:00
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Total Jam Kerja / Sesi Hari Ini -->
-            <div class="p-2.5 rounded-3 text-center" style="background: #f8fafc; border: 1px solid #e2e8f0;">
-                <span class="text-muted small fw-medium">
-                    <i class="bi bi-broadcast text-primary me-1"></i> Total Koneksi Aktif Saat Ini:
-                    <strong class="text-dark"><?= number_format($onlineAccounts) ?> Akun</strong> 
-                    (<span class="text-success fw-bold"><?= number_format($onlineDevices) ?> Perangkat</span>)
+            <!-- Total Jam Kerja Hari Ini -->
+            <div class="p-2 rounded-3 text-center mt-3" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                <span class="text-muted small fw-medium" style="font-size: .8rem;">
+                    <i class="bi bi-info-circle text-primary me-1"></i> Total Jam Kerja Hari Ini: <strong class="text-dark">-</strong>
                 </span>
             </div>
         </div>
     </div>
 
-    <!-- Ringkasan Jaringan (JATI 3x3 Soft Pastel Metric Grid) -->
+    <!-- Ringkasan Kehadiran (JATI 3x3 Soft Pastel Metric Grid) -->
     <div class="col-lg-7">
         <div class="card h-100 p-3 p-md-4">
             <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
-                <span class="fw-bold text-dark small text-uppercase tracking-wider">
-                    <i class="bi bi-grid-3x3-gap-fill me-1.5 text-primary"></i> Ringkasan Jaringan &amp; Subscriber
+                <span class="fw-bold text-dark small">
+                    <i class="bi bi-ui-checks-grid me-1.5 text-primary"></i> Ringkasan Kehadiran
                 </span>
-                <span class="badge bg-light text-secondary border px-2.5 py-1" style="border-radius: 6px; font-weight: 500; font-size: .75rem;">
+                <span class="badge bg-white text-secondary border px-2.5 py-1" style="border-radius: 6px; font-weight: 500; font-size: .75rem;">
                     <?= $monthName . ' ' . date('Y') ?> <i class="bi bi-calendar3 ms-1 text-primary"></i>
                 </span>
             </div>
 
-            <!-- 3x3 Soft Pastel Tiles (Direct JATI Parity) -->
-            <div class="row g-2.5">
-                <!-- 1. Hadir / Online (Green) -->
+            <!-- 3x3 Soft Pastel Tiles (Exact JATI Colors) -->
+            <div class="row g-2.5 mb-3">
+                <!-- 1. Hadir (Green) -->
                 <div class="col-4">
-                    <a href="sessions.php" class="tile-pastel tile-green text-center" title="Buka Monitor Sesi Aktif">
-                        <div class="small fw-bold mb-1" style="font-size: .75rem;">
-                            <i class="bi bi-check-circle-fill text-success me-1"></i> Online
+                    <a href="sessions.php" class="tile-pastel tile-green text-center d-block" title="Buka Monitor Sesi Aktif">
+                        <div class="small fw-semibold mb-1" style="font-size: .74rem;">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i> Hadir
                         </div>
-                        <div class="fw-bold" style="font-size: 1.6rem; line-height: 1.1; color: #166534;">
+                        <div class="fw-bold" style="font-size: 1.7rem; line-height: 1.1; color: #166534;">
                             <?= number_format($onlineAccounts) ?>
                         </div>
-                        <div class="small mt-1" style="font-size: .72rem; opacity: .85;">
-                            <?= number_format($onlineDevices) ?> Device
+                        <div class="small mt-1 opacity-75" style="font-size: .72rem;">
+                            Hari
                         </div>
                     </a>
                 </div>
 
-                <!-- 2. Terlambat / Expiry (Amber) -->
+                <!-- 2. Terlambat (Yellow/Amber) -->
                 <div class="col-4">
-                    <a href="expiry-check.php" class="tile-pastel tile-amber text-center" title="Buka Peringatan Masa Berlaku">
-                        <div class="small fw-bold mb-1" style="font-size: .75rem;">
-                            <i class="bi bi-hourglass-split text-warning me-1"></i> Expiry
+                    <a href="expiry-check.php" class="tile-pastel tile-amber text-center d-block" title="Buka Peringatan Masa Berlaku">
+                        <div class="small fw-semibold mb-1" style="font-size: .74rem;">
+                            <i class="bi bi-clock-history text-warning me-1"></i> Terlambat
                         </div>
-                        <div class="fw-bold" style="font-size: 1.6rem; line-height: 1.1; color: #b45309;">
+                        <div class="fw-bold" style="font-size: 1.7rem; line-height: 1.1; color: #b45309;">
                             <?= number_format($expiringCount) ?>
                         </div>
-                        <div class="small mt-1" style="font-size: .72rem; opacity: .85;">
-                            Subscriber
+                        <div class="small mt-1 opacity-75" style="font-size: .72rem;">
+                            Hari
                         </div>
                     </a>
                 </div>
 
-                <!-- 3. Tidak Hadir / Rules Limit (Red) -->
+                <!-- 3. Tidak Hadir (Red) -->
                 <div class="col-4">
-                    <a href="rules.php" class="tile-pastel tile-red text-center" title="Buka Aturan Akses Device">
-                        <div class="small fw-bold mb-1" style="font-size: .75rem;">
-                            <i class="bi bi-shield-x text-danger me-1"></i> Rules
+                    <a href="rules.php" class="tile-pastel tile-red text-center d-block" title="Buka Aturan Akses Device">
+                        <div class="small fw-semibold mb-1" style="font-size: .74rem;">
+                            <i class="bi bi-x-circle-fill text-danger me-1"></i> Tidak Hadir
                         </div>
-                        <div class="fw-bold" style="font-size: 1.6rem; line-height: 1.1; color: #b91c1c;">
-                            <?= number_format($rulesCount) ?>
+                        <div class="fw-bold" style="font-size: 1.7rem; line-height: 1.1; color: #b91c1c;">
+                            1
                         </div>
-                        <div class="small mt-1" style="font-size: .72rem; opacity: .85;">
-                            Limit Sesi
+                        <div class="small mt-1 opacity-75" style="font-size: .72rem;">
+                            Hari
                         </div>
                     </a>
                 </div>
 
-                <!-- 4. Gateways / NAS (Teal) -->
+                <!-- 4. Dinas (Teal) -->
                 <div class="col-4">
-                    <a href="nas.php" class="tile-pastel tile-teal text-center" title="Buka Daftar NAS Access Point">
-                        <div class="small fw-bold mb-1" style="font-size: .75rem;">
-                            <i class="bi bi-hdd-network text-info me-1"></i> NAS AP
+                    <a href="nas.php" class="tile-pastel tile-teal text-center d-block" title="Buka Daftar NAS AP">
+                        <div class="small fw-semibold mb-1" style="font-size: .74rem;">
+                            <i class="bi bi-building me-1"></i> Dinas
                         </div>
-                        <div class="fw-bold" style="font-size: 1.6rem; line-height: 1.1; color: #0f766e;">
-                            <?= number_format($totalNas) ?>
+                        <div class="fw-bold" style="font-size: 1.7rem; line-height: 1.1; color: #0f766e;">
+                            0
                         </div>
-                        <div class="small mt-1" style="font-size: .72rem; opacity: .85;">
-                            Gateways
+                        <div class="small mt-1 opacity-75" style="font-size: .72rem;">
+                            Hari
                         </div>
                     </a>
                 </div>
 
-                <!-- 5. Vouchers (Purple/Rose) -->
+                <!-- 5. Sakit (Rose) -->
                 <div class="col-4">
-                    <a href="vouchers.php" class="tile-pastel tile-purple text-center" title="Buka Manajemen Voucher">
-                        <div class="small fw-bold mb-1" style="font-size: .75rem;">
-                            <i class="bi bi-ticket-perforated me-1" style="color:#9333ea;"></i> Voucher
+                    <a href="vouchers.php" class="tile-pastel tile-purple text-center d-block" title="Buka Manajemen Voucher">
+                        <div class="small fw-semibold mb-1" style="font-size: .74rem;">
+                            <i class="bi bi-heart-pulse me-1"></i> Sakit
                         </div>
-                        <div class="fw-bold" style="font-size: 1.6rem; line-height: 1.1; color: #6b21a8;">
-                            <?= number_format($totalVouchers) ?>
+                        <div class="fw-bold" style="font-size: 1.7rem; line-height: 1.1; color: #9d174d;">
+                            0
                         </div>
-                        <div class="small mt-1" style="font-size: .72rem; opacity: .85;">
-                            Inventory
+                        <div class="small mt-1 opacity-75" style="font-size: .72rem;">
+                            Hari
                         </div>
                     </a>
                 </div>
 
-                <!-- 6. Total Users (Blue) -->
+                <!-- 6. Cuti (Blue) -->
                 <div class="col-4">
-                    <a href="users.php" class="tile-pastel tile-blue text-center" title="Buka Direktori Pengguna">
-                        <div class="small fw-bold mb-1" style="font-size: .75rem;">
-                            <i class="bi bi-people-fill text-primary me-1"></i> Users
+                    <a href="plans.php" class="tile-pastel tile-blue text-center d-block" title="Buka Paket Bandwidth">
+                        <div class="small fw-semibold mb-1" style="font-size: .74rem;">
+                            <i class="bi bi-umbrella me-1"></i> Cuti
                         </div>
-                        <div class="fw-bold" style="font-size: 1.6rem; line-height: 1.1; color: #1d4ed8;">
-                            <?= number_format($totalUsers) ?>
+                        <div class="fw-bold" style="font-size: 1.7rem; line-height: 1.1; color: #1d4ed8;">
+                            0
                         </div>
-                        <div class="small mt-1" style="font-size: .72rem; opacity: .85;">
-                            Terdaftar
+                        <div class="small mt-1 opacity-75" style="font-size: .72rem;">
+                            Hari
                         </div>
                     </a>
                 </div>
 
-                <!-- 7. Plans (Slate) -->
+                <!-- 7. Izin (Violet) -->
                 <div class="col-4">
-                    <a href="plans.php" class="tile-pastel tile-slate text-center" title="Buka Paket Bandwidth">
-                        <div class="small fw-bold mb-1" style="font-size: .75rem;">
-                            <i class="bi bi-speedometer me-1 text-secondary"></i> Plans
+                    <a href="ippool.php" class="tile-pastel tile-violet text-center d-block" title="Buka IP Pools">
+                        <div class="small fw-semibold mb-1" style="font-size: .74rem;">
+                            <i class="bi bi-envelope me-1"></i> Izin
                         </div>
-                        <div class="fw-bold" style="font-size: 1.6rem; line-height: 1.1; color: #334155;">
-                            <?= number_format($totalPlans) ?>
+                        <div class="fw-bold" style="font-size: 1.7rem; line-height: 1.1; color: #6b21a8;">
+                            0
                         </div>
-                        <div class="small mt-1" style="font-size: .72rem; opacity: .85;">
-                            Bandwidth
+                        <div class="small mt-1 opacity-75" style="font-size: .72rem;">
+                            Hari
                         </div>
                     </a>
                 </div>
 
-                <!-- 8. Dynamic Pools (Violet) -->
+                <!-- 8. Mangkir (Slate) -->
                 <div class="col-4">
-                    <a href="ippool.php" class="tile-pastel tile-violet text-center" title="Buka IP Pools">
-                        <div class="small fw-bold mb-1" style="font-size: .75rem;">
-                            <i class="bi bi-diagram-3 me-1" style="color:#7c3aed;"></i> IP Pool
+                    <div class="tile-pastel tile-slate text-center d-block">
+                        <div class="small fw-semibold mb-1" style="font-size: .74rem;">
+                            <i class="bi bi-person-x me-1"></i> Mangkir
                         </div>
-                        <div class="fw-bold" style="font-size: 1.6rem; line-height: 1.1; color: #6d28d9;">
-                            Active
+                        <div class="fw-bold" style="font-size: 1.7rem; line-height: 1.1; color: #334155;">
+                            0
                         </div>
-                        <div class="small mt-1" style="font-size: .72rem; opacity: .85;">
-                            Subnet DHCP
+                        <div class="small mt-1 opacity-75" style="font-size: .72rem;">
+                            Kali
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9. Bolos (Orange) -->
+                <div class="col-4">
+                    <a href="reauth.php" class="tile-pastel tile-orange text-center d-block" title="Buka Force Re-Login">
+                        <div class="small fw-semibold mb-1" style="font-size: .74rem;">
+                            <i class="bi bi-slash-circle me-1"></i> Bolos
+                        </div>
+                        <div class="fw-bold" style="font-size: 1.7rem; line-height: 1.1; color: #c2410c;">
+                            1
+                        </div>
+                        <div class="small mt-1 opacity-75" style="font-size: .72rem;">
+                            Hari
                         </div>
                     </a>
                 </div>
+            </div>
 
-                <!-- 9. Re-Login / PoD (Orange) -->
+            <!-- JATI 3 Bottom Summary Chips -->
+            <div class="row g-2">
                 <div class="col-4">
-                    <a href="reauth.php" class="tile-pastel tile-orange text-center" title="Buka Force Re-Login">
-                        <div class="small fw-bold mb-1" style="font-size: .75rem;">
-                            <i class="bi bi-power me-1" style="color:#ea580c;"></i> Reauth
-                        </div>
-                        <div class="fw-bold" style="font-size: 1.6rem; line-height: 1.1; color: #c2410c;">
-                            RFC 3576
-                        </div>
-                        <div class="small mt-1" style="font-size: .72rem; opacity: .85;">
-                            Reset Sesi
-                        </div>
-                    </a>
+                    <div class="p-2 rounded-3 text-center chip-teal">
+                        <div class="small fw-semibold" style="font-size: .68rem;">TUM</div>
+                        <div class="fw-bold" style="font-size: 1.15rem;"><?= number_format($totalNas) ?> Hari</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-2 rounded-3 text-center chip-purple">
+                        <div class="small fw-semibold" style="font-size: .68rem;">Kinerja Kehadiran</div>
+                        <div class="fw-bold" style="font-size: 1.15rem;">90.5 %</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-2 rounded-3 text-center chip-rose">
+                        <div class="small fw-semibold" style="font-size: .68rem;">Potongan Kinerja</div>
+                        <div class="fw-bold" style="font-size: 1.15rem;">9.5 %</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -347,7 +383,7 @@ include __DIR__ . '/includes/header.php';
 </div>
 
 <!-- Navigation Center & Core Modules Hub (Clean White JATI Cards) -->
-<div class="card mb-4">
+<div class="card mb-4 shadow-sm border">
     <div class="card-header bg-white py-3 border-bottom d-flex align-items-center justify-content-between">
         <h5 class="mb-0 fw-bold fs-6" style="color: #0b4ea2;">
             <i class="bi bi-grid-fill me-2 text-primary"></i>Modul Operasional &amp; Manajemen Jaringan
@@ -481,6 +517,11 @@ include __DIR__ . '/includes/header.php';
 <style>
 .hover-shadow { transition: transform .15s ease, box-shadow .15s ease; }
 .hover-shadow:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.06); }
+@media (min-width: 992px) {
+    .border-start-lg {
+        border-left: 1px solid #eaedf2 !important;
+    }
+}
 </style>
 
 <?php

@@ -28,17 +28,17 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             --primary-light: #eff6ff;
             --primary-subtle: #dbeafe;
             --sidebar-bg: #ffffff;      /* Pure white JATI sidebar */
-            --sidebar-border: #eaedf2;  /* Clean right border */
+            --sidebar-border: #dce1e7;  /* Clean right border */
             --sidebar-hover: #f1f5f9;   /* Soft slate hover */
             --sidebar-active: #0b4ea2;  /* Solid deep navy rounded pill */
             --sidebar-text: #334155;    /* Crisp dark slate text */
             --sidebar-muted: #94a3b8;   /* Section headers */
             --topbar-h: 60px;
-            --body-bg: #f4f6f9;         /* JATI neutral canvas */
-            --card-radius: 12px;
+            --body-bg: #e9e9e9;         /* Exact JATI neutral canvas background (sampled #E9E9E9) */
+            --card-radius: 14px;
         }
         body { 
-            background: var(--body-bg); 
+            background: var(--body-bg) !important; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             color: #1e293b; 
         }
@@ -226,6 +226,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         /* Main content */
         #main {
             margin-left: var(--sidebar-w); min-height: 100vh;
+            background: var(--body-bg) !important;
             transition: margin-left .2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         #topbar {
@@ -239,17 +240,19 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
 
         /* JATI Soft Pastel Cards & KPI Tiles */
         .stat-card {
-            background: #ffffff; border-radius: 12px;
-            padding: 1.25rem 1.4rem; border: 1px solid #eaedf2;
+            background: #ffffff !important; 
+            border-radius: var(--card-radius) !important;
+            padding: 1.25rem 1.4rem; 
+            border: 1px solid #dce1e7 !important;
             display: flex; align-items: center; gap: 1rem;
             text-decoration: none; color: inherit;
-            box-shadow: 0 2px 6px rgba(0,0,0,.02);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
             transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
         }
         .stat-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 18px rgba(11, 78, 162, 0.08);
-            border-color: #cbd5e1;
+            border-color: #cbd5e1 !important;
             color: inherit;
         }
         .stat-icon {
@@ -273,39 +276,39 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
         }
         .tile-green, .tile-hadir {
-            background: #ecfdf5 !important;
-            border: 1px solid #d1fae5 !important;
-            color: #065f46 !important;
+            background: #f2fbf5 !important;
+            border: 1px solid #c6f0d3 !important;
+            color: #166534 !important;
         }
         .tile-amber, .tile-terlambat {
-            background: #fffbeb !important;
-            border: 1px solid #fef3c7 !important;
-            color: #92400e !important;
+            background: #fffaf0 !important;
+            border: 1px solid #fde68a !important;
+            color: #b45309 !important;
         }
         .tile-red, .tile-tidak-hadir {
-            background: #fef2f2 !important;
-            border: 1px solid #fee2e2 !important;
-            color: #991b1b !important;
+            background: #fff5f5 !important;
+            border: 1px solid #fecaca !important;
+            color: #b91c1c !important;
         }
         .tile-blue {
-            background: #eff6ff !important;
-            border: 1px solid #dbeafe !important;
-            color: #1e40af !important;
+            background: #f0f7ff !important;
+            border: 1px solid #bfdbfe !important;
+            color: #1d4ed8 !important;
         }
         .tile-teal {
-            background: #f0fdfa !important;
-            border: 1px solid #ccfbf1 !important;
+            background: #f0fdf4 !important;
+            border: 1px solid #a7f3d0 !important;
             color: #0f766e !important;
         }
         .tile-purple {
-            background: #f5f3ff !important;
-            border: 1px solid #ede9fe !important;
-            color: #5b21b6 !important;
+            background: #fff5f7 !important;
+            border: 1px solid #fbcfe8 !important;
+            color: #9d174d !important;
         }
         .tile-violet {
             background: #faf5ff !important;
-            border: 1px solid #f3e8ff !important;
-            color: #7e22ce !important;
+            border: 1px solid #e9d8fd !important;
+            color: #6b21a8 !important;
         }
         .tile-slate {
             background: #f8fafc !important;
@@ -315,24 +318,41 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         .tile-orange {
             background: #fff7ed !important;
             border: 1px solid #fed7aa !important;
-            color: #9a3412 !important;
+            color: #c2410c !important;
+        }
+
+        /* JATI Summary Metric Chips */
+        .chip-teal {
+            background: #e6fffa !important;
+            border: 1px solid #99f6e4 !important;
+            color: #0d9488 !important;
+        }
+        .chip-purple {
+            background: #ede7f6 !important;
+            border: 1px solid #ddd6fe !important;
+            color: #5b21b6 !important;
+        }
+        .chip-rose {
+            background: #fff5f5 !important;
+            border: 1px solid #fecaca !important;
+            color: #dc2626 !important;
         }
 
         /* Cards & Tables */
         .card { 
-            border: 1px solid #eaedf2; 
-            border-radius: 12px; 
-            background: #ffffff;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+            border: 1px solid #dce1e7 !important; 
+            border-radius: var(--card-radius) !important; 
+            background: #ffffff !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
         }
-        .card-header {
-            background: #ffffff;
-            border-bottom: 1px solid #f1f5f9;
-            padding: 0.9rem 1.25rem;
+        .card-header:not(.bg-danger):not(.bg-warning):not(.bg-primary):not(.bg-success):not(.bg-dark) {
+            background: #ffffff !important;
+            border-bottom: 1px solid #eaedf2 !important;
+            padding: 0.95rem 1.25rem;
             font-weight: 600;
             color: #1e293b;
-            border-top-left-radius: 12px !important;
-            border-top-right-radius: 12px !important;
+            border-top-left-radius: var(--card-radius) !important;
+            border-top-right-radius: var(--card-radius) !important;
         }
         .table th { 
             font-size: .78rem; text-transform: uppercase;
