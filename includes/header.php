@@ -21,16 +21,27 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
     </script>
     <style>
         :root {
-            --sidebar-w: 240px;
+            --sidebar-w: 245px;
             --sidebar-collapsed-w: 68px;
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --sidebar-bg: #1e293b;
-            --sidebar-hover: #334155;
-            --sidebar-active: #2563eb;
-            --topbar-h: 56px;
+            --primary: #0b4ea2;         /* Polman JATI Deep Navy */
+            --primary-dark: #073877;
+            --primary-light: #eff6ff;
+            --primary-subtle: #dbeafe;
+            --sidebar-bg: #ffffff;      /* Pure white JATI sidebar */
+            --sidebar-border: #eaedf2;  /* Clean right border */
+            --sidebar-hover: #f1f5f9;   /* Soft slate hover */
+            --sidebar-active: #0b4ea2;  /* Solid deep navy rounded pill */
+            --sidebar-text: #334155;    /* Crisp dark slate text */
+            --sidebar-muted: #94a3b8;   /* Section headers */
+            --topbar-h: 60px;
+            --body-bg: #f4f6f9;         /* JATI neutral canvas */
+            --card-radius: 12px;
         }
-        body { background: #f1f5f9; font-family: 'Segoe UI', sans-serif; }
+        body { 
+            background: var(--body-bg); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #1e293b; 
+        }
         html { scroll-behavior: smooth; }
 
         /* Modern Custom Scrollbar (Global) */
@@ -39,8 +50,8 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             scrollbar-color: #cbd5e1 transparent;
         }
         ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
         }
         ::-webkit-scrollbar-button {
             display: none;
@@ -67,17 +78,19 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             background: transparent;
         }
 
-        /* Sidebar */
+        /* Sidebar (JATI Clean Light Theme) */
         #sidebar {
             width: var(--sidebar-w); height: 100vh; position: fixed;
             top: 0; left: 0; background: var(--sidebar-bg);
+            border-right: 1px solid var(--sidebar-border);
             overflow-y: auto; overflow-x: hidden; z-index: 1000;
             transition: width .2s cubic-bezier(0.4, 0, 0.2, 1), transform .3s ease, box-shadow .2s ease;
             scrollbar-width: thin;
-            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+            scrollbar-color: #e2e8f0 transparent;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.02);
         }
         #sidebar::-webkit-scrollbar {
-            width: 6px;
+            width: 5px;
         }
         #sidebar::-webkit-scrollbar-button {
             display: none;
@@ -86,26 +99,27 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             background: transparent;
         }
         #sidebar::-webkit-scrollbar-thumb {
-            background-color: rgba(255, 255, 255, 0.18);
+            background-color: #cbd5e1;
             border-radius: 9999px;
             border: 1px solid transparent;
             background-clip: content-box;
         }
         #sidebar::-webkit-scrollbar-thumb:hover {
-            background-color: rgba(255, 255, 255, 0.35);
+            background-color: #94a3b8;
         }
         .sidebar-header {
-            padding: 0.85rem 1rem;
-            border-bottom: 1px solid #334155;
+            padding: 0.9rem 1.15rem;
+            border-bottom: 1px solid var(--sidebar-border);
             display: flex;
             align-items: center;
             justify-content: space-between;
             min-height: 62px;
             box-sizing: border-box;
             gap: 0.5rem;
+            background: #ffffff;
         }
         .sidebar-brand {
-            color: #fff;
+            color: #0b4ea2;
             display: flex;
             align-items: center;
             gap: .75rem;
@@ -114,41 +128,41 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             min-width: 0;
             flex: 1;
         }
-        .sidebar-brand:hover { color: #fff; opacity: 0.9; }
+        .sidebar-brand:hover { color: #073877; opacity: 0.95; }
         .sidebar-collapse-btn {
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 6px;
-            background: rgba(255, 255, 255, 0.08);
-            color: #94a3b8;
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: #f8fafc;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
             padding: 0;
             cursor: pointer;
             transition: all 0.15s ease;
             flex-shrink: 0;
         }
         .sidebar-collapse-btn:hover {
-            background: rgba(255, 255, 255, 0.22);
-            color: #fff;
-            border-color: rgba(255, 255, 255, 0.35);
+            background: #0b4ea2;
+            color: #ffffff;
+            border-color: #0b4ea2;
         }
         .sidebar-collapse-btn i,
         .collapse-footer-icon {
             transition: transform 0.2s ease;
         }
         .sidebar-brand .brand-icon-wrap {
-            width: 32px; height: 32px; flex-shrink: 0;
+            width: 34px; height: 34px; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
             border-radius: 8px; overflow: hidden;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+            box-shadow: 0 3px 10px rgba(11, 78, 162, 0.2);
             transition: transform .2s ease, box-shadow .2s ease;
         }
         .sidebar-brand:hover .brand-icon-wrap {
             transform: scale(1.06);
-            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+            box-shadow: 0 5px 14px rgba(11, 78, 162, 0.3);
         }
         .sidebar-brand .brand-icon-wrap img,
         .sidebar-brand .brand-icon-wrap svg {
@@ -158,30 +172,56 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             display: flex; flex-direction: column; line-height: 1.15; min-width: 0;
         }
         .sidebar-brand .brand-title {
-            letter-spacing: -0.01em; white-space: nowrap; font-weight: 700;
-            font-size: 1.05rem; color: #fff;
+            letter-spacing: -0.02em; white-space: nowrap; font-weight: 800;
+            font-size: 1.15rem; color: #0b4ea2;
         }
         .sidebar-brand .brand-ver {
-            font-size: .68rem; color: #94a3b8; font-weight: 500; margin-top: 2px;
+            font-size: .68rem; color: #64748b; font-weight: 600; margin-top: 1px;
             letter-spacing: 0.02em;
         }
         .sidebar-section {
-            padding: .8rem 1.2rem .3rem;
+            padding: .95rem 1.25rem .3rem;
             font-size: .65rem; text-transform: uppercase;
-            letter-spacing: .08em; color: #64748b; font-weight: 600;
+            letter-spacing: .08em; color: var(--sidebar-muted); font-weight: 700;
         }
         .sidebar-link {
             display: flex; align-items: center; gap: .75rem;
-            padding: .6rem 1.5rem; color: #94a3b8;
-            text-decoration: none; font-size: .875rem;
-            transition: .15s; border-left: 3px solid transparent;
+            padding: .62rem 1.1rem;
+            margin: .15rem .75rem;
+            border-radius: 8px;
+            color: #334155;
+            text-decoration: none; font-size: .875rem; font-weight: 500;
+            transition: all .15s ease;
         }
-        .sidebar-link:hover { background: var(--sidebar-hover); color: #e2e8f0; }
+        .sidebar-link:hover { 
+            background: var(--sidebar-hover); 
+            color: #0b4ea2; 
+        }
+        .sidebar-link:hover i {
+            color: #0b4ea2;
+        }
         .sidebar-link.active {
-            background: var(--sidebar-hover); color: #fff;
-            border-left-color: var(--primary);
+            background: #0b4ea2 !important; 
+            color: #ffffff !important;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(11, 78, 162, 0.22);
         }
-        .sidebar-link i { font-size: 1rem; width: 1.2rem; }
+        .sidebar-link.active i {
+            color: #ffffff !important;
+        }
+        .sidebar-link i { 
+            font-size: 1.05rem; 
+            width: 1.25rem; 
+            color: #64748b;
+            transition: color .15s ease;
+        }
+        .sidebar-link.text-danger {
+            color: #dc2626 !important;
+        }
+        .sidebar-link.text-danger:hover {
+            background: #fef2f2 !important;
+            color: #b91c1c !important;
+        }
 
         /* Main content */
         #main {
@@ -189,23 +229,26 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             transition: margin-left .2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         #topbar {
-            height: var(--topbar-h); background: #fff;
-            border-bottom: 1px solid #e2e8f0;
+            height: var(--topbar-h); background: #ffffff;
+            border-bottom: 1px solid var(--sidebar-border);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
             display: flex; align-items: center;
             padding: 0 1.5rem; position: sticky; top: 0; z-index: 999;
         }
         .content { padding: 1.5rem; }
 
+        /* JATI Soft Pastel Cards & KPI Tiles */
         .stat-card {
-            background: #fff; border-radius: 10px;
-            padding: 1.25rem 1.5rem; border: 1px solid #e2e8f0;
+            background: #ffffff; border-radius: 12px;
+            padding: 1.25rem 1.4rem; border: 1px solid #eaedf2;
             display: flex; align-items: center; gap: 1rem;
             text-decoration: none; color: inherit;
+            box-shadow: 0 2px 6px rgba(0,0,0,.02);
             transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
         }
         .stat-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(0,0,0,.06);
+            box-shadow: 0 6px 18px rgba(11, 78, 162, 0.08);
             border-color: #cbd5e1;
             color: inherit;
         }
@@ -217,12 +260,87 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         .stat-value { font-size: 1.6rem; font-weight: 700; color: #1e293b; line-height: 1; }
         .stat-label { font-size: .8rem; color: #64748b; margin-top: .2rem; }
 
-        /* Table */
-        .card { border: 1px solid #e2e8f0; border-radius: 10px; }
-        .table th { font-size: .78rem; text-transform: uppercase;
-                    letter-spacing: .05em; color: #64748b; font-weight: 600;
-                    border-bottom: 2px solid #e2e8f0; padding: .75rem 1rem; }
-        .table td { padding: .7rem 1rem; vertical-align: middle; font-size: .875rem; }
+        /* JATI-Inspired Soft Pastel Metric Grid */
+        .tile-pastel {
+            border-radius: 12px;
+            padding: 1.1rem 1.25rem;
+            transition: transform .15s ease, box-shadow .15s ease;
+            text-decoration: none;
+            display: block;
+        }
+        .tile-pastel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+        }
+        .tile-green, .tile-hadir {
+            background: #ecfdf5 !important;
+            border: 1px solid #d1fae5 !important;
+            color: #065f46 !important;
+        }
+        .tile-amber, .tile-terlambat {
+            background: #fffbeb !important;
+            border: 1px solid #fef3c7 !important;
+            color: #92400e !important;
+        }
+        .tile-red, .tile-tidak-hadir {
+            background: #fef2f2 !important;
+            border: 1px solid #fee2e2 !important;
+            color: #991b1b !important;
+        }
+        .tile-blue {
+            background: #eff6ff !important;
+            border: 1px solid #dbeafe !important;
+            color: #1e40af !important;
+        }
+        .tile-teal {
+            background: #f0fdfa !important;
+            border: 1px solid #ccfbf1 !important;
+            color: #0f766e !important;
+        }
+        .tile-purple {
+            background: #f5f3ff !important;
+            border: 1px solid #ede9fe !important;
+            color: #5b21b6 !important;
+        }
+        .tile-violet {
+            background: #faf5ff !important;
+            border: 1px solid #f3e8ff !important;
+            color: #7e22ce !important;
+        }
+        .tile-slate {
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #334155 !important;
+        }
+        .tile-orange {
+            background: #fff7ed !important;
+            border: 1px solid #fed7aa !important;
+            color: #9a3412 !important;
+        }
+
+        /* Cards & Tables */
+        .card { 
+            border: 1px solid #eaedf2; 
+            border-radius: 12px; 
+            background: #ffffff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+        }
+        .card-header {
+            background: #ffffff;
+            border-bottom: 1px solid #f1f5f9;
+            padding: 0.9rem 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+            border-top-left-radius: 12px !important;
+            border-top-right-radius: 12px !important;
+        }
+        .table th { 
+            font-size: .78rem; text-transform: uppercase;
+            letter-spacing: .05em; color: #64748b; font-weight: 600;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0; padding: .8rem 1rem; 
+        }
+        .table td { padding: .75rem 1rem; vertical-align: middle; font-size: .875rem; border-color: #f1f5f9; }
         .table tbody tr:hover { background: #f8fafc; }
 
         /* Dropdowns inside table-responsive */
@@ -238,11 +356,28 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         .badge-offline { background: #fee2e2; color: #991b1b; }
 
         /* Buttons */
-        .btn-primary { background: var(--primary); border-color: var(--primary); }
-        .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+        .btn-primary { 
+            background-color: #0b4ea2; 
+            border-color: #0b4ea2; 
+            color: #ffffff;
+        }
+        .btn-primary:hover { 
+            background-color: #073877; 
+            border-color: #073877; 
+            color: #ffffff;
+        }
+        .btn-outline-primary { 
+            color: #0b4ea2; 
+            border-color: #0b4ea2; 
+        }
+        .btn-outline-primary:hover { 
+            background-color: #0b4ea2; 
+            border-color: #0b4ea2; 
+            color: #ffffff;
+        }
 
         /* Alerts */
-        .alert { border-radius: 8px; font-size: .875rem; }
+        .alert { border-radius: 10px; font-size: .875rem; }
 
         /* Modals */
         .modal-content {
@@ -257,7 +392,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
 
         /* Page header */
         .page-header { margin-bottom: 1.5rem; }
-        .page-header h4 { font-weight: 700; color: #1e293b; margin: 0; }
+        .page-header h4 { font-weight: 700; color: #0b4ea2; margin: 0; letter-spacing: -0.01em; }
         .page-header p { color: #64748b; font-size: .875rem; margin: .2rem 0 0; }
 
         /* Collapsed Sidebar (Minimized state) */
@@ -301,7 +436,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             padding: 0;
             margin: 0.6rem 0.8rem;
             height: 1px;
-            background: rgba(255, 255, 255, 0.08);
+            background: #e2e8f0;
             font-size: 0;
             color: transparent;
             overflow: hidden;
@@ -311,8 +446,9 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         body.sidebar-collapsed .sidebar-link {
             justify-content: center;
             padding: 0.75rem 0;
+            margin: 0.2rem 0.5rem;
             gap: 0;
-            border-left-width: 3px;
+            border-radius: 8px;
         }
         html.sidebar-collapsed-preload .sidebar-link .link-text,
         body.sidebar-collapsed .sidebar-link .link-text {
@@ -331,17 +467,16 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
 
         /* Tooltip styling for collapsed sidebar */
         .sidebar-tooltip .tooltip-inner {
-            background-color: #0f172a;
-            color: #f8fafc;
+            background-color: #0b4ea2;
+            color: #ffffff;
             font-size: 0.8rem;
             font-weight: 500;
             padding: 0.35rem 0.75rem;
             border-radius: 6px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.12);
+            box-shadow: 0 4px 14px rgba(11, 78, 162, 0.25);
         }
         .sidebar-tooltip .tooltip-arrow::before {
-            border-right-color: #0f172a !important;
+            border-right-color: #0b4ea2 !important;
         }
         body:not(.sidebar-collapsed) .sidebar-tooltip,
         body.sidebar-collapsed .tooltip {
@@ -358,10 +493,11 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                Automatically opens on mouse hover and closes on mouse leave */
             body.sidebar-collapsed #sidebar:hover {
                 width: var(--sidebar-w) !important;
-                box-shadow: 10px 0 30px rgba(0, 0, 0, 0.45);
+                box-shadow: 10px 0 30px rgba(0, 0, 0, 0.08);
+                background: #ffffff !important;
             }
             body.sidebar-collapsed #sidebar:hover .sidebar-header {
-                padding: 0.85rem 1rem !important;
+                padding: 0.9rem 1.15rem !important;
                 justify-content: space-between !important;
                 flex-direction: row !important;
                 gap: 0.5rem !important;
@@ -376,8 +512,8 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                 animation: fadeInText 0.18s ease-in-out forwards;
             }
             body.sidebar-collapsed #sidebar:hover .sidebar-brand .brand-icon-wrap {
-                width: 32px !important;
-                height: 32px !important;
+                width: 34px !important;
+                height: 34px !important;
                 margin: 0 !important;
             }
             body.sidebar-collapsed #sidebar:hover .sidebar-collapse-btn i,
@@ -385,19 +521,20 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                 transform: rotate(0deg) !important;
             }
             body.sidebar-collapsed #sidebar:hover .sidebar-section {
-                padding: .8rem 1.2rem .3rem !important;
+                padding: .95rem 1.25rem .3rem !important;
                 margin: 0 !important;
                 height: auto !important;
                 background: transparent !important;
                 font-size: .65rem !important;
-                color: #64748b !important;
+                color: var(--sidebar-muted) !important;
                 line-height: normal !important;
                 overflow: visible !important;
                 display: block !important;
             }
             body.sidebar-collapsed #sidebar:hover .sidebar-link {
                 justify-content: flex-start !important;
-                padding: .6rem 1.5rem !important;
+                padding: .62rem 1.1rem !important;
+                margin: .15rem .75rem !important;
                 gap: .75rem !important;
             }
             body.sidebar-collapsed #sidebar:hover .sidebar-link .link-text {
@@ -405,8 +542,8 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                 animation: fadeInText 0.18s ease-in-out forwards;
             }
             body.sidebar-collapsed #sidebar:hover .sidebar-link i {
-                font-size: 1rem !important;
-                width: 1.2rem !important;
+                font-size: 1.05rem !important;
+                width: 1.25rem !important;
                 margin: 0 !important;
                 text-align: left !important;
             }
@@ -425,8 +562,8 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             body.sidebar-collapsed .sidebar-section {
                 height: auto !important;
                 font-size: .65rem !important;
-                color: #64748b !important;
-                padding: .8rem 1.2rem .3rem !important;
+                color: var(--sidebar-muted) !important;
+                padding: .95rem 1.25rem .3rem !important;
                 margin: 0 !important;
                 background: transparent !important;
             }
@@ -437,13 +574,14 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
             }
             body.sidebar-collapsed .sidebar-link {
                 justify-content: flex-start !important;
-                padding: .6rem 1.5rem !important;
+                padding: .62rem 1.1rem !important;
+                margin: .15rem .75rem !important;
                 gap: .75rem !important;
             }
             body.sidebar-collapsed .sidebar-link i {
                 margin: 0 !important;
-                width: 1.2rem !important;
-                font-size: 1rem !important;
+                width: 1.25rem !important;
+                font-size: 1.05rem !important;
             }
         }
     </style>
@@ -466,13 +604,13 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                 if (file_exists($headerLogo)) {
                     readfile($headerLogo);
                 } else {
-                    echo '<img src="assets/img/logo.svg?v=tree_' . APP_VERSION . '" alt="' . APP_NAME . ' Logo" width="32" height="32">';
+                    echo '<img src="assets/img/logo.svg?v=tree_' . APP_VERSION . '" alt="' . APP_NAME . ' Logo" width="34" height="34">';
                 }
                 ?>
             </div>
             <div class="brand-info">
                 <span class="brand-title"><?= APP_NAME ?></span>
-                <span class="brand-ver">v<?= APP_VERSION ?></span>
+                <span class="brand-ver">v<?= APP_VERSION ?> &bull; POLMAN</span>
             </div>
         </a>
         <button type="button" class="sidebar-collapse-btn sidebar-collapse-trigger d-none d-md-flex" title="Minimize Sidebar" aria-label="Minimize Sidebar">
@@ -553,7 +691,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         <i class="bi bi-box-arrow-left"></i> <span class="link-text">Logout</span>
     </a>
 
-    <div class="sidebar-collapse-footer d-none d-md-block border-top border-secondary border-opacity-25 mt-2 py-1">
+    <div class="sidebar-collapse-footer d-none d-md-block border-top border-secondary border-opacity-10 mt-2 py-1">
         <button type="button" class="sidebar-link sidebar-collapse-trigger w-100 border-0 bg-transparent text-secondary text-start py-2" title="Minimize / Expand Sidebar" data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Minimize / Expand Sidebar">
             <i class="bi bi-chevron-bar-left collapse-footer-icon"></i> <span class="link-text">Minimize Sidebar</span>
         </button>
@@ -562,7 +700,7 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
 
 <!-- Main -->
 <div id="main">
-    <!-- Topbar -->
+    <!-- Topbar (JATI Inspired Clean Design) -->
     <div id="topbar">
         <!-- Desktop Sidebar Collapse Toggle Button -->
         <button id="sidebarCollapseBtn" class="sidebar-collapse-trigger btn btn-sm btn-light border me-2 d-none d-md-inline-flex align-items-center justify-content-center shadow-none" 
@@ -574,18 +712,57 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         <button class="btn btn-sm btn-light border d-md-none me-2" onclick="document.getElementById('sidebar').classList.toggle('show')" aria-label="Toggle Mobile Menu" style="width: 34px; height: 34px; border-radius: 8px;">
             <i class="bi bi-list fs-5"></i>
         </button>
-        <span class="text-muted small"><i class="bi bi-circle-fill text-success me-1" style="font-size:.5rem"></i>Connected to FreeRADIUS</span>
-        <div class="ms-auto d-flex align-items-center gap-3">
-            <a href="docs/RadiusManager_User_Guide.pdf" target="_blank" class="btn btn-outline-secondary btn-sm py-1 px-2.5 d-none d-md-inline-flex align-items-center gap-1.5" title="Download & View User Manual (PDF)">
-                <i class="bi bi-file-earmark-pdf text-danger"></i> <span style="font-size:.78rem; font-weight:600;">User Manual (PDF)</span>
+
+        <!-- Service Status Badge & Breadcrumb Indicator -->
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 d-inline-flex align-items-center gap-1.5 rounded-pill shadow-xs" style="font-size: .72rem; font-weight: 600;">
+                <i class="bi bi-circle-fill text-success" style="font-size: .4rem"></i> FreeRADIUS Online
+            </span>
+            <span class="text-muted small ms-2 d-none d-lg-inline" style="font-size: .78rem;">
+                CENDANA <span class="mx-1 text-secondary">&rsaquo;</span> <?= htmlspecialchars($page_title ?? 'Dashboard') ?>
+            </span>
+        </div>
+
+        <div class="ms-auto d-flex align-items-center gap-2.5">
+            <!-- User Manual Link -->
+            <a href="docs/RadiusManager_User_Guide.pdf" target="_blank" class="btn btn-outline-secondary btn-sm py-1 px-2.5 d-none d-md-inline-flex align-items-center gap-1.5" style="border-radius: 8px;" title="Download &amp; View User Manual (PDF)">
+                <i class="bi bi-file-earmark-pdf text-danger"></i> <span style="font-size:.78rem; font-weight:600;">Manual PDF</span>
             </a>
-            <a href="settings.php?tab=account" class="text-decoration-none small text-secondary d-flex align-items-center gap-2" title="Settings & Account">
-                <i class="bi bi-person-circle fs-6"></i>
-                <span class="fw-semibold text-dark"><?= htmlspecialchars($_SESSION['admin_name'] ?? $_SESSION['admin_user'] ?? 'admin') ?></span>
-                <span class="badge <?= getAdminRole() === 'superadmin' ? 'bg-danger-subtle text-danger border border-danger-subtle' : (getAdminRole() === 'readonly' ? 'bg-secondary-subtle text-secondary border' : 'bg-primary-subtle text-primary border border-primary-subtle') ?> px-2 py-0.5" style="font-size:.65rem">
-                    <?= ucfirst(htmlspecialchars(getAdminRole())) ?>
-                </span>
-            </a>
+
+            <!-- Date Pill (Matching JATI Theme) -->
+            <span class="badge bg-white text-secondary border px-2.5 py-1.5 d-none d-sm-inline-flex align-items-center gap-1.5 shadow-sm" style="border-radius: 8px; font-weight: 500; font-size: .78rem;">
+                <i class="bi bi-calendar3 text-primary"></i> <?= date('D, d M Y') ?>
+            </span>
+
+            <!-- User Profile Dropdown Capsule (JATI Style) -->
+            <?php
+            $adminDisplay = $_SESSION['admin_name'] ?? $_SESSION['admin_user'] ?? 'Administrator';
+            $adminInitial = strtoupper(substr($adminDisplay, 0, 1));
+            ?>
+            <div class="dropdown">
+                <a href="#" class="d-flex align-items-center gap-2 text-decoration-none dropdown-toggle py-1 px-2 rounded-3" data-bs-toggle="dropdown" aria-expanded="false" style="color: #334155; transition: background .15s ease;">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" style="width: 32px; height: 32px; background: #0b4ea2; font-size: .82rem;">
+                        <?= $adminInitial ?>
+                    </div>
+                    <div class="d-none d-sm-flex flex-column text-start" style="line-height: 1.15;">
+                        <span class="fw-semibold text-dark" style="font-size: .84rem;"><?= htmlspecialchars($adminDisplay) ?></span>
+                        <span class="text-muted" style="font-size: .68rem;">
+                            <?= ucfirst(htmlspecialchars(getAdminRole())) ?> &bull; UPA TIK
+                        </span>
+                    </div>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="border-radius: 12px; min-width: 215px;">
+                    <li class="px-3 py-2 border-bottom">
+                        <div class="fw-bold text-dark small"><?= htmlspecialchars($adminDisplay) ?></div>
+                        <div class="text-muted" style="font-size: .72rem;">Role: <?= ucfirst(htmlspecialchars(getAdminRole())) ?> &bull; UPA TIK</div>
+                    </li>
+                    <li><a class="dropdown-item py-2 small" href="welcome.php"><i class="bi bi-house-door me-2 text-primary"></i>Home Hub</a></li>
+                    <li><a class="dropdown-item py-2 small" href="settings.php?tab=account"><i class="bi bi-person-gear me-2 text-primary"></i>Profile &amp; Password</a></li>
+                    <li><a class="dropdown-item py-2 small" href="docs/RadiusManager_User_Guide.pdf" target="_blank"><i class="bi bi-file-earmark-pdf me-2 text-danger"></i>User Manual (PDF)</a></li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li><a class="dropdown-item py-2 small text-danger" href="logout.php"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
+                </ul>
+            </div>
         </div>
     </div>
 

@@ -56,7 +56,7 @@ $timeout = isset($_GET['timeout']);
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 9999px; border: 2px solid transparent; background-clip: content-box; }
         ::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
-        body { background: #f1f5f9; min-height: 100vh;
+        body { background: #f4f6f9; min-height: 100vh;
                display: flex; align-items: center; justify-content: center; }
         .login-card { width: 100%; max-width: 380px; background: #fff;
                       border-radius: 12px; padding: 2.5rem;
@@ -65,10 +65,10 @@ $timeout = isset($_GET['timeout']);
                           box-shadow: 0 6px 20px rgba(16,185,129,.28), 0 3px 10px rgba(37,99,235,.22); margin-bottom: 1rem; }
         .brand-logo-img img,
         .brand-logo-img svg { width: 100%; height: 100%; display: block; }
-        .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 .2rem rgba(37,99,235,.15); }
-        .btn-login { background: #2563eb; border: none; width: 100%;
+        .form-control:focus { border-color: #0b4ea2; box-shadow: 0 0 0 .2rem rgba(11,78,162,.15); }
+        .btn-login { background: #0b4ea2; border: none; width: 100%; border-radius: 8px;
                      padding: .7rem; font-weight: 600; }
-        .btn-login:hover { background: #1d4ed8; }
+        .btn-login:hover { background: #073877; }
     </style>
 </head>
 <body>
@@ -85,7 +85,7 @@ $timeout = isset($_GET['timeout']);
             ?>
         </div>
     </div>
-    <h4 class="text-center fw-bold mb-1"><?= APP_NAME ?></h4>
+    <h4 class="text-center fw-bold mb-1" style="color: #0b4ea2; letter-spacing: -0.01em;"><?= APP_NAME ?></h4>
     <p class="text-center text-secondary small mb-1" style="font-size: .78rem; font-weight: 500;"><?= defined('APP_FULL_NAME') ? APP_FULL_NAME : 'Central Evaluasi Network, Direktori Akun, dan Navigasi Autentikasi' ?></p>
     <p class="text-center text-muted mb-4" style="font-size: .7rem; letter-spacing: .06em; text-transform: uppercase;">FreeRADIUS Management &amp; Access Control</p>
 

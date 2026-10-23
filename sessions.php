@@ -126,7 +126,7 @@ include __DIR__ . '/includes/header.php';
                 <li class="breadcrumb-item active" aria-current="page">Active Sessions</li>
             </ol>
         </nav>
-        <h4 class="fw-bold mb-1"><i class="bi bi-activity text-success me-2"></i>Active Online Sessions</h4>
+        <h4 class="fw-bold mb-1" style="color: #0b4ea2;"><i class="bi bi-activity text-success me-2"></i>Active Online Sessions</h4>
         <p class="text-secondary small mb-0">Live authenticated subscribers currently connected across Access Points and Gateways.</p>
     </div>
     <div class="d-flex align-items-center gap-2">

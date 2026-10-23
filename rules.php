@@ -627,7 +627,7 @@ include __DIR__ . '/includes/header.php';
 <!-- Page Header -->
 <div class="page-header d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 mb-3">
     <div>
-        <h4 class="mb-1"><i class="bi bi-shield-lock me-2 text-primary"></i>Device &amp; Session Access Rules</h4>
+        <h4 class="mb-1 fw-bold" style="color: #0b4ea2;"><i class="bi bi-shield-lock me-2"></i>Device &amp; Session Access Rules</h4>
         <p class="text-muted mb-0">Manage concurrent device connectivity policies (<code>Simultaneous-Use</code>) across subscriber accounts and user groups.</p>
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -653,50 +653,45 @@ include __DIR__ . '/includes/header.php';
 </div>
 <?php endif; ?>
 
-<!-- Summary Stat Cards -->
+<!-- Summary Stat Cards (JATI Pastel Cards) -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
-        <div class="stat-card">
-            <div class="stat-icon" style="background:#eff6ff">
-                <i class="bi bi-people text-primary"></i>
+        <div class="tile-pastel tile-blue shadow-xs">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="small fw-bold" style="font-size: .78rem;"><i class="bi bi-people-fill me-1"></i> Registered Accounts</span>
             </div>
-            <div>
-                <div class="stat-value"><?= number_format($totalRegistered) ?></div>
-                <div class="stat-label">Registered Accounts <i class="bi bi-chevron-right small text-muted"></i></div>
-            </div>
+            <div class="stat-value fw-bold" style="color: #1d4ed8; font-size: 1.85rem;"><?= number_format($totalRegistered) ?></div>
+            <div class="small mt-1 opacity-75" style="font-size: .75rem;">Total RADIUS Subscribers</div>
         </div>
     </div>
     <div class="col-6 col-lg-3">
-        <a href="rules.php?rule=1" class="stat-card" title="View Single Device Accounts">
-            <div class="stat-icon" style="background:#f0fdf4">
-                <i class="bi bi-phone text-success"></i>
+        <a href="rules.php?rule=1" class="tile-pastel tile-green shadow-xs" title="View Single Device Accounts">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="small fw-bold" style="font-size: .78rem;"><i class="bi bi-phone me-1"></i> Single Device Limit</span>
+                <span class="badge bg-success py-0.5 px-1.5 rounded-pill text-white" style="font-size:.65rem;">1:1 Ratio</span>
             </div>
-            <div>
-                <div class="stat-value text-success"><?= number_format($countSingle) ?></div>
-                <div class="stat-label">Single Device Limit <span class="badge bg-success-subtle text-success border border-success-subtle ms-1" style="font-size:.68rem;">1:1 Ratio</span></div>
-            </div>
+            <div class="stat-value fw-bold" style="color: #166534; font-size: 1.85rem;"><?= number_format($countSingle) ?></div>
+            <div class="small mt-1 opacity-75" style="font-size: .75rem;">Strict 1 Device Policy</div>
         </a>
     </div>
     <div class="col-6 col-lg-3">
-        <a href="rules.php?rule=multi" class="stat-card" title="View Multi-Device Accounts">
-            <div class="stat-icon" style="background:#fdf4ff">
-                <i class="bi bi-laptop" style="color:#9333ea"></i>
+        <a href="rules.php?rule=multi" class="tile-pastel tile-purple shadow-xs" title="View Multi-Device Accounts">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="small fw-bold" style="font-size: .78rem;"><i class="bi bi-laptop me-1"></i> Multi-Device (2+)</span>
+                <span class="badge bg-purple text-white py-0.5 px-1.5 rounded-pill" style="font-size:.65rem; background:#9333ea;">Shared</span>
             </div>
-            <div>
-                <div class="stat-value" style="color:#9333ea"><?= number_format($countMulti) ?></div>
-                <div class="stat-label">Multi-Device (2+) <span class="badge bg-purple-subtle text-purple border ms-1" style="font-size:.68rem; background:#f3e8ff; color:#9333ea;">Shared</span></div>
-            </div>
+            <div class="stat-value fw-bold" style="color: #6b21a8; font-size: 1.85rem;"><?= number_format($countMulti) ?></div>
+            <div class="small mt-1 opacity-75" style="font-size: .75rem;">Multi-Device Allowance</div>
         </a>
     </div>
     <div class="col-6 col-lg-3">
-        <a href="sessions.php" class="stat-card" title="View Live Online Sessions">
-            <div class="stat-icon" style="background:#fefce8">
-                <i class="bi bi-broadcast text-warning"></i>
+        <a href="sessions.php" class="tile-pastel tile-teal shadow-xs" title="View Live Online Sessions">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <span class="small fw-bold" style="font-size: .78rem;"><i class="bi bi-broadcast me-1"></i> Online Accounts</span>
+                <span class="badge bg-info text-white py-0.5 px-1.5 rounded-pill" style="font-size:.65rem; background:#0f766e;"><?= number_format($onlineDevices) ?> Dev</span>
             </div>
-            <div>
-                <div class="stat-value text-dark"><?= number_format($onlineAccounts) ?></div>
-                <div class="stat-label">Online Accounts <span class="badge bg-warning-subtle text-warning border border-warning-subtle text-dark ms-1" style="font-size:.68rem;"><?= number_format($onlineDevices) ?> Devices</span></div>
-            </div>
+            <div class="stat-value fw-bold" style="color: #0f766e; font-size: 1.85rem;"><?= number_format($onlineAccounts) ?></div>
+            <div class="small mt-1 opacity-75" style="font-size: .75rem;">Active Real-Time Sessions</div>
         </a>
     </div>
 </div>

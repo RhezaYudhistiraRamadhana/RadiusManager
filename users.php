@@ -123,7 +123,7 @@ include __DIR__ . '/includes/header.php';
 
 <div class="page-header d-flex align-items-center justify-content-between">
     <div>
-        <h4><i class="bi bi-people me-2 text-primary"></i>Users</h4>
+        <h4 class="fw-bold" style="color: #0b4ea2;"><i class="bi bi-people me-2"></i>Users</h4>
         <p class="mb-0 text-muted">
             <?= number_format($total) ?> total users
             <?php if ($groupFilter !== ''): ?>
